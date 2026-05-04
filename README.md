@@ -2,6 +2,10 @@
 
 A browser-based Chinese training app for listening, writing, and reading practice.
 
+## Live Site
+
+https://ha-san-ali.github.io/chinese-trainer/
+
 ## Run
 
 Open `index.html` in a browser, or run a local static server:
@@ -23,11 +27,9 @@ npm run build
 
 ## GitHub Pages
 
-This repo is ready for static GitHub Pages deployment from the `main` branch using the workflow in `.github/workflows/deploy-pages.yml`.
+This public repo deploys to GitHub Pages from the `main` branch using the workflow in `.github/workflows/deploy-pages.yml`.
 
-After creating the GitHub repository and pushing `main`, configure Pages with GitHub Actions as the build type. The workflow validates the app, builds `_site/`, uploads the Pages artifact, and deploys it.
-
-GitHub Pages is available from private repositories on GitHub Pro, Team, Enterprise Cloud, and Enterprise Server plans. Private Pages access control is an Enterprise Cloud feature.
+Pages is configured with GitHub Actions as the build type. The workflow validates the app, builds `_site/`, uploads the Pages artifact, and deploys it.
 
 ## Features
 

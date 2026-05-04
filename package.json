@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "A simplified Mandarin trainer for listening, writing, and reading practice.",
-  "homepage": "https://bobabar.github.io/chinese-trainer/",
+  "homepage": "https://brownsugarboba.com/",
   "scripts": {
     "build:word-data": "node scripts/build-word-data.js",
     "check": "npm run check:syntax && npm run check:data && npm run check:app",

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A simplified Mandarin trainer for listening, writing, and reading practice.">
+    <meta name="theme-color" content="#b62935">
+    <meta property="og:title" content="Chinese Trainer">
+    <meta property="og:description" content="30-sentence simplified Mandarin practice sessions for listening, writing, and reading.">
+    <meta property="og:type" content="website">
+    <title>Chinese Trainer</title>
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message">
+        Chinese Trainer requires JavaScript for session generation, answer checking, and audio playback.
+      </div>
+    </noscript>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">中</span>
+          <div>
+            <h1>Chinese Trainer</h1>
+            <p>30-sentence Chinese practice sessions</p>
+          </div>
+        </div>
+
+        <nav class="mode-nav" aria-label="Training type">
+          <button class="mode-tab" type="button" data-mode="listening">Listening</button>
+          <button class="mode-tab" type="button" data-mode="writing">Writing</button>
+          <button class="mode-tab" type="button" data-mode="reading">Reading</button>
+        </nav>
+      </header>
+
+      <details class="global-options" aria-label="Global options" open>
+        <summary class="options-summary">Options</summary>
+        <div class="options-body">
+          <div class="option-group">
+            <span class="option-label">Difficulty filter</span>
+            <div class="check-row" id="levelOptions"></div>
+          </div>
+
+          <label class="field compact-field">
+            <span>Voice speed</span>
+            <select id="voiceSpeed">
+              <option value="normal">Normal</option>
+              <option value="slow">Slow</option>
+              <option value="very-slow">Very slow</option>
+            </select>
+          </label>
+        </div>
+      </details>
+
+      <main id="app" class="workspace" aria-live="polite"></main>
+    </div>
+
+    <script src="./sentence-data.js" defer></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

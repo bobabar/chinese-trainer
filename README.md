@@ -4,7 +4,7 @@ A browser-based Chinese training app for listening, writing, and reading practic
 
 ## Live Site
 
-https://ha-san-ali.github.io/chinese-trainer/
+https://bobabar.github.io/chinese-trainer/
 
 ## Run
 

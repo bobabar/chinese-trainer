@@ -33,9 +33,9 @@ const MODES = {
 const ACCEPTANCE_THRESHOLD = 0.7;
 
 const VOICE_SPEEDS = {
-  normal: 1,
-  slow: 0.82,
-  "very-slow": 0.68,
+  normal: 0.82,
+  slow: 0.68,
+  "very-slow": 0.52,
 };
 
 const SENTENCES = [];

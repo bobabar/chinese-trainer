@@ -8,6 +8,7 @@ const FILES = [
   "app.js",
   "styles.css",
   "sentence-data.js",
+  "word-data.js",
   "NOTICE.md",
   ".nojekyll",
 ];

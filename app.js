@@ -50,6 +50,13 @@ if (typeof window !== "undefined" && Array.isArray(window.ADDITIONAL_SENTENCES))
   });
 }
 
+const CHINESE_WORD_DATA =
+  typeof window !== "undefined" && window.CHINESE_WORD_DATA && typeof window.CHINESE_WORD_DATA === "object"
+    ? window.CHINESE_WORD_DATA
+    : {};
+const MAX_CHINESE_WORD_LENGTH = Math.max(1, ...Object.keys(CHINESE_WORD_DATA).map((word) => word.length));
+const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
+
 const state = {
   mode: "listening",
   selectedLevels: new Set(["beginner"]),
@@ -73,6 +80,7 @@ function init() {
   loadSettings();
   renderLevelOptions();
   bindTopLevelControls();
+  bindGlossTooltipAlignment();
   loadVoices();
   render();
 }
@@ -136,6 +144,22 @@ function bindTopLevelControls() {
   voiceSpeed.addEventListener("change", () => {
     state.voiceSpeed = voiceSpeed.value;
     saveSettings();
+  });
+}
+
+function bindGlossTooltipAlignment() {
+  document.addEventListener("pointerover", (event) => {
+    const target = event.target.closest?.(".annotated-word.has-gloss");
+    if (target) {
+      alignGlossTooltip(target);
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const target = event.target.closest?.(".annotated-word.has-gloss");
+    if (target) {
+      alignGlossTooltip(target);
+    }
   });
 }
 
@@ -388,6 +412,7 @@ function renderSession() {
         <textarea
           id="answerInput"
           lang="${session.mode === "writing" ? "zh-CN" : "en"}"
+          class="${session.mode === "writing" ? "chinese-text" : ""}"
           autocomplete="off"
           autocapitalize="none"
           spellcheck="false"
@@ -439,7 +464,7 @@ function buildSentenceMarkup(item, mode) {
   }
 
   if (mode === "reading") {
-    return `<p class="sentence-text zh" lang="zh-CN">${escapeHtml(item.zh)}</p>`;
+    return `<p class="sentence-text zh chinese-text" lang="zh-CN">${escapeHtml(item.zh)}</p>`;
   }
 
   return `
@@ -473,20 +498,145 @@ function buildFeedbackMarkup(assessment, item) {
       </div>
       <div class="answer-pair">
         <div class="answer-box">
-          <span>Your answer</span>
-          <p>${escapeHtml(assessment.answer || "No answer entered")}</p>
+          <span class="answer-box-label">Your answer</span>
+          ${buildPlainAnswerText(assessment.answer || "No answer entered")}
         </div>
-        <div class="answer-box">
-          <span>Expected</span>
-          <p>${escapeHtml(expectedPrimary)}</p>
-        </div>
+        ${buildAnswerBox("Expected", expectedPrimary)}
       </div>
-      <div class="answer-box">
-        <span>Reference</span>
-        <p>${escapeHtml(expectedSecondary)}</p>
-      </div>
+      ${buildAnswerBox("Reference", expectedSecondary)}
     </section>
   `;
+}
+
+function buildPlainAnswerText(value) {
+  const className = containsChinese(value) ? ` class="answer-text chinese-text"` : ` class="answer-text"`;
+  const lang = containsChinese(value) ? ` lang="zh-CN"` : "";
+  return `<p${className}${lang}>${escapeHtml(value)}</p>`;
+}
+
+function buildAnswerBox(label, value) {
+  return `
+    <div class="answer-box">
+      <span class="answer-box-label">${label}</span>
+      ${buildAnswerBoxText(value)}
+    </div>
+  `;
+}
+
+function buildAnswerBoxText(value) {
+  if (!containsChinese(value)) {
+    return `<p>${escapeHtml(value)}</p>`;
+  }
+
+  return buildAnnotatedChineseMarkup(value);
+}
+
+function buildAnnotatedChineseMarkup(value) {
+  const tokens = tokenizeAnnotatedChinese(value);
+  const textMarkup = tokens.map(buildAnnotatedTextTokenMarkup).join("");
+  const pinyinMarkup = tokens.map(buildAnnotatedPinyinTokenMarkup).join("");
+
+  return `
+    <div class="annotated-chinese chinese-text" lang="zh-CN">
+      <p class="annotated-hanzi-line">${textMarkup}</p>
+      <p class="annotated-pinyin-line">${pinyinMarkup}</p>
+    </div>
+  `;
+}
+
+function tokenizeAnnotatedChinese(value) {
+  const tokens = [];
+  let index = 0;
+
+  while (index < value.length) {
+    const character = value[index];
+    if (!isChineseCharacter(character)) {
+      tokens.push({ type: "punctuation", text: character });
+      index += 1;
+      continue;
+    }
+
+    const word = findAnnotatedWord(value, index);
+    tokens.push({ type: "word", text: word, entry: CHINESE_WORD_DATA[word] || {} });
+    index += word.length;
+  }
+
+  return tokens;
+}
+
+function findAnnotatedWord(value, index) {
+  const maxLength = Math.min(MAX_CHINESE_WORD_LENGTH, value.length - index);
+
+  for (let length = maxLength; length > 0; length -= 1) {
+    const candidate = value.slice(index, index + length);
+    if (isChineseText(candidate) && Object.prototype.hasOwnProperty.call(CHINESE_WORD_DATA, candidate)) {
+      return candidate;
+    }
+  }
+
+  return value[index];
+}
+
+function buildAnnotatedTextTokenMarkup(token) {
+  if (token.type !== "word") {
+    return `<span class="annotation-punctuation">${escapeHtml(token.text)}</span>`;
+  }
+
+  const gloss = token.entry.gloss || "";
+  const glossAttributes = gloss
+    ? ` has-gloss" title="${escapeHtml(gloss)}" data-gloss="${escapeHtml(gloss)}" tabindex="0"`
+    : `"`;
+
+  return `<span class="annotated-word${glossAttributes}>${escapeHtml(token.text)}</span>`;
+}
+
+function buildAnnotatedPinyinTokenMarkup(token) {
+  if (token.type !== "word") {
+    return `<span class="annotation-pinyin-punctuation">${escapeHtml(token.text)}</span>`;
+  }
+
+  return `<span class="annotation-pinyin-word">${escapeHtml(token.entry.pinyin || "")}</span>`;
+}
+
+function alignGlossTooltip(wordElement) {
+  const tooltipWidth = measureGlossTooltipWidth(wordElement.dataset.gloss || "");
+  const rect = wordElement.getBoundingClientRect();
+  const edgePadding = 12;
+  const centeredLeft = rect.left + rect.width / 2 - tooltipWidth / 2;
+  const centeredRight = centeredLeft + tooltipWidth;
+
+  if (centeredLeft < edgePadding) {
+    wordElement.dataset.tooltipAlign = "left";
+    return;
+  }
+
+  if (centeredRight > window.innerWidth - edgePadding) {
+    wordElement.dataset.tooltipAlign = "right";
+    return;
+  }
+
+  wordElement.dataset.tooltipAlign = "center";
+}
+
+function measureGlossTooltipWidth(gloss) {
+  const maxWidth = Math.min(260, Math.max(120, window.innerWidth - 24));
+  const measurer = getGlossTooltipMeasurer();
+  measurer.style.maxWidth = `${maxWidth}px`;
+  measurer.textContent = gloss;
+  return Math.min(Math.ceil(measurer.getBoundingClientRect().width), maxWidth);
+}
+
+function getGlossTooltipMeasurer() {
+  const existing = document.querySelector("#glossTooltipMeasurer");
+  if (existing) {
+    return existing;
+  }
+
+  const measurer = document.createElement("span");
+  measurer.id = "glossTooltipMeasurer";
+  measurer.className = "gloss-tooltip-measurer";
+  document.body.append(measurer);
+  return measurer;
 }
 
 function renderResults() {
@@ -903,6 +1053,22 @@ function shuffle(items) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function containsChinese(value) {
+  return [...String(value)].some(isChineseCharacter);
+}
+
+function isChineseText(value) {
+  return [...String(value)].every(isChineseCharacter);
+}
+
+function isChineseCharacter(value) {
+  return HAN_CHARACTER_PATTERN.test(value);
+}
+
+function splitPinyinSyllables(value) {
+  return String(value).trim().split(/\s+/).filter(Boolean);
 }
 
 function escapeHtml(value) {

@@ -39,6 +39,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.
 - Simplified Mandarin-only listening sentences with Normal, Slow, and Very slow voice speed options.
 - 30-sentence sessions with immediate assessment.
+- Checked answers show pinyin under Chinese text in the Expected or Reference box, with word-level English glosses on hover where Chinese appears.
 - End-of-session results table with expected answers and per-item scores.
 - Listening mode uses the browser Speech Synthesis API and prefers Microsoft Online or Microsoft Natural mainland Chinese speech when available.
 

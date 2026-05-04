@@ -19,6 +19,9 @@
   --gold: #bf812d;
   --green: #27825a;
   --shadow: 0 18px 50px rgba(17, 28, 35, 0.09);
+  --chinese-font:
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+    sans-serif;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -478,10 +481,6 @@ select {
 }
 
 .sentence-text.zh {
-  font-family:
-    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
-    sans-serif;
-  font-size: 31px;
   line-height: 1.45;
 }
 
@@ -639,6 +638,13 @@ textarea {
   line-height: 1.5;
 }
 
+.chinese-text,
+textarea[lang="zh-CN"] {
+  font-family: var(--chinese-font);
+  font-size: 25px;
+  font-weight: 400;
+}
+
 textarea:focus,
 select:focus,
 button:focus-visible {
@@ -706,7 +712,7 @@ button:focus-visible {
   background: white;
 }
 
-.answer-box span {
+.answer-box-label {
   display: block;
   margin-bottom: 8px;
   color: var(--muted);
@@ -715,9 +721,143 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.answer-text,
 .answer-box p {
   line-height: 1.45;
   word-break: break-word;
+}
+
+.annotated-chinese {
+  display: grid;
+  gap: 3px;
+  overflow: visible;
+}
+
+.annotated-hanzi-line,
+.annotated-pinyin-line {
+  display: block;
+  margin: 0;
+  word-break: break-word;
+}
+
+.annotated-hanzi-line {
+  overflow: visible;
+  line-height: 1.45;
+}
+
+.annotated-pinyin-line {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.annotated-word {
+  position: relative;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--ink);
+  cursor: default;
+  outline: none;
+  text-decoration-color: transparent;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.annotated-word.has-gloss {
+  cursor: help;
+}
+
+.annotated-word.has-gloss:hover,
+.annotated-word.has-gloss:focus-visible {
+  background: linear-gradient(transparent 68%, var(--theme-soft) 68%);
+  text-decoration-color: var(--theme);
+}
+
+.annotated-word.has-gloss::after {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  bottom: calc(100% + 7px);
+  z-index: 20;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: white;
+  box-shadow: 0 10px 24px rgba(31, 36, 42, 0.18);
+  content: attr(data-gloss);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: normal;
+}
+
+.annotated-word.has-gloss[data-tooltip-align="left"]::after {
+  left: 0;
+  right: auto;
+  transform: translate(0, 4px);
+}
+
+.annotated-word.has-gloss[data-tooltip-align="right"]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, 4px);
+}
+
+.annotated-word.has-gloss:hover::after,
+.annotated-word.has-gloss:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.annotated-word.has-gloss[data-tooltip-align="left"]:hover::after,
+.annotated-word.has-gloss[data-tooltip-align="left"]:focus-visible::after,
+.annotated-word.has-gloss[data-tooltip-align="right"]:hover::after,
+.annotated-word.has-gloss[data-tooltip-align="right"]:focus-visible::after {
+  transform: translate(0, 0);
+}
+
+.gloss-tooltip-measurer {
+  position: fixed;
+  top: -9999px;
+  left: 0;
+  z-index: -1;
+  width: max-content;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: normal;
+}
+
+.annotation-punctuation {
+  display: inline;
+}
+
+.annotation-pinyin-word,
+.annotation-pinyin-punctuation {
+  display: inline;
+}
+
+.annotation-pinyin-word + .annotation-pinyin-word::before,
+.annotation-pinyin-punctuation + .annotation-pinyin-word::before,
+.annotation-pinyin-word + .annotation-pinyin-punctuation::before {
+  content: " ";
 }
 
 .side-panel {
@@ -940,7 +1080,7 @@ td.status-review {
     font-size: 21px;
   }
 
-  .sentence-text.zh {
-    font-size: 26px;
+  .chinese-text {
+    font-size: 23px;
   }
 }

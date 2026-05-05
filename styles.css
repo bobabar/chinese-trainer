@@ -679,6 +679,11 @@ button:focus-visible {
   background: #fff8f4;
 }
 
+.feedback.review {
+  border-color: #efaaa0;
+  background: #fff5f4;
+}
+
 .feedback-title {
   display: flex;
   align-items: center;
@@ -951,6 +956,11 @@ td.status-good {
 
 td.status-okay {
   color: var(--gold);
+  font-weight: 900;
+}
+
+td.status-review {
+  color: var(--red);
   font-weight: 900;
 }
 

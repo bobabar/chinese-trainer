@@ -727,11 +727,15 @@ function answerStatusLabel(answer) {
   const scorePercent = Math.round(answer.score * 100);
   if (scorePercent >= 100) return "Perfect";
   if (scorePercent >= 70) return "Good";
-  return "Okay";
+  if (scorePercent > 50) return "Okay";
+  return "Review needed";
 }
 
 function answerStatusTone(answer) {
-  return Math.round(answer.score * 100) >= 70 ? "good" : "okay";
+  const scorePercent = Math.round(answer.score * 100);
+  if (scorePercent >= 70) return "good";
+  if (scorePercent > 50) return "okay";
+  return "review";
 }
 
 function buildPlainAnswerText(value) {
@@ -960,7 +964,6 @@ function renderResults() {
     render();
   });
 }
-
 async function startSession() {
   if (state.isLoadingSentences) {
     return;

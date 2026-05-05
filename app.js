@@ -38,6 +38,21 @@ const VOICE_SPEEDS = {
   "very-slow": 0.52,
 };
 
+const PREVIEW_CELLS = {
+  listening: {
+    character: "听",
+    description: "Audio-first translation practice",
+  },
+  writing: {
+    character: "写",
+    description: "English to written Chinese recall",
+  },
+  reading: {
+    character: "读",
+    description: "Chinese reading comprehension",
+  },
+};
+
 const SENTENCES = [];
 
 if (typeof window !== "undefined" && Array.isArray(window.ADDITIONAL_SENTENCES)) {
@@ -200,7 +215,8 @@ function handleSessionShortcut(event) {
 }
 
 function renderLevelOptions() {
-  levelOptions.innerHTML = LEVELS.map((level) => {
+  const selectedPoolCount = getFilteredPool().length;
+  const levelMarkup = LEVELS.map((level) => {
     const checked = state.selectedLevels.has(level.id) ? "checked" : "";
     return `
       <label class="level-check">
@@ -209,6 +225,14 @@ function renderLevelOptions() {
       </label>
     `;
   }).join("");
+
+  levelOptions.innerHTML = `
+    ${levelMarkup}
+    <span class="level-check pool-count-pill" aria-label="Selected sentence pool: ${selectedPoolCount}">
+      <strong>${selectedPoolCount}</strong>
+      <span>Selected sentence pool</span>
+    </span>
+  `;
 
   levelOptions.querySelectorAll("input").forEach((input) => {
     input.addEventListener("change", () => {
@@ -223,6 +247,7 @@ function renderLevelOptions() {
       state.session = null;
       state.result = null;
       saveSettings();
+      renderLevelOptions();
       render();
     });
   });
@@ -305,80 +330,37 @@ function shortcutHint(key) {
 
 function renderModeHome() {
   const mode = MODES[state.mode];
+  const preview = PREVIEW_CELLS[state.mode];
   const pool = getFilteredPool();
   const hasEnoughSentences = pool.length >= SESSION_LENGTH;
-  const levelPills = LEVELS
-    .filter((level) => state.selectedLevels.has(level.id))
-    .map((level) => `<span class="meta-pill">${level.label}</span>`)
-    .join("");
 
   app.innerHTML = `
-    <div class="workspace-grid">
-      <section class="workspace-panel">
-        <div class="mode-heading">
-          <div>
-            <h2>${mode.label} Training</h2>
-            <p>${mode.task}</p>
-          </div>
-          <div class="session-meta">
-            ${levelPills}
-          </div>
+    <section class="workspace-panel">
+      <div class="mode-heading">
+        <div>
+          <h2>${mode.label} Training</h2>
+          <p>${mode.task}</p>
         </div>
+      </div>
 
-        <div class="task-preview" aria-hidden="true">
-          <div class="preview-cell">
-            <strong>听</strong>
-            <span>Audio-first translation practice</span>
-          </div>
-          <div class="preview-cell">
-            <strong>写</strong>
-            <span>English to written Chinese recall</span>
-          </div>
-          <div class="preview-cell">
-            <strong>读</strong>
-            <span>Chinese reading comprehension</span>
-          </div>
+      <div class="task-preview" aria-hidden="true">
+        <div class="preview-cell">
+          <strong>${preview.character}</strong>
+          <span>${preview.description}</span>
         </div>
+      </div>
 
-        ${hasEnoughSentences ? "" : `
-          <p class="empty-note">
-            Select at least ${SESSION_LENGTH} available sentences before starting a session.
-          </p>
-        `}
+      ${hasEnoughSentences ? "" : `
+        <p class="empty-note">
+          Select at least ${SESSION_LENGTH} available sentences before starting a session.
+        </p>
+      `}
 
-        <button class="primary-btn shortcut-btn" type="button" id="startSession" ${hasEnoughSentences ? "" : "disabled"}>
-          <span>Start 30-sentence session</span>
-          ${shortcutHint("Enter")}
-        </button>
-      </section>
-
-      <aside class="workspace-panel side-panel">
-        <div class="stat-grid">
-          <div class="stat">
-            <strong>${SESSION_LENGTH}</strong>
-            <span>Questions</span>
-          </div>
-          <div class="stat">
-            <strong>${pool.length}</strong>
-            <span>Selected sentence pool</span>
-          </div>
-          <div class="stat wide">
-            <strong>${SENTENCES.length}</strong>
-            <span>Total sentence bank</span>
-            <div class="level-counts" aria-label="Sentence count by difficulty">
-              ${LEVELS.map((level) => `
-                <span>${level.label}: ${countByLevel(level.id)} sentences</span>
-              `).join("")}
-            </div>
-          </div>
-        </div>
-        <div class="script-board" aria-hidden="true">
-          <span>中</span><span>文</span><span>练</span>
-          <span>习</span><span>听</span><span>写</span>
-          <span>阅</span><span>读</span><span>测</span>
-        </div>
-      </aside>
-    </div>
+      <button class="primary-btn shortcut-btn" type="button" id="startSession" ${hasEnoughSentences ? "" : "disabled"}>
+        <span>Start 30-sentence session</span>
+        ${shortcutHint("Enter")}
+      </button>
+    </section>
   `;
 
   document.querySelector("#startSession").addEventListener("click", startSession);
@@ -1028,10 +1010,6 @@ function supportsSpeechSynthesis() {
 
 function getFilteredPool() {
   return SENTENCES.filter((item) => state.selectedLevels.has(item.level));
-}
-
-function countByLevel(level) {
-  return SENTENCES.filter((item) => item.level === level).length;
 }
 
 function selectedLevelLabels(levelIds = [...state.selectedLevels]) {

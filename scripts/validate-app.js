@@ -39,10 +39,12 @@ window.__tests = {
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   containsChinese,
+  normalizeEnglish,
   scoreEnglish,
 };`, context, { filename: "app.js" });
 
-const { buildAnswerBoxText, buildAnnotatedChineseMarkup, containsChinese, scoreEnglish } = context.window.__tests;
+const { buildAnswerBoxText, buildAnnotatedChineseMarkup, containsChinese, normalizeEnglish, scoreEnglish } =
+  context.window.__tests;
 const annotated = buildAnswerBoxText("我爱你。");
 const wordMarkup = buildAnnotatedChineseMarkup("我爱你。");
 
@@ -56,6 +58,15 @@ assert(
   scoreEnglish("He went to school.", "She went to school.", { ignoreGenderPronouns: true }) >= 0.99,
   "listening mode should keep he/she pronunciation ambiguity accepted",
 );
+assert(scoreEnglish("I am ready.", "I'm ready.") >= 0.99, "I am and I'm should be equivalent");
+assert(scoreEnglish("You are right.", "You’re right.") >= 0.99, "curly apostrophe contractions should normalize");
+assert(scoreEnglish("They have already left.", "Theyve already left.") >= 0.99, "missing apostrophe contractions should normalize");
+assert(scoreEnglish("He will not go.", "He won't go.") >= 0.99, "negative contractions should normalize");
+assert(scoreEnglish("Tom answer is correct.", "Tom's answer is correct.") >= 0.99, "possessive apostrophes should be lenient");
+assert(normalizeEnglish("They were here.") === "they were here", "were should not be treated as we're");
+assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
+assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
+assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
 
 console.log("Validated app annotation and scoring helpers.");
 

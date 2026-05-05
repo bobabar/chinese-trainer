@@ -9,6 +9,15 @@ const LEVELS = [
   { id: "advanced", label: "Advanced" },
 ];
 
+const SENTENCE_COUNTS = {
+  beginner: 600,
+  intermediate: 600,
+  advanced: 600,
+};
+
+const SENTENCE_DATA_SRC = "./sentence-data.js";
+const WORD_DATA_SRC = "./word-data.js";
+
 const MODES = {
   listening: {
     label: "Listening",
@@ -54,22 +63,13 @@ const PREVIEW_CELLS = {
 };
 
 const SENTENCES = [];
-
-if (typeof window !== "undefined" && Array.isArray(window.ADDITIONAL_SENTENCES)) {
-  const seenIds = new Set(SENTENCES.map((item) => item.id));
-  window.ADDITIONAL_SENTENCES.forEach((item) => {
-    if (!seenIds.has(item.id)) {
-      SENTENCES.push(item);
-      seenIds.add(item.id);
-    }
-  });
-}
-
-const CHINESE_WORD_DATA =
-  typeof window !== "undefined" && window.CHINESE_WORD_DATA && typeof window.CHINESE_WORD_DATA === "object"
-    ? window.CHINESE_WORD_DATA
-    : {};
-const MAX_CHINESE_WORD_LENGTH = Math.max(1, ...Object.keys(CHINESE_WORD_DATA).map((word) => word.length));
+const loadedScripts = new Map();
+let sentenceDataPromise = null;
+let sentenceDataLoaded = false;
+let wordDataPromise = null;
+let wordDataLoaded = false;
+let CHINESE_WORD_DATA = {};
+let MAX_CHINESE_WORD_LENGTH = 1;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
 
 const state = {
@@ -79,6 +79,9 @@ const state = {
   voices: [],
   preferredVoice: null,
   isSpeaking: false,
+  isLoadingSentences: false,
+  isCheckingAnswer: false,
+  dataError: "",
   session: null,
   result: null,
 };
@@ -97,6 +100,7 @@ function init() {
   bindTopLevelControls();
   bindGlossTooltipAlignment();
   loadVoices();
+  primeVoicesOnFirstInteraction();
   render();
 }
 
@@ -215,7 +219,7 @@ function handleSessionShortcut(event) {
 }
 
 function renderLevelOptions() {
-  const selectedPoolCount = getFilteredPool().length;
+  const selectedPoolCount = getSelectedSentenceCount();
   const levelMarkup = LEVELS.map((level) => {
     const checked = state.selectedLevels.has(level.id) ? "checked" : "";
     return `
@@ -253,15 +257,133 @@ function renderLevelOptions() {
   });
 }
 
+function ensureSentenceData() {
+  hydrateSentenceDataFromWindow();
+  if (sentenceDataLoaded) {
+    return Promise.resolve();
+  }
+
+  if (!sentenceDataPromise) {
+    sentenceDataPromise = loadScriptOnce(SENTENCE_DATA_SRC)
+      .then(() => {
+        hydrateSentenceDataFromWindow();
+        if (!sentenceDataLoaded) {
+          throw new Error("The sentence bank loaded, but no sentences were found.");
+        }
+      })
+      .catch((error) => {
+        sentenceDataPromise = null;
+        throw error;
+      });
+  }
+
+  return sentenceDataPromise;
+}
+
+function hydrateSentenceDataFromWindow() {
+  if (typeof window === "undefined" || !Array.isArray(window.ADDITIONAL_SENTENCES)) {
+    return;
+  }
+
+  const seenIds = new Set(SENTENCES.map((item) => item.id));
+  window.ADDITIONAL_SENTENCES.forEach((item) => {
+    if (!seenIds.has(item.id)) {
+      SENTENCES.push(item);
+      seenIds.add(item.id);
+    }
+  });
+
+  sentenceDataLoaded = SENTENCES.length > 0;
+}
+
+function ensureWordData() {
+  hydrateWordDataFromWindow();
+  if (wordDataLoaded) {
+    return Promise.resolve();
+  }
+
+  if (!wordDataPromise) {
+    wordDataPromise = loadScriptOnce(WORD_DATA_SRC)
+      .then(() => {
+        hydrateWordDataFromWindow();
+        if (!wordDataLoaded) {
+          throw new Error("The word glossary loaded, but no word data was found.");
+        }
+      })
+      .catch((error) => {
+        wordDataPromise = null;
+        throw error;
+      });
+  }
+
+  return wordDataPromise;
+}
+
+function hydrateWordDataFromWindow() {
+  if (
+    typeof window === "undefined" ||
+    !window.CHINESE_WORD_DATA ||
+    typeof window.CHINESE_WORD_DATA !== "object"
+  ) {
+    return;
+  }
+
+  CHINESE_WORD_DATA = window.CHINESE_WORD_DATA;
+  MAX_CHINESE_WORD_LENGTH = Math.max(1, ...Object.keys(CHINESE_WORD_DATA).map((word) => word.length));
+  wordDataLoaded = true;
+}
+
+function loadScriptOnce(src) {
+  if (loadedScripts.has(src)) {
+    return loadedScripts.get(src);
+  }
+
+  const promise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-dynamic-src="${src}"]`);
+    if (existing?.dataset.loaded === "true") {
+      resolve();
+      return;
+    }
+
+    const script = existing || document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.dynamicSrc = src;
+
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Could not load ${src}.`)), { once: true });
+
+    if (!existing) {
+      document.head.append(script);
+    }
+  });
+
+  loadedScripts.set(src, promise);
+  return promise;
+}
+
+function queueIdleTask(callback) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(callback, { timeout: 2500 });
+    return;
+  }
+
+  window.setTimeout(callback, 400);
+}
+
 function loadVoices() {
   if (!supportsSpeechSynthesis()) {
     return;
   }
 
-  const refresh = () => {
-    state.voices = window.speechSynthesis.getVoices();
-    state.preferredVoice = choosePreferredVoice(state.voices);
-  };
+  const refresh = refreshVoices;
 
   refresh();
   if (typeof window.speechSynthesis.addEventListener === "function") {
@@ -271,20 +393,85 @@ function loadVoices() {
   }
 }
 
+function primeVoicesOnFirstInteraction() {
+  if (!supportsSpeechSynthesis()) {
+    return;
+  }
+
+  const prime = () => refreshVoices();
+  ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+    document.addEventListener(eventName, prime, { once: true, passive: true });
+  });
+}
+
+function refreshVoices() {
+  if (!supportsSpeechSynthesis()) {
+    return [];
+  }
+
+  state.voices = window.speechSynthesis.getVoices();
+  state.preferredVoice = choosePreferredVoice(state.voices);
+  return state.voices;
+}
+
+function waitForVoices(timeout = 450) {
+  const voices = refreshVoices();
+  if (voices.length) {
+    return Promise.resolve(voices);
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let intervalId = 0;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(intervalId);
+      resolve(refreshVoices());
+    };
+
+    const onVoicesChanged = () => finish();
+
+    if (typeof window.speechSynthesis.addEventListener === "function") {
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged, { once: true });
+    }
+
+    intervalId = window.setInterval(() => {
+      if (window.speechSynthesis.getVoices().length) {
+        finish();
+      }
+    }, 75);
+
+    window.setTimeout(finish, timeout);
+  });
+}
+
 function choosePreferredVoice(voices) {
   const mandarinVoices = voices.filter(isSimplifiedMandarinVoice);
-  const microsoftOnline = mandarinVoices.find((voice) => {
-    const name = voice.name.toLowerCase();
-    return name.includes("microsoft") && (name.includes("online") || name.includes("natural"));
-  });
+  return mandarinVoices
+    .map((voice) => ({ voice, score: scoreMandarinVoice(voice) }))
+    .sort((a, b) => b.score - a.score)[0]?.voice || null;
+}
 
-  return (
-    microsoftOnline ||
-    mandarinVoices.find((voice) => voice.name.toLowerCase().includes("microsoft")) ||
-    mandarinVoices.find((voice) => voice.lang.toLowerCase() === "zh-cn") ||
-    mandarinVoices[0] ||
-    null
-  );
+function scoreMandarinVoice(voice) {
+  const name = `${voice.name || ""} ${voice.voiceURI || ""}`.toLowerCase();
+  const lang = (voice.lang || "").toLowerCase();
+  let score = lang === "zh-cn" ? 140 : 100;
+
+  if (name.includes("microsoft") && (name.includes("online") || name.includes("natural"))) score += 900;
+  if (name.includes("xiaoxiao")) score += 820;
+  if (name.includes("xiaoyi")) score += 760;
+  if (name.includes("yunxi") || name.includes("yunyang")) score += 720;
+  if (name.includes("microsoft")) score += 650;
+  if (name.includes("google")) score += 560;
+  if (name.includes("ting-ting") || name.includes("tingting") || name.includes("ting ting")) score += 500;
+  if (name.includes("premium") || name.includes("enhanced") || name.includes("neural")) score += 420;
+  if (name.includes("natural") || name.includes("siri")) score += 360;
+  if (voice.localService === false) score += 90;
+  if (name.includes("compact") || name.includes("eloquence")) score -= 260;
+
+  return score;
 }
 
 function isSimplifiedMandarinVoice(voice) {
@@ -331,8 +518,8 @@ function shortcutHint(key) {
 function renderModeHome() {
   const mode = MODES[state.mode];
   const preview = PREVIEW_CELLS[state.mode];
-  const pool = getFilteredPool();
-  const hasEnoughSentences = pool.length >= SESSION_LENGTH;
+  const hasEnoughSentences = getSelectedSentenceCount() >= SESSION_LENGTH;
+  const startLabel = state.isLoadingSentences ? "Loading sentence bank..." : "Start 30-sentence session";
 
   app.innerHTML = `
     <section class="workspace-panel">
@@ -355,9 +542,10 @@ function renderModeHome() {
           Select at least ${SESSION_LENGTH} available sentences before starting a session.
         </p>
       `}
+      ${state.dataError ? `<p class="empty-note error-note">${escapeHtml(state.dataError)}</p>` : ""}
 
-      <button class="primary-btn shortcut-btn" type="button" id="startSession" ${hasEnoughSentences ? "" : "disabled"}>
-        <span>Start 30-sentence session</span>
+      <button class="primary-btn shortcut-btn" type="button" id="startSession" ${hasEnoughSentences && !state.isLoadingSentences ? "" : "disabled"}>
+        <span>${startLabel}</span>
         ${shortcutHint("Enter")}
       </button>
     </section>
@@ -398,6 +586,7 @@ function renderSession() {
           autocomplete="off"
           autocapitalize="none"
           spellcheck="false"
+          enterkeyhint="done"
           placeholder="${mode.answerPlaceholder}"
           ${submitted ? "disabled" : ""}
         >${escapeHtml(answer)}</textarea>
@@ -429,6 +618,7 @@ function renderSession() {
 
   if (submitted) {
     document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
+    revealFeedbackPanel();
   } else {
     const form = document.querySelector("#answerForm");
     const input = document.querySelector("#answerInput");
@@ -436,7 +626,9 @@ function renderSession() {
       event.preventDefault();
       submitAnswer(input.value);
     });
-    input.focus();
+    if (!isTouchLikeDevice()) {
+      input.focus();
+    }
   }
 }
 
@@ -467,13 +659,31 @@ function buildSentenceMarkup(item, mode) {
   `;
 }
 
+function revealFeedbackPanel() {
+  const panel = document.querySelector("#feedbackPanel");
+  if (!panel) {
+    return;
+  }
+
+  const scrollToFeedback = () => {
+    panel.scrollIntoView({
+      block: "start",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  };
+
+  requestAnimationFrame(() => {
+    window.setTimeout(scrollToFeedback, window.visualViewport ? 180 : 80);
+  });
+}
+
 function buildFeedbackMarkup(assessment, item) {
   const status = assessment.correct ? "good" : "review";
   const title = assessment.correct ? "Accepted" : "Review needed";
   const expectedPrimary = assessment.mode === "writing" ? item.zh : item.en;
   const expectedSecondary = assessment.mode === "writing" ? item.en : item.zh;
   return `
-    <section class="feedback ${status}">
+    <section class="feedback ${status}" id="feedbackPanel" tabindex="-1">
       <div class="feedback-title">
         <span>${title}</span>
         <span class="score-badge">${Math.round(assessment.score * 100)}%</span>
@@ -514,6 +724,7 @@ function buildAnswerBoxText(value) {
 }
 
 function buildAnnotatedChineseMarkup(value) {
+  hydrateWordDataFromWindow();
   const tokens = tokenizeAnnotatedChinese(value);
   const textMarkup = tokens.map(buildAnnotatedTextTokenMarkup).join("");
   const pinyinMarkup = tokens.map(buildAnnotatedPinyinTokenMarkup).join("");
@@ -716,8 +927,26 @@ function renderResults() {
   });
 }
 
-function startSession() {
+async function startSession() {
+  if (state.isLoadingSentences) {
+    return;
+  }
+
   stopSpeech();
+  state.dataError = "";
+  state.isLoadingSentences = true;
+  render();
+
+  try {
+    await ensureSentenceData();
+  } catch {
+    state.dataError = "The sentence bank could not be loaded. Check your connection and try again.";
+    state.isLoadingSentences = false;
+    render();
+    return;
+  }
+
+  state.isLoadingSentences = false;
   const pool = shuffle(getFilteredPool());
   if (pool.length < SESSION_LENGTH) {
     render();
@@ -737,17 +966,43 @@ function startSession() {
   };
 
   render();
+  queueIdleTask(() => {
+    ensureWordData().catch(() => {});
+  });
   if (state.mode === "listening") {
     speak(state.session.items[0].zh);
   }
 }
 
-function submitAnswer(answer) {
+async function submitAnswer(answer) {
+  if (state.isCheckingAnswer) {
+    return;
+  }
+
   const session = state.session;
+  if (!session) {
+    return;
+  }
+
+  state.isCheckingAnswer = true;
+  document.activeElement?.blur?.();
+
+  try {
+    await ensureWordData();
+  } catch {
+    // Annotation is a convenience; answer checking should still work if the glossary fails.
+  }
+
+  if (state.session !== session) {
+    state.isCheckingAnswer = false;
+    return;
+  }
+
   const item = session.items[session.index];
   const assessment = assessAnswer(answer, item, session.mode);
   session.currentAssessment = assessment;
   session.answers.push({ ...assessment, item });
+  state.isCheckingAnswer = false;
   render();
 }
 
@@ -859,14 +1114,45 @@ function normalizeChinese(value) {
 function normalizeEnglish(value) {
   return value
     .toLowerCase()
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/let's/g, "let us")
-    .replace(/didn't/g, "did not")
-    .replace(/don't/g, "do not")
-    .replace(/doesn't/g, "does not")
-    .replace(/can't/g, "can not")
-    .replace(/won't/g, "will not")
-    .replace(/i'm/g, "i am")
+    .replace(/[\u2018\u2019\u201b\u2032]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/\bwon['’]?t\b/g, "will not")
+    .replace(/\bcan['’]?t\b/g, "can not")
+    .replace(/\bshan['’]?t\b/g, "shall not")
+    .replace(/\blet['’]?s\b/g, "let us")
+    .replace(/\bdo['’]?nt\b/g, "do not")
+    .replace(/\bdoes['’]?nt\b/g, "does not")
+    .replace(/\bdid['’]?nt\b/g, "did not")
+    .replace(/\bis['’]?nt\b/g, "is not")
+    .replace(/\bare['’]?nt\b/g, "are not")
+    .replace(/\bwas['’]?nt\b/g, "was not")
+    .replace(/\bwere['’]?nt\b/g, "were not")
+    .replace(/\bhave['’]?nt\b/g, "have not")
+    .replace(/\bhas['’]?nt\b/g, "has not")
+    .replace(/\bhad['’]?nt\b/g, "had not")
+    .replace(/\bshould['’]?nt\b/g, "should not")
+    .replace(/\bcould['’]?nt\b/g, "could not")
+    .replace(/\bwould['’]?nt\b/g, "would not")
+    .replace(/\bmust['’]?nt\b/g, "must not")
+    .replace(/\b([a-z]+)n't\b/g, "$1 not")
+    .replace(/\bim\b/g, "i am")
+    .replace(/\byoure\b/g, "you are")
+    .replace(/\btheyre\b/g, "they are")
+    .replace(/\b(i)'m\b/g, "$1 am")
+    .replace(/\b(you|we|they)'re\b/g, "$1 are")
+    .replace(/\b(i|you|we|they)['’]?ve\b/g, "$1 have")
+    .replace(/\byoull\b/g, "you will")
+    .replace(/\btheyll\b/g, "they will")
+    .replace(/\b(i|you|he|she|it|we|they)'ll\b/g, "$1 will")
+    .replace(/\byoud\b/g, "you would")
+    .replace(/\btheyd\b/g, "they would")
+    .replace(/\b(i|you|he|she|it|we|they)'d\b/g, "$1 would")
+    .replace(/\b([a-z]+)'re\b/g, "$1 are")
+    .replace(/\b([a-z]+)'ve\b/g, "$1 have")
+    .replace(/\b([a-z]+)'ll\b/g, "$1 will")
+    .replace(/\b([a-z]+)'d\b/g, "$1 would")
+    .replace(/\b(he|she|it|that|there|what|who|where|when|why|how)['’]?s\b/g, "$1 is")
+    .replace(/\b([a-z]+)['’]s\b/g, "$1")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -981,16 +1267,17 @@ function stopSpeech() {
   setPlaybackState(false);
 }
 
-function speak(text) {
+async function speak(text) {
   if (!supportsSpeechSynthesis()) return;
 
+  await waitForVoices();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "zh-CN";
   utterance.rate = VOICE_SPEEDS[state.voiceSpeed] || VOICE_SPEEDS.normal;
   utterance.pitch = 1;
   utterance.volume = 1;
 
-  state.preferredVoice = choosePreferredVoice(window.speechSynthesis.getVoices());
+  state.preferredVoice = choosePreferredVoice(refreshVoices());
   if (state.preferredVoice) {
     utterance.voice = state.preferredVoice;
   }
@@ -1009,7 +1296,12 @@ function supportsSpeechSynthesis() {
 }
 
 function getFilteredPool() {
+  hydrateSentenceDataFromWindow();
   return SENTENCES.filter((item) => state.selectedLevels.has(item.level));
+}
+
+function getSelectedSentenceCount() {
+  return [...state.selectedLevels].reduce((total, level) => total + (SENTENCE_COUNTS[level] || 0), 0);
 }
 
 function selectedLevelLabels(levelIds = [...state.selectedLevels]) {
@@ -1047,6 +1339,14 @@ function isChineseCharacter(value) {
 
 function splitPinyinSyllables(value) {
   return String(value).trim().split(/\s+/).filter(Boolean);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
+}
+
+function isTouchLikeDevice() {
+  return window.matchMedia?.("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
 }
 
 function escapeHtml(value) {

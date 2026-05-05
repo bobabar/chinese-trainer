@@ -183,29 +183,38 @@ function bindGlossTooltipAlignment() {
 }
 
 function handleSessionShortcut(event) {
-  if (!(event.metaKey || event.ctrlKey)) {
+  if (event.isComposing || event.altKey) {
     return;
   }
 
   const isEnter = event.key === "Enter";
-  const isPeriod = event.key === "." || event.code === "Period";
+  if (!isEnter) {
+    return;
+  }
 
-  if (isPeriod && state.session?.mode === "listening") {
+  if ((event.metaKey || event.ctrlKey) && state.session?.mode === "listening") {
     event.preventDefault();
     speak(state.session.items[state.session.index].zh);
     return;
   }
 
-  if (!isEnter) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey) {
+    return;
+  }
+
+  if (isTypingTarget(event.target) && event.target?.id !== "answerInput") {
+    return;
+  }
+
+  if (!state.session) {
+    if (shouldStartSessionFromShortcut(event.target)) {
+      event.preventDefault();
+      startSession();
+    }
     return;
   }
 
   event.preventDefault();
-
-  if (!state.session) {
-    startSession();
-    return;
-  }
 
   if (state.session.currentAssessment) {
     nextQuestion();
@@ -216,6 +225,15 @@ function handleSessionShortcut(event) {
   if (input) {
     submitAnswer(input.value);
   }
+}
+
+function isTypingTarget(target) {
+  const tagName = target?.tagName?.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target?.isContentEditable;
+}
+
+function shouldStartSessionFromShortcut(target) {
+  return !isTypingTarget(target) && !state.result;
 }
 
 function renderLevelOptions() {
@@ -507,10 +525,16 @@ function updateModeTabs() {
   });
 }
 
-function shortcutHint(key) {
+function shortcutHint(key, options = {}) {
+  const commandControl = options.commandControl || false;
+  const label = commandControl ? `Command or Control plus ${key}` : key;
+  const modifierMarkup = commandControl
+    ? `<kbd>⌘</kbd><span class="shortcut-separator">/</span><kbd>Ctrl</kbd><span class="shortcut-plus">+</span>`
+    : "";
+
   return `
-    <span class="shortcut-hint" aria-label="Command or Control plus ${key}">
-      <kbd>⌘</kbd><span class="shortcut-separator">/</span><kbd>Ctrl</kbd><span class="shortcut-plus">+</span><kbd>${key}</kbd>
+    <span class="shortcut-hint" aria-label="${label}">
+      ${modifierMarkup}<kbd>${key}</kbd>
     </span>
   `;
 }
@@ -645,7 +669,7 @@ function buildSentenceMarkup(item, mode) {
     <div class="audio-sentence">
       <button class="secondary-btn shortcut-btn" type="button" id="playAudio" ${supportsSpeechSynthesis() ? "" : "disabled"}>
         <span>Play sentence</span>
-        ${shortcutHint(".")}
+        ${shortcutHint("Enter", { commandControl: true })}
       </button>
       <span class="meta-pill">${selectedLevelLabel(item.level)}</span>
       ${supportsSpeechSynthesis() ? "" : `

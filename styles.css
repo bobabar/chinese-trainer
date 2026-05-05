@@ -1121,3 +1121,13 @@ td.status-review {
     justify-content: center;
   }
 }
+
+@media (pointer: coarse) {
+  .shortcut-hint {
+    display: none;
+  }
+
+  .shortcut-btn {
+    gap: 0;
+  }
+}

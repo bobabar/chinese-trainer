@@ -674,7 +674,7 @@ button:focus-visible {
   background: #f5fbf7;
 }
 
-.feedback.review {
+.feedback.okay {
   border-color: #e2c2b5;
   background: #fff8f4;
 }
@@ -949,8 +949,8 @@ td.status-good {
   font-weight: 900;
 }
 
-td.status-review {
-  color: var(--red);
+td.status-okay {
+  color: var(--gold);
   font-weight: 900;
 }
 

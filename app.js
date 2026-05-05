@@ -671,7 +671,6 @@ function buildSentenceMarkup(item, mode) {
         <span>Play sentence</span>
         ${shortcutHint("Enter", { commandControl: true })}
       </button>
-      <span class="meta-pill">${selectedLevelLabel(item.level)}</span>
       ${supportsSpeechSynthesis() ? "" : `
         <span class="audio-warning">Speech playback is unavailable in this browser.</span>
       `}
@@ -702,8 +701,8 @@ function revealFeedbackPanel() {
 }
 
 function buildFeedbackMarkup(assessment, item) {
-  const status = assessment.correct ? "good" : "review";
-  const title = assessment.correct ? "Accepted" : "Review needed";
+  const status = answerStatusTone(assessment);
+  const title = answerStatusLabel(assessment);
   const expectedPrimary = assessment.mode === "writing" ? item.zh : item.en;
   const expectedSecondary = assessment.mode === "writing" ? item.en : item.zh;
   return `
@@ -722,6 +721,17 @@ function buildFeedbackMarkup(assessment, item) {
       ${buildAnswerBox("Reference", expectedSecondary)}
     </section>
   `;
+}
+
+function answerStatusLabel(answer) {
+  const scorePercent = Math.round(answer.score * 100);
+  if (scorePercent >= 100) return "Perfect";
+  if (scorePercent >= 70) return "Good";
+  return "Okay";
+}
+
+function answerStatusTone(answer) {
+  return Math.round(answer.score * 100) >= 70 ? "good" : "okay";
 }
 
 function buildPlainAnswerText(value) {
@@ -873,8 +883,8 @@ function renderResults() {
             ? item.zh
             : "Audio sentence";
       const expected = result.mode === "writing" ? item.zh : item.en;
-      const statusClass = answer.correct ? "status-good" : "status-review";
-      const statusText = answer.correct ? "Accepted" : "Review";
+      const statusClass = `status-${answerStatusTone(answer)}`;
+      const statusText = answerStatusLabel(answer);
       return `
         <tr>
           <td>${index + 1}</td>
@@ -894,7 +904,7 @@ function renderResults() {
       <div class="results-header">
         <div>
           <h2>${MODES[result.mode].label} Results</h2>
-          <p>${correct} accepted out of ${result.answers.length}; average score ${percent}%.</p>
+          <p>${correct} correct out of ${result.answers.length}; average score ${percent}%.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
@@ -908,7 +918,7 @@ function renderResults() {
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${result.answers.length}</strong>
-          <span>Accepted</span>
+          <span>Correct</span>
         </div>
         <div class="stat">
           <strong>${percent}%</strong>

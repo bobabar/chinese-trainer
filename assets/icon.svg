@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Brown Sugar Boba Chinese Trainer">
   <path d="M20 17h24l-4 37H24z" fill="#fff6e8"/>
   <path d="M24 36h16l-2 16H26z" fill="#ffe7bf" opacity=".7"/>
-  <circle cx="28" cy="46" r="2.6" fill="#e7c58f"/>
-  <circle cx="33" cy="42.5" r="2.4" fill="#e7c58f"/>
-  <circle cx="37" cy="47" r="2.7" fill="#e7c58f"/>
-  <path d="M37 8l-6 37M18 17h28M20 17l4 37h16l4-37" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="28" cy="46" r="2.1" fill="#e7c58f"/>
+  <circle cx="33" cy="42.5" r="2" fill="#e7c58f"/>
+  <circle cx="37" cy="47" r="2.2" fill="#e7c58f"/>
+  <path d="M37 8l-6 37" fill="none" stroke="#111" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M18 17h28M20 17l4 37h16l4-37" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

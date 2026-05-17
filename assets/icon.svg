@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Brown Sugar Boba Chinese Trainer">
-  <rect width="64" height="64" rx="14" fill="#b62935"/>
-  <path d="M21 16h26l-4 36H25z" fill="#fff6e8" opacity=".96"/>
-  <path d="M20 16h28" stroke="#ffe7bf" stroke-width="5" stroke-linecap="round"/>
-  <path d="M39 7l-7 42" stroke="#ffe7bf" stroke-width="5" stroke-linecap="round"/>
-  <path d="M27 50h14l2-17H25z" fill="#ffe7bf" opacity=".62"/>
+  <path d="M39 7l-7 42" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+  <path d="M39 7l-7 42" fill="none" stroke="#ffe7bf" stroke-width="5" stroke-linecap="round"/>
+  <path d="M20 16h28" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+  <path d="M20 16h28" fill="none" stroke="#ffe7bf" stroke-width="5" stroke-linecap="round"/>
+  <path d="M21 16h26l-4 36H25z" fill="#fff6e8" stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M27 50h14l2-17H25z" fill="#ffe7bf" opacity=".72"/>
   <circle cx="29" cy="45" r="3.2" fill="#efd6aa"/>
   <circle cx="36" cy="42" r="3" fill="#efd6aa"/>
   <circle cx="39" cy="49" r="3.4" fill="#efd6aa"/>
-  <path d="M21 16h26l-4 36H25z" fill="none" stroke="#fffaf2" stroke-width="2"/>
 </svg>

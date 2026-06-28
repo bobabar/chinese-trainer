@@ -2,6 +2,7 @@
 
 const SESSION_LENGTH = 30;
 const SETTINGS_KEY = "chineseTrainerSettings";
+const SETTINGS_VERSION = 2;
 
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
@@ -103,9 +104,10 @@ const RAW_VOCABULARY_QUIZ_SETS = Array.isArray(window.VOCABULARY_QUIZ_SETS)
   : [];
 const VOCABULARY_QUIZ_SETS = buildVocabularyQuizSets(RAW_VOCABULARY_QUIZ_SETS);
 const VOCABULARY_ORDER_OPTIONS = {
-  list: "List order",
   random: "Random order",
+  list: "List order",
 };
+const DEFAULT_VOCABULARY_ORDER = "random";
 const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
@@ -156,7 +158,7 @@ const state = {
   mode: "listening",
   vocabularyMode: "pinyin",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
-  vocabularyOrder: "list",
+  vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
   voices: [],
@@ -202,7 +204,11 @@ function loadSettings() {
     if (saved.vocabularySetId && VOCABULARY_QUIZ_SETS.some((set) => set.id === saved.vocabularySetId)) {
       state.vocabularySetId = saved.vocabularySetId;
     }
-    if (saved.vocabularyOrder && VOCABULARY_ORDER_OPTIONS[saved.vocabularyOrder]) {
+    if (
+      saved.settingsVersion >= SETTINGS_VERSION &&
+      saved.vocabularyOrder &&
+      VOCABULARY_ORDER_OPTIONS[saved.vocabularyOrder]
+    ) {
       state.vocabularyOrder = saved.vocabularyOrder;
     }
     if (Array.isArray(saved.selectedLevels) && saved.selectedLevels.length) {
@@ -233,6 +239,7 @@ function saveSettings() {
     localStorage.setItem(
       SETTINGS_KEY,
       JSON.stringify({
+        settingsVersion: SETTINGS_VERSION,
         tool: state.tool,
         mode: state.mode,
         vocabularyMode: state.vocabularyMode,

@@ -6,15 +6,39 @@ const ROOT = path.resolve(__dirname, "..");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+const queuedTimers = [];
+const speechCalls = {
+  cancel: 0,
+  speak: [],
+};
 
 const context = {
   window: {
     ADDITIONAL_SENTENCES: [],
     addEventListener() {},
+    clearInterval() {},
+    setInterval: () => 1,
+    setTimeout(callback) {
+      queuedTimers.push(callback);
+      return queuedTimers.length;
+    },
     speechSynthesis: {
-      cancel() {},
-      getVoices: () => [],
-      speak() {},
+      addEventListener() {},
+      cancel() {
+        speechCalls.cancel += 1;
+      },
+      getVoices: () => [
+        {
+          lang: "zh-CN",
+          localService: false,
+          name: "Microsoft Xiaoxiao Online",
+          voiceURI: "Microsoft Xiaoxiao Online",
+        },
+      ],
+      speak(utterance) {
+        speechCalls.speak.push(utterance.text);
+        utterance.onstart?.();
+      },
     },
   },
   document: {
@@ -47,6 +71,9 @@ window.__tests = {
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  speak,
+  state,
+  stopSpeech,
 };`, context, { filename: "app.js" });
 
 const {
@@ -59,6 +86,9 @@ const {
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  speak,
+  state,
+  stopSpeech,
 } =
   context.window.__tests;
 const annotated = buildAnswerBoxText("我爱你。");
@@ -92,7 +122,38 @@ assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accept
 assert(scorePinyin("ai", loveEntry) >= 0.7, "tone-free pinyin should receive partial credit");
 assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings should match accepted meanings");
 
-console.log("Validated app annotation and scoring helpers.");
+validateSpeechReplay()
+  .then(() => {
+    console.log("Validated app annotation, scoring, and speech replay helpers.");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+
+async function validateSpeechReplay() {
+  await speak("爱");
+  assert(speechCalls.cancel === 1, "speech replay should cancel any active utterance before speaking");
+  assert(speechCalls.speak.length === 0, "speech replay should queue playback after cancellation");
+  runQueuedTimer();
+  assert(speechCalls.speak[0] === "爱", "speech replay should speak the requested word");
+  assert(state.isSpeaking, "speech replay should mark playback as active");
+
+  await speak("你");
+  assert(speechCalls.cancel === 2, "replaying audio should cancel the previous utterance");
+  runQueuedTimer();
+  assert(speechCalls.speak[1] === "你", "replaying audio should queue the latest utterance");
+
+  stopSpeech();
+  assert(speechCalls.cancel === 3, "stopping playback should cancel speech synthesis");
+  assert(!state.isSpeaking, "stopping playback should clear playback state");
+}
+
+function runQueuedTimer() {
+  const callback = queuedTimers.shift();
+  assert(typeof callback === "function", "expected speech replay to queue a timer");
+  callback();
+}
 
 function assert(condition, message) {
   if (!condition) {

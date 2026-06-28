@@ -56,10 +56,10 @@ body::after {
 body::before {
   right: 36px;
   bottom: -20px;
-  width: 150px;
-  height: 178px;
+  width: 112px;
+  height: 134px;
   background: url("./assets/icon.svg") center / contain no-repeat;
-  opacity: 0.32;
+  opacity: 0.16;
 }
 
 body::after {
@@ -126,7 +126,7 @@ button:disabled {
   z-index: 1;
   min-height: 100vh;
   min-height: 100dvh;
-  width: min(1440px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
   padding: 18px;
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
@@ -390,6 +390,7 @@ select {
   padding: 0 10px;
   background: white;
   color: var(--ink);
+  text-overflow: ellipsis;
 }
 
 .workspace {
@@ -431,9 +432,13 @@ select {
 
 .quiz-config {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(180px, 0.72fr) minmax(260px, 1.28fr);
   gap: 14px;
   margin-top: 18px;
+}
+
+.quiz-preview {
+  grid-template-columns: minmax(0, 0.86fr) minmax(260px, 1.14fr);
 }
 
 .preview-cell {
@@ -459,6 +464,17 @@ select {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.selected-set-card strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.selected-set-card span {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .primary-btn {
@@ -966,7 +982,7 @@ button:focus-visible {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -1173,6 +1189,7 @@ td.status-review {
   }
 
   .task-preview,
+  .quiz-preview,
   .quiz-config,
   .answer-pair,
   .stat-grid {

@@ -106,6 +106,7 @@ let sentenceDataPromise = null;
 let sentenceDataLoaded = false;
 let wordDataPromise = null;
 let wordDataLoaded = false;
+let speechRequestId = 0;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
@@ -714,6 +715,9 @@ function renderVocabularyHome() {
   const preview = VOCABULARY_PREVIEW_CELLS[state.vocabularyMode];
   const selectedSet = getSelectedVocabularySet();
   const wordCount = selectedSet?.words.length || 0;
+  const setSummary = selectedSet
+    ? `${formatVocabularySetSummary(selectedSet)} · ${wordCount} words`
+    : "No set selected";
   const canStart = Boolean(selectedSet && wordCount);
   const startLabel = wordCount ? `Start ${wordCount}-word quiz` : "No vocabulary sets loaded";
 
@@ -722,7 +726,7 @@ function renderVocabularyHome() {
       <div class="mode-heading">
         <div>
           <h2>Vocabulary Quiz</h2>
-          <p>${quizMode.task}</p>
+          <p>${quizMode.task} New HSK vocabulary is grouped into 50-word sets.</p>
         </div>
       </div>
 
@@ -740,16 +744,20 @@ function renderVocabularyHome() {
           <span>Quiz set</span>
           <select id="vocabularySet" ${VOCABULARY_QUIZ_SETS.length ? "" : "disabled"}>
             ${VOCABULARY_QUIZ_SETS.map((set) => `
-              <option value="${set.id}" ${set.id === state.vocabularySetId ? "selected" : ""}>${set.label}</option>
+              <option value="${set.id}" ${set.id === state.vocabularySetId ? "selected" : ""}>${escapeHtml(formatVocabularySetOption(set))}</option>
             `).join("")}
           </select>
         </label>
       </div>
 
-      <div class="task-preview" aria-hidden="true">
+      <div class="task-preview quiz-preview" aria-hidden="true">
         <div class="preview-cell">
           <strong>${preview.character}</strong>
           <span>${preview.description}</span>
+        </div>
+        <div class="preview-cell selected-set-card">
+          <strong>${selectedSet ? escapeHtml(selectedSet.level) : "No set"}</strong>
+          <span>${escapeHtml(setSummary)}</span>
         </div>
       </div>
 
@@ -792,6 +800,20 @@ function renderVocabularyHome() {
   });
 
   document.querySelector("#startVocabularySession").addEventListener("click", startVocabularySession);
+}
+
+function formatVocabularySetOption(set) {
+  const label = set.shortLabel || set.label;
+  const count = set.words?.length || 0;
+  return `${label} (${count} words)`;
+}
+
+function formatVocabularySetSummary(set) {
+  const label = set.shortLabel || set.label;
+  const levelPrefix = set.level ? `${set.level} · ` : "";
+  return levelPrefix && label.startsWith(levelPrefix)
+    ? label.slice(levelPrefix.length)
+    : label;
 }
 
 function renderSession() {
@@ -1932,6 +1954,7 @@ function setPlaybackState(isSpeaking) {
 }
 
 function stopSpeech() {
+  speechRequestId += 1;
   if (supportsSpeechSynthesis()) {
     window.speechSynthesis.cancel();
   }
@@ -1941,7 +1964,11 @@ function stopSpeech() {
 async function speak(text) {
   if (!supportsSpeechSynthesis()) return;
 
+  const requestId = speechRequestId + 1;
+  speechRequestId = requestId;
   await waitForVoices();
+  if (requestId !== speechRequestId) return;
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "zh-CN";
   utterance.rate = VOICE_SPEEDS[state.voiceSpeed] || VOICE_SPEEDS.normal;
@@ -1953,13 +1980,29 @@ async function speak(text) {
     utterance.voice = state.preferredVoice;
   }
 
-  utterance.onstart = () => setPlaybackState(true);
-  utterance.onend = () => setPlaybackState(false);
-  utterance.onerror = () => setPlaybackState(false);
+  utterance.onstart = () => {
+    if (requestId === speechRequestId) {
+      setPlaybackState(true);
+    }
+  };
+  utterance.onend = () => {
+    if (requestId === speechRequestId) {
+      setPlaybackState(false);
+    }
+  };
+  utterance.onerror = () => {
+    if (requestId === speechRequestId) {
+      setPlaybackState(false);
+    }
+  };
 
   window.speechSynthesis.cancel();
   setPlaybackState(true);
-  window.speechSynthesis.speak(utterance);
+  window.setTimeout(() => {
+    if (requestId === speechRequestId) {
+      window.speechSynthesis.speak(utterance);
+    }
+  }, 40);
 }
 
 function supportsSpeechSynthesis() {

@@ -53,10 +53,10 @@ const VOCABULARY_MODES = {
     label: "Pinyin",
     task: "Read the Chinese word and type its pinyin.",
     promptLabel: "Chinese word",
-    answerPlaceholder: "Type pinyin with tone marks or tone numbers",
+    answerPlaceholder: "Type pinyin; spaces and tones optional",
   },
   meaning: {
-    label: "Audio Meaning",
+    label: "Audio",
     task: "Listen to the Chinese word and type its English meaning.",
     promptLabel: "Audio word",
     answerPlaceholder: "Type the English meaning",
@@ -267,7 +267,7 @@ function bindTopLevelControls() {
     });
   });
 
-  document.querySelectorAll(".mode-tab").forEach((button) => {
+  document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextMode = button.dataset.mode;
       if (nextMode === state.mode) return;
@@ -278,6 +278,24 @@ function bindTopLevelControls() {
 
       stopSpeech();
       state.mode = nextMode;
+      state.session = null;
+      state.result = null;
+      saveSettings();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-vocabulary-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextMode = button.dataset.vocabularyMode;
+      if (!VOCABULARY_MODES[nextMode] || nextMode === state.vocabularyMode) return;
+
+      if (state.session && !window.confirm("Switch quiz type and end this session?")) {
+        return;
+      }
+
+      stopSpeech();
+      state.vocabularyMode = nextMode;
       state.session = null;
       state.result = null;
       saveSettings();
@@ -321,7 +339,10 @@ function handleSessionShortcut(event) {
 
   if ((event.metaKey || event.ctrlKey) && sessionUsesAudioPrompt(state.session)) {
     event.preventDefault();
-    speak(state.session.items[state.session.index].zh);
+    const current = state.session.items[state.session.index];
+    if (current) {
+      speak(current.zh);
+    }
     return;
   }
 
@@ -349,9 +370,17 @@ function handleSessionShortcut(event) {
   }
 
   if (state.session.type === "vocabulary") {
-    const input = document.querySelector("#vocabularyGuess");
+    if (state.session.quizMode === "pinyin") {
+      const input = document.querySelector("#vocabularyGuess");
+      if (input) {
+        submitVocabularyGuess(input.value);
+      }
+      return;
+    }
+
+    const input = document.querySelector("#answerInput");
     if (input) {
-      submitVocabularyGuess(input.value);
+      submitAnswer(input.value);
     }
     return;
   }
@@ -373,7 +402,7 @@ function shouldStartSessionFromShortcut(target) {
 
 function sessionUsesAudioPrompt(session) {
   return session?.type === "vocabulary"
-    ? false
+    ? session.quizMode === "meaning"
     : session?.mode === "listening";
 }
 
@@ -681,8 +710,11 @@ function updateNavigationState() {
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === state.tool);
   });
-  document.querySelectorAll(".mode-tab").forEach((button) => {
+  document.querySelectorAll("[data-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === state.mode);
+  });
+  document.querySelectorAll("[data-vocabulary-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.vocabularyMode === state.vocabularyMode);
   });
 }
 
@@ -740,11 +772,14 @@ function renderModeHome() {
 }
 
 function renderVocabularyHome() {
+  const mode = VOCABULARY_MODES[state.vocabularyMode];
   const selectedSet = getSelectedVocabularySet();
   const wordCount = selectedSet?.words.length || 0;
   const timeLimit = formatTimer(determineVocabularyTimeLimit(wordCount));
   const canStart = Boolean(selectedSet && wordCount);
-  const startLabel = wordCount ? `Start ${wordCount}-word timed quiz` : "No vocabulary sets loaded";
+  const startLabel = wordCount
+    ? `Start ${wordCount}-word ${state.vocabularyMode === "meaning" ? "audio quiz" : "timed quiz"}`
+    : "No vocabulary sets loaded";
   const previewRows = selectedSet
     ? buildVocabularyPreviewRows(selectedSet.words, VOCABULARY_PREVIEW_LIMIT)
     : "";
@@ -756,8 +791,8 @@ function renderVocabularyHome() {
     <section class="workspace-panel vocabulary-home">
       <div class="mode-heading">
         <div>
-          <h2>Vocabulary Quiz</h2>
-          <p>Type each word's pinyin to reveal the list before time runs out.</p>
+          <h2>${mode.label} Vocabulary Quiz</h2>
+          <p>${mode.task}</p>
         </div>
       </div>
 
@@ -934,7 +969,17 @@ function renderSession() {
 }
 
 function renderVocabularySession() {
+  if (state.session?.quizMode === "meaning") {
+    renderVocabularyMeaningSession();
+    return;
+  }
+
+  renderVocabularyPinyinSession();
+}
+
+function renderVocabularyPinyinSession() {
   const session = state.session;
+  const mode = VOCABULARY_MODES[session.quizMode];
   const sessionLength = session.items.length;
   const foundCount = session.foundIds.size;
   const progressPercent = Math.round((foundCount / sessionLength) * 100);
@@ -971,7 +1016,7 @@ function renderVocabularySession() {
             autocapitalize="none"
             spellcheck="false"
             enterkeyhint="done"
-            placeholder="Type pinyin; spaces and tones optional"
+            placeholder="${mode.answerPlaceholder}"
           >
         </label>
         <button class="secondary-btn shortcut-btn" type="submit">
@@ -1011,6 +1056,97 @@ function renderVocabularySession() {
   });
   input.addEventListener("input", () => {
     submitVocabularyGuess(input.value, { live: true });
+  });
+  if (!isTouchLikeDevice()) {
+    input.focus();
+  }
+}
+
+function renderVocabularyMeaningSession() {
+  const session = state.session;
+  const mode = VOCABULARY_MODES[session.quizMode];
+  const current = session.items[session.index];
+  const submitted = Boolean(session.currentAssessment);
+  const answer = submitted ? session.currentAssessment.answer : "";
+  const sessionLength = session.items.length;
+  const answeredCount = session.answers.length;
+  const correctCount = session.answers.filter((entry) => entry.correct).length;
+  const progressPercent = Math.round((answeredCount / sessionLength) * 100);
+  const remaining = getVocabularyRemainingSeconds(session);
+  const feedbackMarkup = submitted ? buildVocabularyFeedbackMarkup(session.currentAssessment, current) : "";
+
+  app.innerHTML = `
+    <section class="workspace-panel session-shell vocabulary-session">
+      <div class="quiz-play-header">
+        <div class="quiz-meter">
+          <span>Score</span>
+          <strong id="vocabularyScore">${correctCount}/${sessionLength}</strong>
+        </div>
+        <div class="quiz-meter">
+          <span>Timer</span>
+          <strong id="vocabularyTimer">${formatTimer(remaining)}</strong>
+        </div>
+        <button class="ghost-btn" type="button" id="endSession">End quiz</button>
+      </div>
+
+      <div class="progress-row">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="vocabularyProgress" style="width: ${progressPercent}%"></div>
+        </div>
+        <span class="progress-label">Word ${session.index + 1} of ${sessionLength}</span>
+      </div>
+
+      <div class="sentence-card">
+        <span class="sentence-label">${mode.promptLabel}</span>
+        ${buildVocabularyPromptMarkup(current, session.quizMode)}
+      </div>
+
+      <form class="answer-form" id="answerForm">
+        <textarea
+          id="answerInput"
+          lang="en"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          enterkeyhint="done"
+          placeholder="${mode.answerPlaceholder}"
+          ${submitted ? "disabled" : ""}
+        >${escapeHtml(answer)}</textarea>
+        <div class="form-actions">
+          ${
+            submitted
+              ? `<button class="primary-btn shortcut-btn" type="button" id="nextQuestion">
+                  <span>${session.index + 1 === sessionLength ? "View results" : "Next word"}</span>
+                  ${shortcutHint("Enter")}
+                </button>`
+              : `<button class="primary-btn shortcut-btn" type="submit">
+                  <span>Check meaning</span>
+                  ${shortcutHint("Enter")}
+                </button>`
+          }
+          <button class="ghost-btn" type="button" id="endSessionSecondary">End quiz</button>
+        </div>
+      </form>
+
+      ${feedbackMarkup}
+    </section>
+  `;
+
+  document.querySelector("#playAudio")?.addEventListener("click", () => speak(current.zh));
+  document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
+  document.querySelector("#endSessionSecondary").addEventListener("click", finishSessionEarly);
+
+  if (submitted) {
+    document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
+    revealFeedbackPanel();
+    return;
+  }
+
+  const form = document.querySelector("#answerForm");
+  const input = document.querySelector("#answerInput");
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitAnswer(input.value);
   });
   if (!isTouchLikeDevice()) {
     input.focus();
@@ -1388,6 +1524,11 @@ function renderResults() {
 
 function renderVocabularyResults() {
   const result = state.result;
+  if (result.quizMode === "meaning") {
+    renderVocabularyMeaningResults();
+    return;
+  }
+
   const foundIds = new Set(result.foundIds || []);
   const total = result.items.length;
   const correct = foundIds.size;
@@ -1456,6 +1597,99 @@ function renderVocabularyResults() {
               <th>Character</th>
               <th>Pinyin</th>
               <th>Translation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession").addEventListener("click", startVocabularySession);
+  document.querySelector("#backToModes").addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    render();
+  });
+}
+
+function renderVocabularyMeaningResults() {
+  const result = state.result;
+  const total = result.items.length;
+  const answered = result.answers.length;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const percent = total ? Math.round((correct / total) * 100) : 0;
+  const resultLabel = result.finishReason === "complete"
+    ? "Completed"
+    : result.finishReason === "time"
+      ? "Time expired"
+      : "Ended";
+  const answersByIndex = new Map(result.answers.map((answer) => [answer.itemIndex, answer]));
+  const rows = result.items
+    .map((item, index) => {
+      const answer = answersByIndex.get(index);
+      const statusTone = answer ? answerStatusTone(answer) : "review";
+      const statusText = answer ? answerStatusLabel(answer) : "Unanswered";
+      return `
+        <tr class="${answer?.correct ? "found" : "missed"}">
+          <td>${index + 1}</td>
+          <td class="chinese-text">${escapeHtml(item.zh)}</td>
+          <td>${escapeHtml(item.pinyin)}</td>
+          <td>${escapeHtml(answer?.answer || "No answer entered")}</td>
+          <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
+          <td>${answer ? `${Math.round(answer.score * 100)}%` : "0%"}</td>
+          <td class="status-${statusTone}">${statusText}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel">
+      <div class="results-header">
+        <div>
+          <h2>Audio Vocabulary Results</h2>
+          <p>${resultLabel}: ${correct} correct out of ${total}; ${answered} answered in ${formatTimer(result.elapsedSeconds)}.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Start another quiz</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to quiz</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <strong>${correct}/${total}</strong>
+          <span>Score</span>
+        </div>
+        <div class="stat">
+          <strong>${percent}%</strong>
+          <span>Correct</span>
+        </div>
+        <div class="stat">
+          <strong>${formatTimer(result.elapsedSeconds)}</strong>
+          <span>Time used</span>
+        </div>
+        <div class="stat">
+          <strong>${formatTimer(result.timeLimitSeconds)}</strong>
+          <span>Time limit</span>
+        </div>
+      </div>
+
+      <div class="results-table-wrap vocab-table-wrap" tabindex="0">
+        <table class="vocab-table audio-results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Character</th>
+              <th>Pinyin</th>
+              <th>Your answer</th>
+              <th>Expected meaning</th>
+              <th>Score</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -1546,14 +1780,16 @@ function startVocabularySession() {
   state.result = null;
   state.session = {
     type: "vocabulary",
-    quizMode: "pinyin",
+    quizMode: state.vocabularyMode,
     setId: selectedSet.id,
     setLabel: selectedSet.label,
     setShortLabel: selectedSet.shortLabel,
     order: state.vocabularyOrder,
     items,
+    index: 0,
     foundIds: new Set(),
     answers: [],
+    currentAssessment: null,
     startedAt,
     endsAt: startedAt + timeLimitSeconds * 1000,
     timeLimitSeconds,
@@ -1561,11 +1797,14 @@ function startVocabularySession() {
 
   saveSettings();
   render();
+  if (state.session.quizMode === "meaning") {
+    speak(state.session.items[0].zh);
+  }
 }
 
 function submitVocabularyGuess(answer, options = {}) {
   const session = state.session;
-  if (session?.type !== "vocabulary") {
+  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
     return;
   }
 
@@ -1637,7 +1876,11 @@ async function submitAnswer(answer) {
     ? assessVocabularyAnswer(answer, item, session.quizMode)
     : assessAnswer(answer, item, session.mode);
   session.currentAssessment = assessment;
-  session.answers.push({ ...assessment, item });
+  session.answers.push({
+    ...assessment,
+    item,
+    ...(session.type === "vocabulary" ? { itemIndex: session.index } : {}),
+  });
   state.isCheckingAnswer = false;
   render();
 }
@@ -1647,7 +1890,11 @@ function nextQuestion() {
   const sessionLength = session.items.length;
 
   if (session.index + 1 >= sessionLength) {
-    state.result = buildSessionResult(session);
+    state.result = buildSessionResult(
+      session.type === "vocabulary"
+        ? { ...session, finishReason: "complete" }
+        : session,
+    );
     state.session = null;
     stopSpeech();
     render();
@@ -2297,7 +2544,12 @@ function stopVocabularyTimer() {
 
 function updateVocabularySessionMetrics(session) {
   const total = session.items.length;
-  const found = session.foundIds.size;
+  const found = session.quizMode === "pinyin"
+    ? session.foundIds.size
+    : session.answers.filter((answer) => answer.correct).length;
+  const progressCount = session.quizMode === "pinyin"
+    ? found
+    : session.answers.length;
   const score = document.querySelector("#vocabularyScore");
   const timer = document.querySelector("#vocabularyTimer");
   const progress = document.querySelector("#vocabularyProgress");
@@ -2310,10 +2562,14 @@ function updateVocabularySessionMetrics(session) {
     timer.textContent = formatTimer(getVocabularyRemainingSeconds(session));
   }
   if (progress) {
-    progress.style.width = `${Math.round((found / total) * 100)}%`;
+    progress.style.width = `${Math.round((progressCount / total) * 100)}%`;
   }
   if (tableSection) {
     tableSection.textContent = `${found} found, ${total - found} left`;
+  }
+
+  if (session.quizMode !== "pinyin") {
+    return;
   }
 
   session.items.forEach((item, index) => {

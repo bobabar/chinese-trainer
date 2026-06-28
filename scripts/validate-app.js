@@ -62,9 +62,12 @@ vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
+  VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
+  assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
@@ -75,15 +78,19 @@ window.__tests = {
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  sessionUsesAudioPrompt,
   speak,
   state,
   stopSpeech,
 };`, context, { filename: "app.js" });
 
 const {
+  VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
+  assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
@@ -94,6 +101,7 @@ const {
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  sessionUsesAudioPrompt,
   speak,
   state,
   stopSpeech,
@@ -133,11 +141,16 @@ assert(firstVocabularySet.words.length === 175, "first vocabulary part should fo
 assert(hsk1Set?.words.length === 506, "HSK 1 quiz should combine the full checked-in HSK 1 vocabulary parts");
 assert(hsk2Set?.words.length === 750, "HSK 2 quiz should combine the full checked-in HSK 2 vocabulary parts");
 assert(combinedSet?.words.length === 1256, "combined vocabulary quiz should cover checked-in HSK 1 and 2 words");
+assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
+assert(buildVocabularyPromptMarkup(loveEntry, "meaning").includes("Play word"), "audio vocabulary mode should render a word replay button");
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
 assert(scorePinyin("ai4", loveEntry) >= 0.99, "numeric pinyin should be accepted");
 assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accepted");
 assert(scorePinyin("ai", loveEntry) >= 0.7, "tone-free pinyin should receive partial credit");
 assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings should match accepted meanings");
+assert(assessVocabularyAnswer("love", loveEntry, "meaning").correct, "audio vocabulary mode should grade English meanings");
+assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "audio vocabulary mode should support replay shortcuts");
+assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pinyin vocabulary mode should not use audio replay shortcuts");
 assert(formatTimer(determineVocabularyTimeLimit(175)) === "20:00", "175-word vocabulary quiz should use a 20-minute timer");
 
 const matchSession = {

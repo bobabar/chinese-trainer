@@ -104,6 +104,14 @@ body[data-tool="vocabulary"] .drill-only {
   display: none;
 }
 
+.mode-nav.vocabulary-only {
+  display: none;
+}
+
+body[data-tool="vocabulary"] .mode-nav.vocabulary-only {
+  display: grid;
+}
+
 button,
 input,
 select,
@@ -228,6 +236,10 @@ p {
   box-shadow: 0 12px 35px rgba(90, 52, 30, 0.09);
 }
 
+.mode-nav.vocabulary-mode-nav {
+  grid-template-columns: repeat(2, minmax(104px, 1fr));
+}
+
 .mode-tab,
 .tool-tab,
 .primary-btn,
@@ -313,8 +325,8 @@ p {
 }
 
 body[data-tool="vocabulary"] .tool-controls {
-  grid-template-columns: minmax(220px, 300px);
-  justify-content: end;
+  grid-template-columns: minmax(280px, 520px) minmax(260px, 1fr);
+  justify-content: stretch;
 }
 
 body[data-tool="vocabulary"] .options-body {

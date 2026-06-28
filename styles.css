@@ -90,6 +90,20 @@ body[data-mode="writing"] {
   --theme-rule: rgba(31, 102, 159, 0.12);
 }
 
+body[data-tool="vocabulary"] {
+  --theme: #167a76;
+  --theme-hover: #0f5f5b;
+  --theme-soft: #f1fbfa;
+  --theme-border: #b6dad7;
+  --theme-focus: rgba(22, 122, 118, 0.2);
+  --theme-wash: rgba(22, 122, 118, 0.08);
+  --theme-rule: rgba(22, 122, 118, 0.12);
+}
+
+body[data-tool="vocabulary"] .drill-only {
+  display: none;
+}
+
 button,
 input,
 select,
@@ -130,6 +144,7 @@ button:disabled {
 }
 
 .topbar,
+.mode-nav,
 .global-options,
 .workspace-panel,
 .results-table-wrap {
@@ -146,7 +161,7 @@ button:disabled {
   min-height: 92px;
   padding: 16px;
   border-top: 4px solid var(--cream-strong);
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
 }
 
 .brand {
@@ -186,14 +201,35 @@ p {
   font-size: 13px;
 }
 
+.tool-nav,
 .mode-nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(104px, 1fr));
   gap: 8px;
+}
+
+.tool-nav {
+  grid-template-columns: repeat(2, minmax(124px, 1fr));
   width: min(520px, 100%);
 }
 
+.tool-controls {
+  display: grid;
+  grid-template-columns: minmax(280px, 520px) minmax(260px, 1fr);
+  align-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mode-nav {
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 12px 35px rgba(90, 52, 30, 0.09);
+}
+
 .mode-tab,
+.tool-tab,
 .primary-btn,
 .secondary-btn,
 .ghost-btn,
@@ -211,6 +247,7 @@ p {
 }
 
 .mode-tab:hover,
+.tool-tab:hover,
 .secondary-btn:hover,
 .ghost-btn:hover,
 .icon-btn:hover {
@@ -218,7 +255,8 @@ p {
   transform: translateY(-1px);
 }
 
-.mode-tab.active {
+.mode-tab.active,
+.tool-tab.active {
   border-color: var(--theme);
   background: var(--theme);
   color: white;
@@ -226,8 +264,7 @@ p {
 
 .global-options {
   padding: 0;
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
+  border-radius: 8px;
   box-shadow: 0 12px 35px rgba(90, 52, 30, 0.09);
   overflow: hidden;
 }
@@ -269,10 +306,19 @@ p {
 
 .options-body {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 180px;
+  grid-template-columns: minmax(260px, 1fr) minmax(150px, 180px);
   align-items: center;
   gap: 14px;
   padding: 0 16px 14px;
+}
+
+body[data-tool="vocabulary"] .tool-controls {
+  grid-template-columns: minmax(220px, 300px);
+  justify-content: end;
+}
+
+body[data-tool="vocabulary"] .options-body {
+  grid-template-columns: 1fr;
 }
 
 .option-group,
@@ -381,6 +427,13 @@ select {
   grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin: 18px 0 20px;
+}
+
+.quiz-config {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
 }
 
 .preview-cell {
@@ -505,6 +558,11 @@ select {
 
 .sentence-text.zh {
   line-height: 1.45;
+}
+
+.quiz-word {
+  font-size: 42px;
+  line-height: 1.2;
 }
 
 .audio-sentence {
@@ -661,6 +719,17 @@ textarea {
   line-height: 1.5;
 }
 
+.answer-input {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: white;
+  line-height: 1.4;
+}
+
 .chinese-text,
 textarea[lang="zh-CN"] {
   font-family: var(--chinese-font);
@@ -668,7 +737,12 @@ textarea[lang="zh-CN"] {
   font-weight: 400;
 }
 
+.sentence-text.quiz-word {
+  font-size: 42px;
+}
+
 textarea:focus,
+.answer-input:focus,
 select:focus,
 button:focus-visible {
   outline: 3px solid var(--theme-focus);
@@ -943,6 +1017,10 @@ button:focus-visible {
   margin-bottom: 18px;
 }
 
+.quiz-stat-grid {
+  margin-bottom: 18px;
+}
+
 .results-table-wrap {
   border-radius: 8px;
   overflow: auto;
@@ -1019,6 +1097,11 @@ td.status-review {
     width: 100%;
   }
 
+  .tool-controls,
+  body[data-tool="vocabulary"] .tool-controls {
+    grid-template-columns: 1fr;
+  }
+
   .options-body {
     display: grid;
     grid-template-columns: 1fr;
@@ -1077,13 +1160,20 @@ td.status-review {
     gap: 6px;
   }
 
-  .mode-tab {
+  .tool-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .mode-tab,
+  .tool-tab {
     min-height: 44px;
     padding: 0 6px;
     font-size: 13px;
   }
 
   .task-preview,
+  .quiz-config,
   .answer-pair,
   .stat-grid {
     grid-template-columns: 1fr;
@@ -1093,8 +1183,16 @@ td.status-review {
     font-size: 21px;
   }
 
+  .quiz-word {
+    font-size: 34px;
+  }
+
   .chinese-text {
     font-size: 21px;
+  }
+
+  .sentence-text.quiz-word {
+    font-size: 34px;
   }
 
   .mode-heading {

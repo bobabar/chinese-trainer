@@ -25,39 +25,47 @@
           <img class="brand-mark" src="./assets/icon.svg" alt="" aria-hidden="true">
           <div>
             <h1>Chinese Trainer</h1>
-            <p>Practice Chinese with drills</p>
+            <p>Drills and vocabulary quizzes</p>
           </div>
         </div>
 
-        <nav class="mode-nav" aria-label="Training type">
+        <nav class="tool-nav" aria-label="Tools">
+          <button class="tool-tab" type="button" data-tool="drill">Drill Tool</button>
+          <button class="tool-tab" type="button" data-tool="vocabulary">Vocabulary Quiz</button>
+        </nav>
+      </header>
+
+      <div class="tool-controls">
+        <nav class="mode-nav drill-only" aria-label="Training type">
           <button class="mode-tab" type="button" data-mode="listening">Listening</button>
           <button class="mode-tab" type="button" data-mode="writing">Writing</button>
           <button class="mode-tab" type="button" data-mode="reading">Reading</button>
         </nav>
-      </header>
 
-      <details class="global-options" aria-label="Global options">
-        <summary class="options-summary">Options</summary>
-        <div class="options-body">
-          <div class="option-group">
-            <span class="option-label">Difficulty filter</span>
-            <div class="check-row" id="levelOptions"></div>
+        <details class="global-options" aria-label="Global options">
+          <summary class="options-summary">Options</summary>
+          <div class="options-body">
+            <div class="option-group drill-only">
+              <span class="option-label">Difficulty filter</span>
+              <div class="check-row" id="levelOptions"></div>
+            </div>
+
+            <label class="field compact-field">
+              <span>Voice speed</span>
+              <select id="voiceSpeed">
+                <option value="normal">Normal</option>
+                <option value="slow">Slow</option>
+                <option value="very-slow">Very slow</option>
+              </select>
+            </label>
           </div>
-
-          <label class="field compact-field">
-            <span>Voice speed</span>
-            <select id="voiceSpeed">
-              <option value="normal">Normal</option>
-              <option value="slow">Slow</option>
-              <option value="very-slow">Very slow</option>
-            </select>
-          </label>
-        </div>
-      </details>
+        </details>
+      </div>
 
       <main id="app" class="workspace" aria-live="polite"></main>
     </div>
 
+    <script src="./vocab-data.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

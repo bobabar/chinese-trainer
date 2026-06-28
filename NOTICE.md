@@ -22,3 +22,13 @@ Source: https://www.mdbg.net/chinese/dictionary?page=cc-cedict
 
 License: Creative Commons Attribution-ShareAlike 4.0 International
 https://creativecommons.org/licenses/by-sa/4.0/
+
+## New HSK Vocabulary Quiz Data
+
+The New HSK vocabulary entries in `vocab-data.js` are generated from the complete-hsk-vocabulary New HSK wordlists.
+
+Source: https://github.com/drkameleon/complete-hsk-vocabulary
+
+License: MIT
+
+Copyright (c) 2026 Yanis Zafirópulos

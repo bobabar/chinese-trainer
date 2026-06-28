@@ -1,6 +1,6 @@
 # Chinese Trainer
 
-A browser-based Chinese training app for listening, writing, and reading practice.
+A browser-based Chinese training app for sentence drills and vocabulary quizzes.
 
 ## Live Site
 
@@ -33,12 +33,15 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 ## Features
 
-- Top-level training navigation for Listening, Writing, and Reading.
+- Global navigation between the Drill Tool and Vocabulary Quiz.
+- Drill training navigation for Listening, Writing, and Reading.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.
 - Simplified Mandarin-only listening sentences with Normal, Slow, and Very slow voice speed options.
 - 30-sentence sessions with immediate assessment.
+- Vocabulary quiz sets for Mandarin New HSK 1 Parts 1-3 and Mandarin New HSK 2 Parts 1-5.
+- Vocabulary quiz modes for Chinese-character-to-pinyin recall and audio-word-to-English-meaning recall.
 - Checked answers show pinyin under Chinese text in the Expected or Reference box, with word-level English glosses on hover where Chinese appears.
 - End-of-session results table with expected answers and per-item scores.
 - Listening mode uses the browser Speech Synthesis API and prefers Microsoft Online or Microsoft Natural mainland Chinese speech when available.

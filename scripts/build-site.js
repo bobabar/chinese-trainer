@@ -9,6 +9,7 @@ const FILES = [
   "styles.css",
   "sentence-data.js",
   "word-data.js",
+  "vocab-data.js",
   "CNAME",
   "NOTICE.md",
   ".nojekyll",

@@ -103,6 +103,7 @@ const annotated = buildAnswerBoxText("我爱你。");
 const wordMarkup = buildAnnotatedChineseMarkup("我爱你。");
 const firstVocabularySet = getSelectedVocabularySet();
 const loveEntry = firstVocabularySet.words.find((item) => item.zh === "爱");
+const hobbyEntry = firstVocabularySet.words.find((item) => item.zh === "爱好");
 const hsk1Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1");
 const hsk2Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-2");
 const combinedSet = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1-2");
@@ -113,6 +114,8 @@ assert(annotated.includes("chinese-text"), "annotated Chinese should use the sha
 assert(wordMarkup.includes("annotated-hanzi-line"), "annotated Chinese should include a separate Hanzi line");
 assert(wordMarkup.includes("annotated-pinyin-line"), "annotated Chinese should include a separate pinyin line");
 assert(wordMarkup.includes("data-gloss="), "annotated Chinese words should include gloss hover text");
+assert(loveEntry, "test vocabulary should include 爱");
+assert(hobbyEntry, "test vocabulary should include 爱好");
 assert(
   scoreEnglish("He went to school.", "She went to school.", { ignoreGenderPronouns: true }) >= 0.99,
   "listening mode should keep he/she pronunciation ambiguity accepted",
@@ -143,7 +146,13 @@ const matchSession = {
 };
 assert(findVocabularyGuessMatches("ài", matchSession).length === 1, "tone-mark vocabulary answer should reveal a row");
 assert(findVocabularyGuessMatches("ai4", matchSession).length === 1, "numeric-tone vocabulary answer should reveal a row");
-assert(findVocabularyGuessMatches("ai", matchSession).length === 0, "tone-free vocabulary answer should not count as exact");
+assert(findVocabularyGuessMatches("ai", matchSession).length === 1, "tone-free vocabulary answer should reveal a row");
+
+const compactPinyinSession = {
+  items: [hobbyEntry],
+  foundIds: new Set(),
+};
+assert(findVocabularyGuessMatches("aihao", compactPinyinSession).length === 1, "tone-free compact pinyin should reveal a row");
 
 validateSpeechReplay()
   .then(() => {

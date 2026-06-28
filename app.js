@@ -971,7 +971,7 @@ function renderVocabularySession() {
             autocapitalize="none"
             spellcheck="false"
             enterkeyhint="done"
-            placeholder="Type pinyin with tone marks or numbers"
+            placeholder="Type pinyin; spaces and tones optional"
           >
         </label>
         <button class="secondary-btn shortcut-btn" type="submit">
@@ -2212,15 +2212,27 @@ function findVocabularyGuessMatches(answer, session) {
 
   return session.items
     .map((item, index) => ({ item, id: vocabularyItemId(item, index) }))
-    .filter(({ item, id }) => !session.foundIds.has(id) && isExactVocabularyPinyinGuess(normalizedAnswer, item));
+    .filter(({ item, id }) => !session.foundIds.has(id) && isAcceptedVocabularyPinyinGuess(normalizedAnswer, item));
 }
 
-function isExactVocabularyPinyinGuess(normalizedAnswer, item) {
+function isAcceptedVocabularyPinyinGuess(normalizedAnswer, item) {
   const compactAnswer = compactPinyin(normalizedAnswer);
+  const toneFreeAnswer = stripPinyinTones(normalizedAnswer);
+  const compactToneFreeAnswer = compactPinyin(toneFreeAnswer);
+
   return getVocabularyPinyinVariants(item)
     .map(normalizePinyinForCompare)
     .filter(Boolean)
-    .some((expected) => normalizedAnswer === expected || compactAnswer === compactPinyin(expected));
+    .some((expected) => {
+      const compactExpected = compactPinyin(expected);
+      const toneFreeExpected = stripPinyinTones(expected);
+      const compactToneFreeExpected = compactPinyin(toneFreeExpected);
+
+      return normalizedAnswer === expected ||
+        compactAnswer === compactExpected ||
+        toneFreeAnswer === toneFreeExpected ||
+        compactToneFreeAnswer === compactToneFreeExpected;
+    });
 }
 
 function vocabularyItemId(item, index) {

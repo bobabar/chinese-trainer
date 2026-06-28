@@ -111,6 +111,7 @@ const DEFAULT_VOCABULARY_ORDER = "random";
 const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
+const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const loadedScripts = new Map();
 let sentenceDataPromise = null;
 let sentenceDataLoaded = false;
@@ -159,6 +160,7 @@ const state = {
   vocabularyMode: "pinyin",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
+  vocabularyHideTranslations: false,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
   voices: [],
@@ -211,6 +213,9 @@ function loadSettings() {
     ) {
       state.vocabularyOrder = saved.vocabularyOrder;
     }
+    if (typeof saved.vocabularyHideTranslations === "boolean") {
+      state.vocabularyHideTranslations = saved.vocabularyHideTranslations;
+    }
     if (Array.isArray(saved.selectedLevels) && saved.selectedLevels.length) {
       state.selectedLevels = new Set(
         saved.selectedLevels.filter((level) => LEVELS.some((item) => item.id === level)),
@@ -245,6 +250,7 @@ function saveSettings() {
         vocabularyMode: state.vocabularyMode,
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
+        vocabularyHideTranslations: state.vocabularyHideTranslations,
         selectedLevels: [...state.selectedLevels],
         voiceSpeed: state.voiceSpeed,
       }),
@@ -784,12 +790,13 @@ function renderVocabularyHome() {
   const wordCount = selectedSet?.words.length || 0;
   const timeLimit = formatTimer(determineVocabularyTimeLimit(wordCount));
   const canStart = Boolean(selectedSet && wordCount);
+  const translationsHidden = state.vocabularyMode === "meaning" || state.vocabularyHideTranslations;
   const startLabel = wordCount
     ? `Start ${wordCount}-word ${state.vocabularyMode === "meaning" ? "audio quiz" : "timed quiz"}`
     : "No vocabulary sets loaded";
   const previewRows = selectedSet
     ? buildVocabularyPreviewRows(selectedSet.words, VOCABULARY_PREVIEW_LIMIT, {
-        hideTranslation: state.vocabularyMode === "meaning",
+        hideTranslation: translationsHidden,
       })
     : "";
   const previewNote = selectedSet && wordCount > VOCABULARY_PREVIEW_LIMIT
@@ -823,6 +830,19 @@ function renderVocabularyHome() {
             `).join("")}
           </select>
         </label>
+
+        <div class="field">
+          <span>Translations</span>
+          <label class="level-check vocabulary-translation-check">
+            <input
+              type="checkbox"
+              id="vocabularyHideTranslations"
+              ${translationsHidden ? "checked" : ""}
+              ${state.vocabularyMode === "meaning" ? "disabled" : ""}
+            >
+            Hide until answered
+          </label>
+        </div>
       </div>
 
       <div class="quiz-start-strip">
@@ -879,6 +899,13 @@ function renderVocabularyHome() {
 
   document.querySelector("#vocabularyOrder").addEventListener("change", (event) => {
     state.vocabularyOrder = event.target.value;
+    state.result = null;
+    saveSettings();
+    render();
+  });
+
+  document.querySelector("#vocabularyHideTranslations").addEventListener("change", (event) => {
+    state.vocabularyHideTranslations = event.target.checked;
     state.result = null;
     saveSettings();
     render();
@@ -993,7 +1020,7 @@ function renderVocabularyPinyinSession() {
   const foundCount = session.foundIds.size;
   const progressPercent = Math.round((foundCount / sessionLength) * 100);
   const remaining = getVocabularyRemainingSeconds(session);
-  const rows = buildVocabularyQuizRows(session);
+  const rows = buildVocabularyQuizRows(session, { hideTranslation: session.hideTranslations });
 
   app.innerHTML = `
     <section class="workspace-panel session-shell vocabulary-session">
@@ -1819,6 +1846,7 @@ function startVocabularySession() {
     setLabel: selectedSet.label,
     setShortLabel: selectedSet.shortLabel,
     order: state.vocabularyOrder,
+    hideTranslations: state.vocabularyMode === "meaning" || state.vocabularyHideTranslations,
     items,
     index: 0,
     selectedVocabularyIndex: 0,
@@ -2491,14 +2519,14 @@ function buildVocabularyPreviewRows(items, limit, options = {}) {
       <td class="chinese-text">${escapeHtml(item.zh)}</td>
       <td class="pinyin-slot muted-slot">Hidden during quiz</td>
       <td class="${hiddenTranslation ? "translation-hidden" : ""}">
-        ${hiddenTranslation ? "Hidden during audio quiz" : escapeHtml(formatVocabularyMeanings(item))}
+        ${hiddenTranslation ? HIDDEN_TRANSLATION_LABEL : escapeHtml(formatVocabularyMeanings(item))}
       </td>
     </tr>
   `).join("");
 }
 
 function buildVocabularyQuizRows(session, options = {}) {
-  const hiddenTranslation = options.hideTranslation || false;
+  const hiddenTranslation = options.hideTranslation || session.hideTranslations || false;
   const currentId = getCurrentVocabularyRowId(session);
   return session.items.map((item, index) => {
     const id = vocabularyItemId(item, index);
@@ -2511,8 +2539,9 @@ function buildVocabularyQuizRows(session, options = {}) {
       current ? "current" : "",
       selectable ? "selectable" : "",
     ].filter(Boolean).join(" ");
-    const translationText = hiddenTranslation
-      ? "Hidden during audio quiz"
+    const translationHidden = hiddenTranslation && !answered;
+    const translationText = translationHidden
+      ? HIDDEN_TRANSLATION_LABEL
       : formatVocabularyMeanings(item);
 
     return `
@@ -2525,7 +2554,7 @@ function buildVocabularyQuizRows(session, options = {}) {
       >
         <td class="chinese-text">${escapeHtml(item.zh)}</td>
         <td class="pinyin-slot">${answered && session.quizMode === "pinyin" ? escapeHtml(item.pinyin) : ""}</td>
-        <td class="${hiddenTranslation ? "translation-hidden" : ""}">${escapeHtml(translationText)}</td>
+        <td class="translation-cell ${translationHidden ? "translation-hidden" : ""}">${escapeHtml(translationText)}</td>
       </tr>
     `;
   }).join("");
@@ -2813,6 +2842,15 @@ function updateVocabularySessionMetrics(session) {
     const pinyinCell = row.querySelector(".pinyin-slot");
     if (pinyinCell) {
       pinyinCell.textContent = isFound ? item.pinyin : "";
+    }
+
+    const translationCell = row.querySelector(".translation-cell");
+    if (translationCell) {
+      const translationHidden = session.hideTranslations && !isFound;
+      translationCell.classList.toggle("translation-hidden", translationHidden);
+      translationCell.textContent = translationHidden
+        ? HIDDEN_TRANSLATION_LABEL
+        : formatVocabularyMeanings(item);
     }
   });
 }

@@ -150,6 +150,7 @@ assert(hsk1Set?.words.length === 506, "HSK 1 quiz should combine the full checke
 assert(hsk2Set?.words.length === 750, "HSK 2 quiz should combine the full checked-in HSK 2 vocabulary parts");
 assert(combinedSet?.words.length === 1256, "combined vocabulary quiz should cover checked-in HSK 1 and 2 words");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
+assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
 assert(buildVocabularyPromptMarkup(loveEntry, "meaning").includes("Play word"), "audio vocabulary mode should render a word replay button");
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
@@ -224,6 +225,21 @@ assert(
   "selected vocabulary index should fall forward to the next unanswered row",
 );
 
+const hiddenTranslationSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+  selectedVocabularyIndex: 0,
+  hideTranslations: true,
+};
+const hiddenTranslationRows = buildVocabularyQuizRows(hiddenTranslationSession);
+assert(hiddenTranslationRows.includes("Hidden"), "hidden translation option should hide unanswered meanings");
+assert(!hiddenTranslationRows.includes("to love"), "hidden translation option should not expose unanswered meanings");
+hiddenTranslationSession.foundIds.add(vocabularyItemId(loveEntry, 0));
+const revealedTranslationRows = buildVocabularyQuizRows(hiddenTranslationSession);
+assert(revealedTranslationRows.includes("to love"), "hidden translation option should reveal answered meanings");
+
 const audioRowSession = {
   type: "vocabulary",
   quizMode: "meaning",
@@ -234,7 +250,7 @@ const audioRowSession = {
   index: 0,
 };
 const audioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
-assert(audioRows.includes("Hidden during audio quiz"), "audio row table should hide translations during the quiz");
+assert(audioRows.includes("Hidden"), "audio row table should hide translations during the quiz");
 assert(!audioRows.includes("to love"), "audio row table should not expose the English meaning");
 
 validateSpeechReplay()

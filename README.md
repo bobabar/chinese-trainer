@@ -40,10 +40,9 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.
 - Simplified Mandarin-only listening sentences with Normal, Slow, and Very slow voice speed options.
 - 30-sentence sessions with immediate assessment.
-- Vocabulary quiz sets for Mandarin New HSK 1 Parts 1-3 and Mandarin New HSK 2 Parts 1-5.
-- Vocabulary quiz modes for Chinese-character-to-pinyin recall and audio-word-to-English-meaning recall.
-- Checked answers show pinyin under Chinese text in the Expected or Reference box, with word-level English glosses on hover where Chinese appears.
-- End-of-session results table with expected answers and per-item scores.
+- Timed vocabulary quizzes for 506 New HSK 1 words and 750 New HSK 2 words, with part, level, and combined HSK 1+2 options.
+- Vocabulary quiz tables show every character and translation, then reveal pinyin when the user types a correct answer.
+- End-of-session vocabulary results show every found and missed word for review.
 - Listening mode uses the browser Speech Synthesis API and prefers Microsoft Online or Microsoft Natural mainland Chinese speech when available.
 
 ## Sentence Data

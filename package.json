@@ -5,11 +5,12 @@
   "description": "A simplified Mandarin trainer for listening, writing, and reading practice.",
   "homepage": "https://brownsugarboba.com/",
   "scripts": {
+    "build:vocab-data": "node scripts/build-vocab-data.js",
     "build:word-data": "node scripts/build-word-data.js",
     "check": "npm run check:syntax && npm run check:data && npm run check:app",
     "check:app": "node scripts/validate-app.js",
     "check:data": "node scripts/validate-data.js",
-    "check:syntax": "node --check app.js && node --check sentence-data.js && node --check word-data.js && node --check vocab-data.js && node --check scripts/validate-data.js && node --check scripts/validate-app.js && node --check scripts/build-site.js && node --check scripts/build-word-data.js",
+    "check:syntax": "node --check app.js && node --check sentence-data.js && node --check word-data.js && node --check vocab-data.js && node --check scripts/validate-data.js && node --check scripts/validate-app.js && node --check scripts/build-site.js && node --check scripts/build-vocab-data.js && node --check scripts/build-word-data.js",
     "build": "node scripts/build-site.js"
   },
   "engines": {

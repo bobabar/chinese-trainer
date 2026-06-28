@@ -62,9 +62,13 @@ vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
+  VOCABULARY_QUIZ_SETS,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   containsChinese,
+  determineVocabularyTimeLimit,
+  findVocabularyGuessMatches,
+  formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
   normalizePinyinForCompare,
@@ -77,9 +81,13 @@ window.__tests = {
 };`, context, { filename: "app.js" });
 
 const {
+  VOCABULARY_QUIZ_SETS,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   containsChinese,
+  determineVocabularyTimeLimit,
+  findVocabularyGuessMatches,
+  formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
   normalizePinyinForCompare,
@@ -95,6 +103,9 @@ const annotated = buildAnswerBoxText("我爱你。");
 const wordMarkup = buildAnnotatedChineseMarkup("我爱你。");
 const firstVocabularySet = getSelectedVocabularySet();
 const loveEntry = firstVocabularySet.words.find((item) => item.zh === "爱");
+const hsk1Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1");
+const hsk2Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-2");
+const combinedSet = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1-2");
 
 assert(containsChinese("Reference: 我爱你。"), "Chinese detection should find Han characters inside mixed text");
 assert(annotated.includes("annotated-chinese"), "Chinese answer boxes should use annotated markup");
@@ -115,12 +126,24 @@ assert(normalizeEnglish("They were here.") === "they were here", "were should no
 assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
 assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
 assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
-assert(firstVocabularySet.words.length === 50, "vocabulary quiz sets should contain 50 words");
+assert(firstVocabularySet.words.length === 175, "first vocabulary part should follow the large timed quiz size");
+assert(hsk1Set?.words.length === 506, "HSK 1 quiz should combine the full checked-in HSK 1 vocabulary parts");
+assert(hsk2Set?.words.length === 750, "HSK 2 quiz should combine the full checked-in HSK 2 vocabulary parts");
+assert(combinedSet?.words.length === 1256, "combined vocabulary quiz should cover checked-in HSK 1 and 2 words");
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
 assert(scorePinyin("ai4", loveEntry) >= 0.99, "numeric pinyin should be accepted");
 assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accepted");
 assert(scorePinyin("ai", loveEntry) >= 0.7, "tone-free pinyin should receive partial credit");
 assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings should match accepted meanings");
+assert(formatTimer(determineVocabularyTimeLimit(175)) === "20:00", "175-word vocabulary quiz should use a 20-minute timer");
+
+const matchSession = {
+  items: [loveEntry],
+  foundIds: new Set(),
+};
+assert(findVocabularyGuessMatches("ài", matchSession).length === 1, "tone-mark vocabulary answer should reveal a row");
+assert(findVocabularyGuessMatches("ai4", matchSession).length === 1, "numeric-tone vocabulary answer should reveal a row");
+assert(findVocabularyGuessMatches("ai", matchSession).length === 0, "tone-free vocabulary answer should not count as exact");
 
 validateSpeechReplay()
   .then(() => {

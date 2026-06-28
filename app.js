@@ -2438,17 +2438,39 @@ function buildVocabularyPreviewRows(items, limit) {
 }
 
 function buildVocabularyQuizRows(session) {
+  const currentId = getCurrentVocabularyRowId(session);
   return session.items.map((item, index) => {
     const id = vocabularyItemId(item, index);
     const found = session.foundIds.has(id);
+    const current = !found && id === currentId;
+    const rowClasses = [
+      found ? "found" : "pending",
+      current ? "current" : "",
+    ].filter(Boolean).join(" ");
+
     return `
-      <tr class="${found ? "found" : "pending"}" data-vocab-id="${escapeHtml(id)}">
+      <tr class="${rowClasses}" data-vocab-id="${escapeHtml(id)}" ${current ? `aria-current="true"` : ""}>
         <td class="chinese-text">${escapeHtml(item.zh)}</td>
         <td class="pinyin-slot">${found ? escapeHtml(item.pinyin) : ""}</td>
         <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
       </tr>
     `;
   }).join("");
+}
+
+function getCurrentVocabularyRowId(session) {
+  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
+    return "";
+  }
+
+  const nextIndex = session.items.findIndex((item, index) => {
+    const id = vocabularyItemId(item, index);
+    return !session.foundIds.has(id);
+  });
+
+  return nextIndex >= 0
+    ? vocabularyItemId(session.items[nextIndex], nextIndex)
+    : "";
 }
 
 function findVocabularyGuessMatches(answer, session) {
@@ -2572,18 +2594,28 @@ function updateVocabularySessionMetrics(session) {
     return;
   }
 
+  const currentId = getCurrentVocabularyRowId(session);
   session.items.forEach((item, index) => {
     const id = vocabularyItemId(item, index);
     const row = document.querySelector(`tr[data-vocab-id="${cssEscape(id)}"]`);
-    if (!row || !session.foundIds.has(id) || row.classList.contains("found")) {
+    if (!row) {
       return;
     }
 
-    row.classList.remove("pending");
-    row.classList.add("found");
+    const isFound = session.foundIds.has(id);
+    const isCurrent = !isFound && id === currentId;
+    row.classList.toggle("found", isFound);
+    row.classList.toggle("pending", !isFound);
+    row.classList.toggle("current", isCurrent);
+    if (isCurrent) {
+      row.setAttribute("aria-current", "true");
+    } else {
+      row.removeAttribute("aria-current");
+    }
+
     const pinyinCell = row.querySelector(".pinyin-slot");
     if (pinyinCell) {
-      pinyinCell.textContent = item.pinyin;
+      pinyinCell.textContent = isFound ? item.pinyin : "";
     }
   });
 }

@@ -67,10 +67,12 @@ window.__tests = {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
+  getCurrentVocabularyRowId,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -82,6 +84,7 @@ window.__tests = {
   speak,
   state,
   stopSpeech,
+  vocabularyItemId,
 };`, context, { filename: "app.js" });
 
 const {
@@ -90,10 +93,12 @@ const {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
+  getCurrentVocabularyRowId,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -105,6 +110,7 @@ const {
   speak,
   state,
   stopSpeech,
+  vocabularyItemId,
 } =
   context.window.__tests;
 const annotated = buildAnswerBoxText("我爱你。");
@@ -162,10 +168,32 @@ assert(findVocabularyGuessMatches("ai4", matchSession).length === 1, "numeric-to
 assert(findVocabularyGuessMatches("ai", matchSession).length === 1, "tone-free vocabulary answer should reveal a row");
 
 const compactPinyinSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
   items: [hobbyEntry],
   foundIds: new Set(),
 };
 assert(findVocabularyGuessMatches("aihao", compactPinyinSession).length === 1, "tone-free compact pinyin should reveal a row");
+
+const highlightedRowSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+};
+assert(
+  getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(loveEntry, 0),
+  "first pending vocabulary row should be current",
+);
+assert(
+  buildVocabularyQuizRows(highlightedRowSession).includes('class="pending current"'),
+  "current vocabulary row should render with a highlight class",
+);
+highlightedRowSession.foundIds.add(vocabularyItemId(loveEntry, 0));
+assert(
+  getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(hobbyEntry, 1),
+  "current vocabulary row should advance after a word is found",
+);
 
 validateSpeechReplay()
   .then(() => {

@@ -781,7 +781,9 @@ function renderVocabularyHome() {
     ? `Start ${wordCount}-word ${state.vocabularyMode === "meaning" ? "audio quiz" : "timed quiz"}`
     : "No vocabulary sets loaded";
   const previewRows = selectedSet
-    ? buildVocabularyPreviewRows(selectedSet.words, VOCABULARY_PREVIEW_LIMIT)
+    ? buildVocabularyPreviewRows(selectedSet.words, VOCABULARY_PREVIEW_LIMIT, {
+        hideTranslation: state.vocabularyMode === "meaning",
+      })
     : "";
   const previewNote = selectedSet && wordCount > VOCABULARY_PREVIEW_LIMIT
     ? `<p class="table-note">Showing ${VOCABULARY_PREVIEW_LIMIT} of ${wordCount} words. The full list appears in the quiz.</p>`
@@ -1050,6 +1052,7 @@ function renderVocabularyPinyinSession() {
 
   const form = document.querySelector("#vocabularyGuessForm");
   const input = document.querySelector("#vocabularyGuess");
+  bindVocabularyRowSelectionHandlers(session);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     submitVocabularyGuess(input.value);
@@ -1065,8 +1068,9 @@ function renderVocabularyPinyinSession() {
 function renderVocabularyMeaningSession() {
   const session = state.session;
   const mode = VOCABULARY_MODES[session.quizMode];
-  const current = session.items[session.index];
   const submitted = Boolean(session.currentAssessment);
+  const currentIndex = submitted ? session.index : getSelectedVocabularyIndex(session);
+  const current = session.items[currentIndex];
   const answer = submitted ? session.currentAssessment.answer : "";
   const sessionLength = session.items.length;
   const answeredCount = session.answers.length;
@@ -1074,6 +1078,9 @@ function renderVocabularyMeaningSession() {
   const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const remaining = getVocabularyRemainingSeconds(session);
   const feedbackMarkup = submitted ? buildVocabularyFeedbackMarkup(session.currentAssessment, current) : "";
+  const rows = buildVocabularyQuizRows(session, { hideTranslation: true });
+  const nextUnansweredIndex = getNextVocabularyUnansweredIndex(session);
+  const nextButtonLabel = nextUnansweredIndex < 0 ? "View results" : "Next word";
 
   app.innerHTML = `
     <section class="workspace-panel session-shell vocabulary-session">
@@ -1093,7 +1100,7 @@ function renderVocabularyMeaningSession() {
         <div class="progress-track" aria-hidden="true">
           <div class="progress-fill" id="vocabularyProgress" style="width: ${progressPercent}%"></div>
         </div>
-        <span class="progress-label">Word ${session.index + 1} of ${sessionLength}</span>
+        <span class="progress-label">Selected word ${currentIndex + 1} of ${sessionLength}</span>
       </div>
 
       <div class="sentence-card">
@@ -1116,7 +1123,7 @@ function renderVocabularyMeaningSession() {
           ${
             submitted
               ? `<button class="primary-btn shortcut-btn" type="button" id="nextQuestion">
-                  <span>${session.index + 1 === sessionLength ? "View results" : "Next word"}</span>
+                  <span>${nextButtonLabel}</span>
                   ${shortcutHint("Enter")}
                 </button>`
               : `<button class="primary-btn shortcut-btn" type="submit">
@@ -1129,12 +1136,32 @@ function renderVocabularyMeaningSession() {
       </form>
 
       ${feedbackMarkup}
+
+      <div class="vocab-table-section">
+        <div class="vocab-section-heading">
+          <h3>${escapeHtml(session.setLabel)}</h3>
+          <span>${answeredCount} answered, ${sessionLength - answeredCount} left</span>
+        </div>
+        <div class="vocab-table-wrap" tabindex="0">
+          <table class="vocab-table audio-vocab-table">
+            <thead>
+              <tr>
+                <th>Character</th>
+                <th>Pinyin</th>
+                <th>Translation</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
     </section>
   `;
 
   document.querySelector("#playAudio")?.addEventListener("click", () => speak(current.zh));
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#endSessionSecondary").addEventListener("click", finishSessionEarly);
+  bindVocabularyRowSelectionHandlers(session);
 
   if (submitted) {
     document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
@@ -1787,6 +1814,7 @@ function startVocabularySession() {
     order: state.vocabularyOrder,
     items,
     index: 0,
+    selectedVocabularyIndex: 0,
     foundIds: new Set(),
     answers: [],
     currentAssessment: null,
@@ -1814,21 +1842,22 @@ function submitVocabularyGuess(answer, options = {}) {
   }
 
   const matches = findVocabularyGuessMatches(trimmed, session);
-  if (!matches.length) {
+  const match = matches[0];
+  if (!match) {
     return;
   }
 
   const foundAt = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
-  matches.forEach(({ item, id }) => {
-    session.foundIds.add(id);
-    session.answers.push({
-      answer: trimmed,
-      correct: true,
-      foundAt,
-      item,
-      score: 1,
-    });
+  session.foundIds.add(match.id);
+  session.answers.push({
+    answer: trimmed,
+    correct: true,
+    foundAt,
+    item: match.item,
+    itemIndex: match.index,
+    score: 1,
   });
+  selectNextVocabularyRowFromTop(session);
 
   if (session.foundIds.size >= session.items.length) {
     finishVocabularySession("complete");
@@ -1888,6 +1917,27 @@ async function submitAnswer(answer) {
 function nextQuestion() {
   const session = state.session;
   const sessionLength = session.items.length;
+
+  if (session.type === "vocabulary") {
+    const nextIndex = getNextVocabularyUnansweredIndex(session);
+    if (nextIndex < 0) {
+      state.result = buildSessionResult({ ...session, finishReason: "complete" });
+      state.session = null;
+      stopSpeech();
+      render();
+      return;
+    }
+
+    session.index = nextIndex;
+    session.selectedVocabularyIndex = nextIndex;
+    session.currentAssessment = null;
+    render();
+
+    if (sessionUsesAudioPrompt(session)) {
+      speak(session.items[session.index].zh);
+    }
+    return;
+  }
 
   if (session.index + 1 >= sessionLength) {
     state.result = buildSessionResult(
@@ -2427,49 +2477,62 @@ function slugifyVocabularySetId(value) {
     .replace(/^-|-$/g, "");
 }
 
-function buildVocabularyPreviewRows(items, limit) {
+function buildVocabularyPreviewRows(items, limit, options = {}) {
+  const hiddenTranslation = options.hideTranslation || false;
   return items.slice(0, limit).map((item) => `
     <tr>
       <td class="chinese-text">${escapeHtml(item.zh)}</td>
       <td class="pinyin-slot muted-slot">Hidden during quiz</td>
-      <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
+      <td class="${hiddenTranslation ? "translation-hidden" : ""}">
+        ${hiddenTranslation ? "Hidden during audio quiz" : escapeHtml(formatVocabularyMeanings(item))}
+      </td>
     </tr>
   `).join("");
 }
 
-function buildVocabularyQuizRows(session) {
+function buildVocabularyQuizRows(session, options = {}) {
+  const hiddenTranslation = options.hideTranslation || false;
   const currentId = getCurrentVocabularyRowId(session);
   return session.items.map((item, index) => {
     const id = vocabularyItemId(item, index);
-    const found = session.foundIds.has(id);
-    const current = !found && id === currentId;
+    const answered = isVocabularyRowAnswered(session, index);
+    const correct = isVocabularyRowCorrect(session, index);
+    const current = !answered && id === currentId;
+    const selectable = !answered;
     const rowClasses = [
-      found ? "found" : "pending",
+      answered ? (correct ? "found" : "missed") : "pending",
       current ? "current" : "",
+      selectable ? "selectable" : "",
     ].filter(Boolean).join(" ");
+    const translationText = hiddenTranslation
+      ? "Hidden during audio quiz"
+      : formatVocabularyMeanings(item);
 
     return `
-      <tr class="${rowClasses}" data-vocab-id="${escapeHtml(id)}" ${current ? `aria-current="true"` : ""}>
+      <tr
+        class="${rowClasses}"
+        data-vocab-id="${escapeHtml(id)}"
+        data-vocab-index="${index}"
+        ${selectable ? `tabindex="0"` : ""}
+        ${current ? `aria-current="true" aria-selected="true"` : `aria-selected="false"`}
+      >
         <td class="chinese-text">${escapeHtml(item.zh)}</td>
-        <td class="pinyin-slot">${found ? escapeHtml(item.pinyin) : ""}</td>
-        <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
+        <td class="pinyin-slot">${answered && session.quizMode === "pinyin" ? escapeHtml(item.pinyin) : ""}</td>
+        <td class="${hiddenTranslation ? "translation-hidden" : ""}">${escapeHtml(translationText)}</td>
       </tr>
     `;
   }).join("");
 }
 
 function getCurrentVocabularyRowId(session) {
-  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
+  if (session?.type !== "vocabulary") {
     return "";
   }
 
-  const nextIndex = session.items.findIndex((item, index) => {
-    const id = vocabularyItemId(item, index);
-    return !session.foundIds.has(id);
-  });
+  const selectedIndex = getSelectedVocabularyIndex(session);
 
-  return nextIndex >= 0
-    ? vocabularyItemId(session.items[nextIndex], nextIndex)
+  return selectedIndex >= 0
+    ? vocabularyItemId(session.items[selectedIndex], selectedIndex)
     : "";
 }
 
@@ -2479,9 +2542,125 @@ function findVocabularyGuessMatches(answer, session) {
     return [];
   }
 
-  return session.items
-    .map((item, index) => ({ item, id: vocabularyItemId(item, index) }))
-    .filter(({ item, id }) => !session.foundIds.has(id) && isAcceptedVocabularyPinyinGuess(normalizedAnswer, item));
+  const selectedIndex = getSelectedVocabularyIndex(session);
+  if (selectedIndex < 0) {
+    return [];
+  }
+
+  const item = session.items[selectedIndex];
+  const id = vocabularyItemId(item, selectedIndex);
+  if (session.foundIds.has(id) || !isAcceptedVocabularyPinyinGuess(normalizedAnswer, item)) {
+    return [];
+  }
+
+  return [{ item, id, index: selectedIndex }];
+}
+
+function bindVocabularyRowSelectionHandlers(session) {
+  document.querySelectorAll("[data-vocab-index]").forEach((row) => {
+    const index = Number(row.dataset.vocabIndex);
+    if (!Number.isInteger(index) || !isVocabularyRowPending(session, index)) {
+      return;
+    }
+
+    row.addEventListener("click", () => selectVocabularyRow(index));
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      selectVocabularyRow(index);
+    });
+  });
+}
+
+function selectVocabularyRow(index) {
+  const session = state.session;
+  if (session?.type !== "vocabulary" || !isVocabularyRowPending(session, index)) {
+    return;
+  }
+
+  session.index = index;
+  session.selectedVocabularyIndex = index;
+  session.currentAssessment = null;
+
+  if (session.quizMode === "meaning") {
+    render();
+    speak(session.items[index].zh);
+    return;
+  }
+
+  updateVocabularySessionMetrics(session);
+  focusVocabularyInput();
+}
+
+function selectNextVocabularyRowFromTop(session) {
+  const nextIndex = getNextVocabularyUnansweredIndex(session);
+  session.index = nextIndex >= 0 ? nextIndex : session.index;
+  session.selectedVocabularyIndex = nextIndex >= 0 ? nextIndex : session.selectedVocabularyIndex;
+  return nextIndex;
+}
+
+function getSelectedVocabularyIndex(session) {
+  if (session?.type !== "vocabulary") {
+    return -1;
+  }
+
+  const selectedIndex = Number.isInteger(session.selectedVocabularyIndex)
+    ? session.selectedVocabularyIndex
+    : session.index;
+
+  if (isVocabularyRowPending(session, selectedIndex)) {
+    return selectedIndex;
+  }
+
+  return getNextVocabularyUnansweredIndex(session);
+}
+
+function getNextVocabularyUnansweredIndex(session) {
+  if (session?.type !== "vocabulary") {
+    return -1;
+  }
+
+  return session.items.findIndex((_, index) => isVocabularyRowPending(session, index));
+}
+
+function isVocabularyRowPending(session, index) {
+  return !isVocabularyRowAnswered(session, index);
+}
+
+function isVocabularyRowAnswered(session, index) {
+  if (session?.type !== "vocabulary" || index < 0 || index >= session.items.length) {
+    return false;
+  }
+
+  if (session.quizMode === "pinyin") {
+    return session.foundIds.has(vocabularyItemId(session.items[index], index));
+  }
+
+  return session.answers.some((answer) => answer.itemIndex === index);
+}
+
+function isVocabularyRowCorrect(session, index) {
+  if (session?.type !== "vocabulary" || index < 0 || index >= session.items.length) {
+    return false;
+  }
+
+  if (session.quizMode === "pinyin") {
+    return session.foundIds.has(vocabularyItemId(session.items[index], index));
+  }
+
+  return session.answers.some((answer) => answer.itemIndex === index && answer.correct);
+}
+
+function focusVocabularyInput() {
+  if (isTouchLikeDevice()) {
+    return;
+  }
+
+  const input = document.querySelector("#vocabularyGuess") || document.querySelector("#answerInput");
+  input?.focus?.();
 }
 
 function isAcceptedVocabularyPinyinGuess(normalizedAnswer, item) {
@@ -2576,6 +2755,9 @@ function updateVocabularySessionMetrics(session) {
   const timer = document.querySelector("#vocabularyTimer");
   const progress = document.querySelector("#vocabularyProgress");
   const tableSection = document.querySelector(".vocab-section-heading span");
+  const tableSectionText = session.quizMode === "pinyin"
+    ? `${found} found, ${total - found} left`
+    : `${session.answers.length} answered, ${total - session.answers.length} left`;
 
   if (score) {
     score.textContent = `${found}/${total}`;
@@ -2587,7 +2769,7 @@ function updateVocabularySessionMetrics(session) {
     progress.style.width = `${Math.round((progressCount / total) * 100)}%`;
   }
   if (tableSection) {
-    tableSection.textContent = `${found} found, ${total - found} left`;
+    tableSection.textContent = tableSectionText;
   }
 
   if (session.quizMode !== "pinyin") {
@@ -2607,10 +2789,18 @@ function updateVocabularySessionMetrics(session) {
     row.classList.toggle("found", isFound);
     row.classList.toggle("pending", !isFound);
     row.classList.toggle("current", isCurrent);
+    row.classList.toggle("selectable", !isFound);
     if (isCurrent) {
       row.setAttribute("aria-current", "true");
+      row.setAttribute("aria-selected", "true");
     } else {
       row.removeAttribute("aria-current");
+      row.setAttribute("aria-selected", "false");
+    }
+    if (isFound) {
+      row.removeAttribute("tabindex");
+    } else {
+      row.setAttribute("tabindex", "0");
     }
 
     const pinyinCell = row.querySelector(".pinyin-slot");

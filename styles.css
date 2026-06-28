@@ -725,6 +725,19 @@ select {
   font-weight: 800;
 }
 
+.vocab-table tr.selectable {
+  cursor: pointer;
+}
+
+.vocab-table tr.selectable:hover td {
+  background: var(--theme-soft);
+}
+
+.vocab-table tr.selectable:focus-visible {
+  outline: 3px solid var(--theme-focus);
+  outline-offset: -3px;
+}
+
 .vocab-table tr.current .pinyin-slot:empty::before {
   background: var(--theme-border);
 }
@@ -751,6 +764,11 @@ select {
 
 .muted-slot::before {
   display: none;
+}
+
+.translation-hidden {
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .progress-fill {

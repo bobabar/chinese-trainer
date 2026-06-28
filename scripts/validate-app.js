@@ -73,6 +73,7 @@ window.__tests = {
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   getCurrentVocabularyRowId,
+  getSelectedVocabularyIndex,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -99,6 +100,7 @@ const {
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   getCurrentVocabularyRowId,
+  getSelectedVocabularyIndex,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -160,8 +162,11 @@ assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pin
 assert(formatTimer(determineVocabularyTimeLimit(175)) === "20:00", "175-word vocabulary quiz should use a 20-minute timer");
 
 const matchSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
   items: [loveEntry],
   foundIds: new Set(),
+  selectedVocabularyIndex: 0,
 };
 assert(findVocabularyGuessMatches("ài", matchSession).length === 1, "tone-mark vocabulary answer should reveal a row");
 assert(findVocabularyGuessMatches("ai4", matchSession).length === 1, "numeric-tone vocabulary answer should reveal a row");
@@ -172,21 +177,40 @@ const compactPinyinSession = {
   quizMode: "pinyin",
   items: [hobbyEntry],
   foundIds: new Set(),
+  selectedVocabularyIndex: 0,
 };
 assert(findVocabularyGuessMatches("aihao", compactPinyinSession).length === 1, "tone-free compact pinyin should reveal a row");
+
+const selectedOnlySession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+  selectedVocabularyIndex: 0,
+};
+assert(
+  findVocabularyGuessMatches("aihao", selectedOnlySession).length === 0,
+  "pinyin answers should not reveal a non-selected row",
+);
+selectedOnlySession.selectedVocabularyIndex = 1;
+assert(
+  findVocabularyGuessMatches("aihao", selectedOnlySession).length === 1,
+  "pinyin answers should reveal the manually selected row",
+);
 
 const highlightedRowSession = {
   type: "vocabulary",
   quizMode: "pinyin",
   items: [loveEntry, hobbyEntry],
   foundIds: new Set(),
+  selectedVocabularyIndex: 0,
 };
 assert(
   getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(loveEntry, 0),
   "first pending vocabulary row should be current",
 );
 assert(
-  buildVocabularyQuizRows(highlightedRowSession).includes('class="pending current"'),
+  buildVocabularyQuizRows(highlightedRowSession).includes('class="pending current selectable"'),
   "current vocabulary row should render with a highlight class",
 );
 highlightedRowSession.foundIds.add(vocabularyItemId(loveEntry, 0));
@@ -194,6 +218,23 @@ assert(
   getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(hobbyEntry, 1),
   "current vocabulary row should advance after a word is found",
 );
+assert(
+  getSelectedVocabularyIndex(highlightedRowSession) === 1,
+  "selected vocabulary index should fall forward to the next unanswered row",
+);
+
+const audioRowSession = {
+  type: "vocabulary",
+  quizMode: "meaning",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+  answers: [],
+  selectedVocabularyIndex: 0,
+  index: 0,
+};
+const audioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
+assert(audioRows.includes("Hidden during audio quiz"), "audio row table should hide translations during the quiz");
+assert(!audioRows.includes("to love"), "audio row table should not expose the English meaning");
 
 validateSpeechReplay()
   .then(() => {

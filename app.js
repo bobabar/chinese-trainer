@@ -359,7 +359,7 @@ function handleSessionShortcut(event) {
     event.preventDefault();
     const current = state.session.items[state.session.index];
     if (current) {
-      speak(current.zh);
+      speak(current.zh, { immediate: true });
     }
     return;
   }
@@ -1340,7 +1340,7 @@ function renderVocabularyMeaningSession() {
     </section>
   `;
 
-  document.querySelector("#playAudio")?.addEventListener("click", () => speak(current.zh));
+  document.querySelector("#playAudio")?.addEventListener("click", () => speak(current.zh, { immediate: true }));
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#endSessionSecondary").addEventListener("click", finishSessionEarly);
   bindVocabularyRowSelectionHandlers(session);
@@ -2016,7 +2016,7 @@ function startVocabularySession() {
   saveSettings();
   render();
   if (state.session.quizMode === "meaning") {
-    speak(state.session.items[0].zh);
+    speak(state.session.items[0].zh, { immediate: true });
   }
 }
 
@@ -2126,7 +2126,7 @@ function nextQuestion() {
     render();
 
     if (sessionUsesAudioPrompt(session)) {
-      speak(session.items[session.index].zh);
+      speak(session.items[session.index].zh, { immediate: true });
     }
     return;
   }
@@ -2150,7 +2150,7 @@ function nextQuestion() {
   render();
 
   if (sessionUsesAudioPrompt(session)) {
-    speak(session.items[session.index].zh);
+    speak(session.items[session.index].zh, { immediate: true });
   }
 }
 
@@ -2715,13 +2715,17 @@ function stopSpeech() {
   setPlaybackState(false);
 }
 
-async function speak(text) {
+async function speak(text, options = {}) {
   if (!supportsSpeechSynthesis()) return;
 
   const requestId = speechRequestId + 1;
   speechRequestId = requestId;
-  await waitForVoices();
-  if (requestId !== speechRequestId) return;
+  if (options.immediate) {
+    refreshVoices();
+  } else {
+    await waitForVoices();
+    if (requestId !== speechRequestId) return;
+  }
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "zh-CN";
@@ -2752,11 +2756,18 @@ async function speak(text) {
 
   window.speechSynthesis.cancel();
   setPlaybackState(true);
-  window.setTimeout(() => {
+  const play = () => {
     if (requestId === speechRequestId) {
       window.speechSynthesis.speak(utterance);
     }
-  }, 40);
+  };
+
+  if (options.immediate) {
+    play();
+    return;
+  }
+
+  window.setTimeout(play, 40);
 }
 
 function supportsSpeechSynthesis() {
@@ -2813,6 +2824,7 @@ function buildVocabularyPreviewRows(items, limit, options = {}) {
 
 function buildVocabularyQuizRows(session, options = {}) {
   const hiddenTranslation = options.hideTranslation || session.hideTranslations || false;
+  const hiddenCharacter = options.hideCharacter || session.quizMode === "meaning";
   const currentId = getCurrentVocabularyRowId(session);
   return session.items.map((item, index) => {
     const id = vocabularyItemId(item, index);
@@ -2829,6 +2841,15 @@ function buildVocabularyQuizRows(session, options = {}) {
     const translationText = translationHidden
       ? HIDDEN_TRANSLATION_LABEL
       : formatVocabularyMeanings(item);
+    const characterText = hiddenCharacter && !answered
+      ? HIDDEN_TRANSLATION_LABEL
+      : item.zh;
+    const characterClass = hiddenCharacter && !answered
+      ? "muted-slot"
+      : "chinese-text";
+    const pinyinText = answered
+      ? item.pinyin
+      : "";
 
     return `
       <tr
@@ -2838,8 +2859,8 @@ function buildVocabularyQuizRows(session, options = {}) {
         ${selectable ? `tabindex="0"` : ""}
         ${current ? `aria-current="true" aria-selected="true"` : `aria-selected="false"`}
       >
-        <td class="chinese-text">${escapeHtml(item.zh)}</td>
-        <td class="pinyin-slot">${answered && session.quizMode === "pinyin" ? escapeHtml(item.pinyin) : ""}</td>
+        <td class="${characterClass}">${escapeHtml(characterText)}</td>
+        <td class="pinyin-slot">${escapeHtml(pinyinText)}</td>
         <td class="translation-cell ${translationHidden ? "translation-hidden" : ""}">${escapeHtml(translationText)}</td>
       </tr>
     `;
@@ -2909,7 +2930,7 @@ function selectVocabularyRow(index) {
 
   if (session.quizMode === "meaning") {
     render();
-    speak(session.items[index].zh);
+    speak(session.items[index].zh, { immediate: true });
     return;
   }
 

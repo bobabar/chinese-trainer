@@ -268,6 +268,13 @@ const audioRowSession = {
 const audioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
 assert(audioRows.includes("Hidden"), "audio row table should hide translations during the quiz");
 assert(!audioRows.includes("to love"), "audio row table should not expose the English meaning");
+assert(audioRows.includes('<td class="muted-slot">Hidden</td>'), "audio row table should hide unanswered characters");
+assert(!audioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should not visibly expose unanswered characters");
+assert(!audioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should not visibly expose unanswered pinyin");
+audioRowSession.answers.push({ item: loveEntry, itemIndex: 0, answer: "love", score: 1, correct: true });
+const answeredAudioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
+assert(answeredAudioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should reveal answered characters");
+assert(answeredAudioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should reveal answered pinyin");
 
 const completedPinyinResult = {
   type: "vocabulary",
@@ -337,8 +344,12 @@ async function validateSpeechReplay() {
   runQueuedTimer();
   assert(speechCalls.speak[1] === "你", "replaying audio should queue the latest utterance");
 
+  await speak("好", { immediate: true });
+  assert(speechCalls.cancel === 3, "immediate speech should still cancel active playback first");
+  assert(speechCalls.speak[2] === "好", "immediate speech should play without waiting for a timer");
+
   stopSpeech();
-  assert(speechCalls.cancel === 3, "stopping playback should cancel speech synthesis");
+  assert(speechCalls.cancel === 4, "stopping playback should cancel speech synthesis");
   assert(!state.isSpeaking, "stopping playback should clear playback state");
 }
 

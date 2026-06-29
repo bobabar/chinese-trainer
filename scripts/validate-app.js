@@ -11,6 +11,7 @@ const speechCalls = {
   cancel: 0,
   speak: [],
 };
+const localStorageEntries = new Map();
 
 const context = {
   window: {
@@ -48,8 +49,13 @@ const context = {
     querySelectorAll: () => [],
   },
   localStorage: {
-    getItem: () => "{}",
-    setItem() {},
+    getItem: (key) => localStorageEntries.get(key) || null,
+    setItem(key, value) {
+      localStorageEntries.set(key, String(value));
+    },
+    removeItem(key) {
+      localStorageEntries.delete(key);
+    },
   },
   SpeechSynthesisUtterance: function SpeechSynthesisUtterance(text) {
     this.text = text;
@@ -67,6 +73,7 @@ window.__tests = {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildHistoryRecord,
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
@@ -74,6 +81,9 @@ window.__tests = {
   findVocabularyGuessMatches,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
+  getVocabularyHighScore,
+  getVocabularyHighScoreRecords,
+  getVocabularyResultStats,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -94,6 +104,7 @@ const {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildHistoryRecord,
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
@@ -101,6 +112,9 @@ const {
   findVocabularyGuessMatches,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
+  getVocabularyHighScore,
+  getVocabularyHighScoreRecords,
+  getVocabularyResultStats,
   formatTimer,
   getSelectedVocabularySet,
   normalizeEnglish,
@@ -118,11 +132,10 @@ const {
 const annotated = buildAnswerBoxText("我爱你。");
 const wordMarkup = buildAnnotatedChineseMarkup("我爱你。");
 const firstVocabularySet = getSelectedVocabularySet();
-const loveEntry = firstVocabularySet.words.find((item) => item.zh === "爱");
-const hobbyEntry = firstVocabularySet.words.find((item) => item.zh === "爱好");
-const hsk1Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1");
-const hsk2Set = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-2");
-const combinedSet = VOCABULARY_QUIZ_SETS.find((set) => set.id === "new-hsk-1-2");
+const vocabularySetSizes = VOCABULARY_QUIZ_SETS.map((set) => set.words.length);
+const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
+const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
+const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
 
 assert(containsChinese("Reference: 我爱你。"), "Chinese detection should find Han characters inside mixed text");
 assert(annotated.includes("annotated-chinese"), "Chinese answer boxes should use annotated markup");
@@ -145,10 +158,8 @@ assert(normalizeEnglish("They were here.") === "they were here", "were should no
 assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
 assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
 assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
-assert(firstVocabularySet.words.length === 175, "first vocabulary part should follow the large timed quiz size");
-assert(hsk1Set?.words.length === 506, "HSK 1 quiz should combine the full checked-in HSK 1 vocabulary parts");
-assert(hsk2Set?.words.length === 750, "HSK 2 quiz should combine the full checked-in HSK 2 vocabulary parts");
-assert(combinedSet?.words.length === 1256, "combined vocabulary quiz should cover checked-in HSK 1 and 2 words");
+assert(VOCABULARY_QUIZ_SETS.length === 8, "vocabulary quizzes should be split into eight comparable parts");
+assert(vocabularySetSizes.every((size) => size === 157), "every vocabulary quiz part should have 157 words");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
@@ -161,7 +172,7 @@ assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings s
 assert(assessVocabularyAnswer("love", loveEntry, "meaning").correct, "audio vocabulary mode should grade English meanings");
 assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "audio vocabulary mode should support replay shortcuts");
 assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pinyin vocabulary mode should not use audio replay shortcuts");
-assert(formatTimer(determineVocabularyTimeLimit(175)) === "20:00", "175-word vocabulary quiz should use a 20-minute timer");
+assert(formatTimer(determineVocabularyTimeLimit(157)) === "18:00", "157-word vocabulary quiz should use an 18-minute timer");
 
 const matchSession = {
   type: "vocabulary",
@@ -252,6 +263,52 @@ const audioRowSession = {
 const audioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
 assert(audioRows.includes("Hidden"), "audio row table should hide translations during the quiz");
 assert(!audioRows.includes("to love"), "audio row table should not expose the English meaning");
+
+const completedPinyinResult = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  setId: firstVocabularySet.id,
+  setLabel: firstVocabularySet.label,
+  order: [0, 1],
+  items: [loveEntry, hobbyEntry],
+  foundIds: [vocabularyItemId(loveEntry, 0), vocabularyItemId(hobbyEntry, 1)],
+  answers: [],
+  elapsedSeconds: 83,
+  finishReason: "complete",
+  timeLimitSeconds: 120,
+};
+const completedPinyinStats = getVocabularyResultStats(completedPinyinResult);
+assert(completedPinyinStats.highScoreEligible, "complete perfect vocabulary quizzes should be high-score eligible");
+const completedPinyinRecord = buildHistoryRecord(completedPinyinResult);
+assert(completedPinyinRecord.answers.length === 2, "vocabulary history should store per-word answers");
+assert(completedPinyinRecord.answers.every((answer) => answer.correct), "pinyin history should mark found rows as correct");
+const slowerPinyinRecord = { ...completedPinyinRecord, id: "slower", elapsedSeconds: 120 };
+assert(
+  getVocabularyHighScore("pinyin", firstVocabularySet.id, [slowerPinyinRecord, completedPinyinRecord]).elapsedSeconds === 83,
+  "vocabulary high score should use the fastest completed time for the mode and set",
+);
+assert(
+  getVocabularyHighScoreRecords([slowerPinyinRecord, completedPinyinRecord]).length === 1,
+  "high score history should keep one best record per vocabulary mode and set",
+);
+
+const incompleteAudioResult = {
+  type: "vocabulary",
+  quizMode: "meaning",
+  setId: firstVocabularySet.id,
+  setLabel: firstVocabularySet.label,
+  order: [0, 1],
+  items: [loveEntry, hobbyEntry],
+  foundIds: [],
+  answers: [{ item: loveEntry, itemIndex: 0, answer: "love", score: 1, correct: true }],
+  elapsedSeconds: 42,
+  finishReason: "ended",
+  timeLimitSeconds: 120,
+};
+assert(
+  !getVocabularyResultStats(incompleteAudioResult).highScoreEligible,
+  "ended or incomplete audio vocabulary quizzes should not be high-score eligible",
+);
 
 validateSpeechReplay()
   .then(() => {

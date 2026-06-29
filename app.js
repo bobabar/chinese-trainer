@@ -3,6 +3,8 @@
 const SESSION_LENGTH = 30;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
+const HISTORY_KEY = "chineseTrainerHistory";
+const HISTORY_LIMIT = 100;
 
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
@@ -46,6 +48,9 @@ const TOOLS = {
   },
   vocabulary: {
     label: "Vocabulary Quiz",
+  },
+  history: {
+    label: "History",
   },
 };
 
@@ -709,6 +714,11 @@ function render() {
   }
 
   stopVocabularyTimer();
+  if (state.tool === "history") {
+    renderHistoryHome();
+    return;
+  }
+
   if (state.tool === "vocabulary") {
     renderVocabularyHome();
     return;
@@ -719,7 +729,7 @@ function render() {
 
 function updateNavigationState() {
   document.body.dataset.tool = state.tool;
-  document.body.dataset.mode = state.tool === "drill" ? state.mode : "vocabulary";
+  document.body.dataset.mode = state.tool === "drill" ? state.mode : state.tool;
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === state.tool);
   });
@@ -789,6 +799,7 @@ function renderVocabularyHome() {
   const selectedSet = getSelectedVocabularySet();
   const wordCount = selectedSet?.words.length || 0;
   const timeLimit = formatTimer(determineVocabularyTimeLimit(wordCount));
+  const bestTime = getVocabularyHighScore(state.vocabularyMode, selectedSet?.id || "");
   const canStart = Boolean(selectedSet && wordCount);
   const translationsHidden = state.vocabularyMode === "meaning" || state.vocabularyHideTranslations;
   const startLabel = wordCount
@@ -854,6 +865,10 @@ function renderVocabularyHome() {
           <strong>${timeLimit}</strong>
           <span>Timer</span>
         </div>
+        <div>
+          <strong>${bestTime ? formatTimer(bestTime.elapsedSeconds) : "None"}</strong>
+          <span>Best time</span>
+        </div>
         <button class="primary-btn shortcut-btn" type="button" id="startVocabularySession" ${canStart ? "" : "disabled"}>
           <span>${startLabel}</span>
           ${shortcutHint("Enter")}
@@ -918,6 +933,139 @@ function formatVocabularySetOption(set) {
   const label = set.label || set.shortLabel;
   const count = set.words?.length || 0;
   return `${label} (${count} words)`;
+}
+
+function renderHistoryHome() {
+  const history = loadHistoryRecords();
+  const drillCount = history.filter((record) => record.type === "drill").length;
+  const quizCount = history.filter((record) => record.type === "vocabulary").length;
+  const highScores = getVocabularyHighScoreRecords(history);
+  const highScoreRows = highScores.length
+    ? highScores.map((record) => `
+        <tr>
+          <td>${escapeHtml(record.setLabel)}</td>
+          <td>${escapeHtml(VOCABULARY_MODES[record.quizMode]?.label || record.quizMode)}</td>
+          <td>${formatTimer(record.elapsedSeconds)}</td>
+          <td>${escapeHtml(formatHistoryDate(record.completedAt))}</td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="4">No completed quiz high scores yet.</td></tr>`;
+  const recentRows = history.length
+    ? history.slice(0, 30).map(buildHistoryRowMarkup).join("")
+    : `<tr><td colspan="5">No saved sessions yet.</td></tr>`;
+
+  app.innerHTML = `
+    <section class="workspace-panel history-panel">
+      <div class="results-header">
+        <div>
+          <h2>History</h2>
+          <p>${history.length} saved sessions in this browser.</p>
+        </div>
+        <div class="result-actions">
+          <button class="ghost-btn" type="button" id="clearHistory" ${history.length ? "" : "disabled"}>Clear history</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <strong>${history.length}</strong>
+          <span>Saved sessions</span>
+        </div>
+        <div class="stat">
+          <strong>${drillCount}</strong>
+          <span>Drills</span>
+        </div>
+        <div class="stat">
+          <strong>${quizCount}</strong>
+          <span>Quizzes</span>
+        </div>
+        <div class="stat">
+          <strong>${highScores.length}</strong>
+          <span>High scores</span>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <div class="vocab-section-heading">
+          <h3>Vocabulary High Scores</h3>
+          <span>Fastest completed time per mode and set</span>
+        </div>
+        <div class="results-table-wrap history-table-wrap" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th>Quiz set</th>
+                <th>Mode</th>
+                <th>Best time</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>${highScoreRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <div class="vocab-section-heading">
+          <h3>Recent Sessions</h3>
+          <span>Most recent first</span>
+        </div>
+        <div class="results-table-wrap history-table-wrap" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Mode or set</th>
+                <th>Result</th>
+                <th>Answers</th>
+              </tr>
+            </thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#clearHistory").addEventListener("click", () => {
+    if (!window.confirm("Clear saved drill and quiz history from this browser?")) {
+      return;
+    }
+
+    clearHistoryRecords();
+    render();
+  });
+}
+
+function buildHistoryRowMarkup(record) {
+  const typeLabel = record.type === "vocabulary" ? "Vocabulary quiz" : "Drill";
+  const modeLabel = record.type === "vocabulary"
+    ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
+    : MODES[record.mode]?.label || record.mode;
+  const resultLabel = record.type === "vocabulary"
+    ? buildVocabularyHistoryResultLabel(record)
+    : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+  const answerCount = Array.isArray(record.answers) ? record.answers.length : 0;
+
+  return `
+    <tr>
+      <td>${escapeHtml(formatHistoryDate(record.completedAt))}</td>
+      <td>${escapeHtml(typeLabel)}</td>
+      <td>${escapeHtml(modeLabel)}</td>
+      <td>${escapeHtml(resultLabel)}</td>
+      <td>${answerCount}</td>
+    </tr>
+  `;
+}
+
+function buildVocabularyHistoryResultLabel(record) {
+  const time = formatTimer(record.elapsedSeconds);
+  if (record.highScoreEligible) {
+    return `Completed in ${time}`;
+  }
+
+  return `${record.finishReason || "Ended"} · ${record.correct}/${record.total} correct · ${time}`;
 }
 
 function renderSession() {
@@ -1592,8 +1740,9 @@ function renderVocabularyResults() {
 
   const foundIds = new Set(result.foundIds || []);
   const total = result.items.length;
-  const correct = foundIds.size;
-  const percent = total ? Math.round((correct / total) * 100) : 0;
+  const stats = getVocabularyResultStats(result);
+  const correct = stats.correct;
+  const bestTime = getVocabularyHighScore(result.quizMode, result.setId);
   const resultLabel = result.finishReason === "complete"
     ? "Completed"
     : result.finishReason === "time"
@@ -1620,7 +1769,7 @@ function renderVocabularyResults() {
       <div class="results-header">
         <div>
           <h2>Vocabulary Results</h2>
-          <p>${resultLabel}: ${correct} of ${total} words found in ${formatTimer(result.elapsedSeconds)}.</p>
+          <p>${resultLabel}: ${correct} of ${total} words found in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
@@ -1634,15 +1783,15 @@ function renderVocabularyResults() {
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${total}</strong>
-          <span>Score</span>
-        </div>
-        <div class="stat">
-          <strong>${percent}%</strong>
           <span>Found</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.elapsedSeconds)}</strong>
-          <span>Time used</span>
+          <span>This run</span>
+        </div>
+        <div class="stat">
+          <strong>${bestTime ? formatTimer(bestTime.elapsedSeconds) : "None"}</strong>
+          <span>Best time</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.timeLimitSeconds)}</strong>
@@ -1679,8 +1828,9 @@ function renderVocabularyMeaningResults() {
   const result = state.result;
   const total = result.items.length;
   const answered = result.answers.length;
-  const correct = result.answers.filter((answer) => answer.correct).length;
-  const percent = total ? Math.round((correct / total) * 100) : 0;
+  const stats = getVocabularyResultStats(result);
+  const correct = stats.correct;
+  const bestTime = getVocabularyHighScore(result.quizMode, result.setId);
   const resultLabel = result.finishReason === "complete"
     ? "Completed"
     : result.finishReason === "time"
@@ -1711,7 +1861,7 @@ function renderVocabularyMeaningResults() {
       <div class="results-header">
         <div>
           <h2>Audio Vocabulary Results</h2>
-          <p>${resultLabel}: ${correct} correct out of ${total}; ${answered} answered in ${formatTimer(result.elapsedSeconds)}.</p>
+          <p>${resultLabel}: ${correct} correct out of ${total}; ${answered} answered in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
@@ -1725,15 +1875,15 @@ function renderVocabularyMeaningResults() {
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${total}</strong>
-          <span>Score</span>
-        </div>
-        <div class="stat">
-          <strong>${percent}%</strong>
           <span>Correct</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.elapsedSeconds)}</strong>
-          <span>Time used</span>
+          <span>This run</span>
+        </div>
+        <div class="stat">
+          <strong>${bestTime ? formatTimer(bestTime.elapsedSeconds) : "None"}</strong>
+          <span>Best time</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.timeLimitSeconds)}</strong>
@@ -1771,6 +1921,11 @@ function renderVocabularyMeaningResults() {
 function startActiveSession() {
   if (state.tool === "vocabulary") {
     startVocabularySession();
+    return;
+  }
+
+  if (state.tool === "history") {
+    renderHistoryHome();
     return;
   }
 
@@ -1956,7 +2111,9 @@ function nextQuestion() {
   if (session.type === "vocabulary") {
     const nextIndex = getNextVocabularyUnansweredIndex(session);
     if (nextIndex < 0) {
-      state.result = buildSessionResult({ ...session, finishReason: "complete" });
+      const result = buildSessionResult({ ...session, finishReason: "complete" });
+      state.result = result;
+      saveHistoryResult(result);
       state.session = null;
       stopSpeech();
       render();
@@ -1975,11 +2132,13 @@ function nextQuestion() {
   }
 
   if (session.index + 1 >= sessionLength) {
-    state.result = buildSessionResult(
+    const result = buildSessionResult(
       session.type === "vocabulary"
         ? { ...session, finishReason: "complete" }
         : session,
     );
+    state.result = result;
+    saveHistoryResult(result);
     state.session = null;
     stopSpeech();
     render();
@@ -2009,7 +2168,9 @@ function finishSessionEarly() {
     return;
   }
 
-  state.result = buildSessionResult(session);
+  const result = buildSessionResult(session);
+  state.result = result;
+  saveHistoryResult(result);
   state.session = null;
   stopSpeech();
   render();
@@ -2021,7 +2182,9 @@ function finishVocabularySession(reason) {
     return;
   }
 
-  state.result = buildSessionResult({ ...session, finishReason: reason });
+  const result = buildSessionResult({ ...session, finishReason: reason });
+  state.result = result;
+  saveHistoryResult(result);
   state.session = null;
   stopVocabularyTimer();
   render();
@@ -2055,6 +2218,161 @@ function buildSessionResult(session) {
     levels: session.levels,
     answers: session.answers,
   };
+}
+
+function saveHistoryResult(result) {
+  try {
+    const history = loadHistoryRecords();
+    const record = buildHistoryRecord(result);
+    saveHistoryRecords([record, ...history].slice(0, HISTORY_LIMIT));
+  } catch {
+    // History is browser-local convenience data; session results still render if storage is unavailable.
+  }
+}
+
+function buildHistoryRecord(result) {
+  const completedAt = new Date().toISOString();
+  const id = `${completedAt}-${Math.random().toString(36).slice(2, 9)}`;
+
+  if (result.type === "vocabulary") {
+    const stats = getVocabularyResultStats(result);
+    const answersByIndex = new Map((result.answers || []).map((answer) => [answer.itemIndex, answer]));
+    const answerRows = result.items.map((item, index) => {
+      const answer = answersByIndex.get(index);
+      const pinyinFound = result.quizMode === "pinyin" && new Set(result.foundIds || []).has(vocabularyItemId(item, index));
+      return {
+        index,
+        zh: item.zh,
+        pinyin: item.pinyin,
+        meaning: formatVocabularyMeanings(item),
+        answer: answer?.answer || "",
+        correct: result.quizMode === "pinyin" ? pinyinFound : Boolean(answer?.correct),
+        score: result.quizMode === "pinyin" ? (pinyinFound ? 1 : 0) : (answer?.score || 0),
+      };
+    });
+
+    return {
+      id,
+      type: "vocabulary",
+      completedAt,
+      quizMode: result.quizMode,
+      setId: result.setId,
+      setLabel: result.setLabel || result.setShortLabel || result.setId,
+      order: result.order,
+      total: stats.total,
+      correct: stats.correct,
+      elapsedSeconds: result.elapsedSeconds,
+      finishReason: result.finishReason || "ended",
+      highScoreEligible: stats.highScoreEligible,
+      timeLimitSeconds: result.timeLimitSeconds,
+      answers: answerRows,
+    };
+  }
+
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const averageScore = result.answers.length
+    ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
+    : 0;
+
+  return {
+    id,
+    type: "drill",
+    completedAt,
+    mode: result.mode,
+    levels: result.levels,
+    total: result.answers.length,
+    correct,
+    averageScore,
+    answers: result.answers.map((answer, index) => ({
+      index,
+      prompt: result.mode === "writing"
+        ? answer.item.en
+        : result.mode === "reading"
+          ? answer.item.zh
+          : "Audio sentence",
+      answer: answer.answer,
+      expected: result.mode === "writing" ? answer.item.zh : answer.item.en,
+      score: answer.score,
+      correct: answer.correct,
+    })),
+  };
+}
+
+function loadHistoryRecords() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistoryRecords(records) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(records));
+}
+
+function clearHistoryRecords() {
+  localStorage.removeItem(HISTORY_KEY);
+}
+
+function getVocabularyResultStats(result) {
+  const total = result.items?.length || result.total || 0;
+  const correct = result.quizMode === "pinyin"
+    ? new Set(result.foundIds || []).size
+    : (result.answers || []).filter((answer) => answer.correct).length;
+  const answered = result.quizMode === "pinyin"
+    ? correct
+    : (result.answers || []).length;
+  const highScoreEligible = total > 0 &&
+    result.finishReason === "complete" &&
+    answered === total &&
+    correct === total;
+
+  return { answered, correct, highScoreEligible, total };
+}
+
+function getVocabularyHighScore(quizMode, setId, records = loadHistoryRecords()) {
+  return records
+    .filter((record) =>
+      record.type === "vocabulary" &&
+      record.quizMode === quizMode &&
+      record.setId === setId &&
+      record.highScoreEligible,
+    )
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)[0] || null;
+}
+
+function getVocabularyHighScoreRecords(records = loadHistoryRecords()) {
+  const bestByKey = new Map();
+  records
+    .filter((record) => record.type === "vocabulary" && record.highScoreEligible)
+    .forEach((record) => {
+      const key = `${record.quizMode}:${record.setId}`;
+      const existing = bestByKey.get(key);
+      if (!existing || record.elapsedSeconds < existing.elapsedSeconds) {
+        bestByKey.set(key, record);
+      }
+    });
+
+  return [...bestByKey.values()].sort((a, b) =>
+    a.setLabel.localeCompare(b.setLabel) ||
+    a.quizMode.localeCompare(b.quizMode),
+  );
+}
+
+function formatHistoryDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function assessAnswer(answer, item, mode) {
@@ -2450,47 +2768,15 @@ function buildVocabularyQuizSets(sourceSets) {
     return [];
   }
 
-  const partSets = sourceSets.map((set) => ({
-    id: set.id,
-    label: set.label || set.shortLabel,
-    shortLabel: set.shortLabel || set.label,
-    level: set.level || set.shortLabel || set.label || "Vocabulary",
-    words: dedupeVocabularyWords(set.words || []),
-  }));
-  const byLevel = [];
-  partSets.forEach((set) => {
-    const level = set.level || set.shortLabel || set.label || "Vocabulary";
-    let group = byLevel.find((item) => item.level === level);
-    if (!group) {
-      group = { level, words: [] };
-      byLevel.push(group);
-    }
-    group.words.push(...(set.words || []));
-  });
-
-  const levelSets = byLevel.map((group) => ({
-    id: slugifyVocabularySetId(group.level),
-    label: `${group.level} · All`,
-    shortLabel: `${group.level} · All`,
-    level: group.level,
-    words: dedupeVocabularyWords(group.words),
-  }));
-
-  if (levelSets.length < 2) {
-    return [...partSets, ...levelSets];
-  }
-
-  return [
-    ...partSets,
-    ...levelSets,
-    {
-      id: "new-hsk-1-2",
-      label: "New HSK 1 + 2 · All",
-      shortLabel: "New HSK 1 + 2 · All",
-      level: "New HSK 1 + 2",
-      words: dedupeVocabularyWords(levelSets.flatMap((set) => set.words)),
-    },
-  ];
+  return sourceSets
+    .map((set) => ({
+      id: set.id,
+      label: set.label || set.shortLabel,
+      shortLabel: set.shortLabel || set.label,
+      level: set.level || set.shortLabel || set.label || "Vocabulary",
+      words: dedupeVocabularyWords(set.words || []),
+    }))
+    .filter((set) => set.id && set.words.length);
 }
 
 function dedupeVocabularyWords(words) {

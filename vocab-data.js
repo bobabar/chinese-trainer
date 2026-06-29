@@ -2,10 +2,10 @@
 (function () {
   window.VOCABULARY_QUIZ_SETS = [
   {
-    "id": "new-hsk-1-part-1",
-    "label": "New HSK 1 · Part 1",
-    "shortLabel": "New HSK 1 · Part 1",
-    "level": "New HSK 1",
+    "id": "new-hsk-1-2-part-1",
+    "label": "New HSK 1 + 2 · Part 1",
+    "shortLabel": "New HSK 1 + 2 · Part 1",
+    "level": "New HSK 1 + 2",
     "words": [
       {
         "zh": "爱",
@@ -2458,7 +2458,15 @@
         "meanings": [
           "to return to"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-2",
+    "label": "New HSK 1 + 2 · Part 2",
+    "shortLabel": "New HSK 1 + 2 · Part 2",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "回家",
         "pinyin": "huí jiā",
@@ -2712,15 +2720,7 @@
           "to meet",
           "to see each other"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-part-2",
-    "label": "New HSK 1 · Part 2",
-    "shortLabel": "New HSK 1 · Part 2",
-    "level": "New HSK 1",
-    "words": [
+      },
       {
         "zh": "叫",
         "pinyin": "jiào",
@@ -4641,7 +4641,15 @@
           "irresolute",
           "Kangxi radical 130"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-3",
+    "label": "New HSK 1 + 2 · Part 3",
+    "shortLabel": "New HSK 1 + 2 · Part 3",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "三",
         "pinyin": "sān",
@@ -5104,15 +5112,7 @@
         "meanings": [
           "fruit"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-part-3",
-    "label": "New HSK 1 · Part 3",
-    "shortLabel": "New HSK 1 · Part 3",
-    "level": "New HSK 1",
-    "words": [
+      },
       {
         "zh": "睡",
         "pinyin": "shuì",
@@ -6673,7 +6673,15 @@
           "this side",
           "here"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-4",
+    "label": "New HSK 1 + 2 · Part 4",
+    "shortLabel": "New HSK 1 + 2 · Part 4",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "这儿",
         "pinyin": "zhè r",
@@ -7191,15 +7199,7 @@
           "to be used for",
           "to assume (an air or manner)"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-2-part-1",
-    "label": "New HSK 2 · Part 1",
-    "shortLabel": "New HSK 2 · Part 1",
-    "level": "New HSK 2",
-    "words": [
+      },
       {
         "zh": "啊",
         "pinyin": "ā",
@@ -8889,7 +8889,15 @@
           "(bound form) shop",
           "store"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-5",
+    "label": "New HSK 1 + 2 · Part 5",
+    "shortLabel": "New HSK 1 + 2 · Part 5",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "掉",
         "pinyin": "diào",
@@ -9574,15 +9582,7 @@
           "advanced",
           "high-ranking"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-2-part-2",
-    "label": "New HSK 2 · Part 2",
-    "shortLabel": "New HSK 2 · Part 2",
-    "level": "New HSK 2",
-    "words": [
+      },
       {
         "zh": "高中",
         "pinyin": "gāo zhōng",
@@ -10942,7 +10942,15 @@
           "(Tw) weight equal to 600 g",
           "(HK, Malaysia, Singapore) slightly over 604 g"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-6",
+    "label": "New HSK 1 + 2 · Part 6",
+    "shortLabel": "New HSK 1 + 2 · Part 6",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "近",
         "pinyin": "jìn",
@@ -11882,15 +11890,7 @@
           "traveler",
           "tourist"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-2-part-3",
-    "label": "New HSK 2 · Part 3",
-    "shortLabel": "New HSK 2 · Part 3",
-    "level": "New HSK 2",
-    "words": [
+      },
       {
         "zh": "旅行",
         "pinyin": "lǚ xíng",
@@ -13007,7 +13007,15 @@
         "meanings": [
           "whole family"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-7",
+    "label": "New HSK 1 + 2 · Part 7",
+    "shortLabel": "New HSK 1 + 2 · Part 7",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "全年",
         "pinyin": "quán nián",
@@ -14177,15 +14185,7 @@
           "at the same time",
           "simultaneously"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-2-part-4",
-    "label": "New HSK 2 · Part 4",
-    "shortLabel": "New HSK 2 · Part 4",
-    "level": "New HSK 2",
-    "words": [
+      },
       {
         "zh": "同事",
         "pinyin": "tóng shì",
@@ -15060,7 +15060,15 @@
           "at will",
           "at random"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-2-part-8",
+    "label": "New HSK 1 + 2 · Part 8",
+    "shortLabel": "New HSK 1 + 2 · Part 8",
+    "level": "New HSK 1 + 2",
+    "words": [
       {
         "zh": "信号",
         "pinyin": "xìn hào",
@@ -16393,15 +16401,7 @@
           "really",
           "indeed"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-2-part-5",
-    "label": "New HSK 2 · Part 5",
-    "shortLabel": "New HSK 2 · Part 5",
-    "level": "New HSK 2",
-    "words": [
+      },
       {
         "zh": "正常",
         "pinyin": "zhèng cháng",

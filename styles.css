@@ -18,6 +18,8 @@
   --theme-focus: rgba(182, 41, 53, 0.2);
   --theme-wash: rgba(182, 41, 53, 0.08);
   --theme-rule: rgba(182, 41, 53, 0.12);
+  --header-control-height: 42px;
+  --header-control-padding: 10px;
   --teal: #167a76;
   --gold: #bf812d;
   --green: #27825a;
@@ -110,6 +112,20 @@ body[data-tool="vocabulary"] .drill-only {
 
 body[data-tool="vocabulary"] .mode-nav.vocabulary-only {
   display: grid;
+}
+
+body[data-tool="history"] {
+  --theme: #5b6470;
+  --theme-hover: #404954;
+  --theme-soft: #f6f7f8;
+  --theme-border: #cbd1d7;
+  --theme-focus: rgba(91, 100, 112, 0.2);
+  --theme-wash: rgba(91, 100, 112, 0.08);
+  --theme-rule: rgba(91, 100, 112, 0.12);
+}
+
+body[data-tool="history"] .tool-controls {
+  display: none;
 }
 
 button,
@@ -216,7 +232,7 @@ p {
 }
 
 .tool-nav {
-  grid-template-columns: repeat(2, minmax(124px, 1fr));
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
   width: min(520px, 100%);
 }
 
@@ -231,7 +247,7 @@ p {
 .mode-nav {
   grid-template-columns: repeat(3, minmax(104px, 1fr));
   width: 100%;
-  padding: 10px;
+  padding: var(--header-control-padding);
   border-radius: 8px;
   box-shadow: 0 12px 35px rgba(90, 52, 30, 0.09);
 }
@@ -246,7 +262,7 @@ p {
 .secondary-btn,
 .ghost-btn,
 .icon-btn {
-  min-height: 42px;
+  min-height: var(--header-control-height);
   border-radius: 8px;
   border: 1px solid var(--line-strong);
   color: var(--ink);
@@ -260,6 +276,7 @@ p {
 
 .mode-tab:hover,
 .tool-tab:hover,
+.options-summary:hover,
 .secondary-btn:hover,
 .ghost-btn:hover,
 .icon-btn:hover {
@@ -275,19 +292,22 @@ p {
 }
 
 .global-options {
-  padding: 0;
+  padding: var(--header-control-padding);
   border-radius: 8px;
   box-shadow: 0 12px 35px rgba(90, 52, 30, 0.09);
   overflow: hidden;
 }
 
 .options-summary {
-  min-height: 52px;
+  min-height: var(--header-control-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--muted);
   cursor: pointer;
   font-size: 12px;
@@ -321,7 +341,7 @@ p {
   grid-template-columns: minmax(260px, 1fr) minmax(150px, 180px);
   align-items: center;
   gap: 14px;
-  padding: 0 16px 14px;
+  padding: 14px 6px 4px;
 }
 
 body[data-tool="vocabulary"] .tool-controls {
@@ -461,7 +481,7 @@ select {
 
 .quiz-start-strip {
   display: grid;
-  grid-template-columns: minmax(120px, 0.45fr) minmax(120px, 0.45fr) minmax(240px, 1fr);
+  grid-template-columns: repeat(3, minmax(112px, 0.5fr)) minmax(240px, 1fr);
   gap: 10px;
   align-items: stretch;
   margin: 16px 0 18px;
@@ -999,6 +1019,7 @@ textarea[lang="zh-CN"] {
 textarea:focus,
 .answer-input:focus,
 select:focus,
+summary:focus-visible,
 button:focus-visible {
   outline: 3px solid var(--theme-focus);
   outline-offset: 2px;
@@ -1272,6 +1293,24 @@ button:focus-visible {
   margin-bottom: 18px;
 }
 
+.history-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.history-panel .stat-grid {
+  margin-bottom: 0;
+}
+
+.history-section {
+  display: grid;
+  gap: 10px;
+}
+
+.history-table-wrap {
+  max-height: 360px;
+}
+
 .quiz-stat-grid {
   margin-bottom: 18px;
 }
@@ -1403,11 +1442,12 @@ td.status-review {
   }
 
   .options-summary {
-    padding: 13px 12px;
+    min-height: 44px;
+    padding: 0 12px;
   }
 
   .options-body {
-    padding: 0 12px 12px;
+    padding: 12px 2px 2px;
   }
 
   .mode-nav {
@@ -1416,7 +1456,7 @@ td.status-review {
   }
 
   .tool-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
 

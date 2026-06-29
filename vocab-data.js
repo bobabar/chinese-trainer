@@ -2,10 +2,10 @@
 (function () {
   window.VOCABULARY_QUIZ_SETS = [
   {
-    "id": "new-hsk-1-2-part-1",
-    "label": "New HSK 1 + 2 · Part 1",
-    "shortLabel": "New HSK 1 + 2 · Part 1",
-    "level": "New HSK 1 + 2",
+    "id": "new-hsk-1-part-1",
+    "label": "New HSK 1 · Part 1",
+    "shortLabel": "New HSK 1 · Part 1",
+    "level": "New HSK 1",
     "words": [
       {
         "zh": "爱",
@@ -1924,7 +1924,15 @@
         "meanings": [
           "worker"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-part-2",
+    "label": "New HSK 1 · Part 2",
+    "shortLabel": "New HSK 1 · Part 2",
+    "level": "New HSK 1",
+    "words": [
       {
         "zh": "工作",
         "pinyin": "gōng zuò",
@@ -2458,15 +2466,7 @@
         "meanings": [
           "to return to"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-2",
-    "label": "New HSK 1 + 2 · Part 2",
-    "shortLabel": "New HSK 1 + 2 · Part 2",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "回家",
         "pinyin": "huí jiā",
@@ -3776,7 +3776,15 @@
           "to understand",
           "to realize"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-part-3",
+    "label": "New HSK 1 · Part 3",
+    "shortLabel": "New HSK 1 · Part 3",
+    "level": "New HSK 1",
+    "words": [
       {
         "zh": "明年",
         "pinyin": "míng nián",
@@ -4641,15 +4649,7 @@
           "irresolute",
           "Kangxi radical 130"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-3",
-    "label": "New HSK 1 + 2 · Part 3",
-    "shortLabel": "New HSK 1 + 2 · Part 3",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "三",
         "pinyin": "sān",
@@ -5432,7 +5432,15 @@
           "to have fun",
           "to hang out"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-1-part-4",
+    "label": "New HSK 1 · Part 4",
+    "shortLabel": "New HSK 1 · Part 4",
+    "level": "New HSK 1",
+    "words": [
       {
         "zh": "晚",
         "pinyin": "wǎn",
@@ -6673,15 +6681,7 @@
           "this side",
           "here"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-4",
-    "label": "New HSK 1 + 2 · Part 4",
-    "shortLabel": "New HSK 1 + 2 · Part 4",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "这儿",
         "pinyin": "zhè r",
@@ -7112,94 +7112,15 @@
           "finally",
           "ultimate"
         ]
-      },
-      {
-        "zh": "昨天",
-        "pinyin": "zuó tiān",
-        "numeric": "zuo2 tian1",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "yesterday"
-        ]
-      },
-      {
-        "zh": "左",
-        "pinyin": "zuǒ",
-        "numeric": "zuo3",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "surname Zuo",
-          "left",
-          "the Left (politics)",
-          "east",
-          "unorthodox",
-          "queer",
-          "wrong",
-          "differing",
-          "opposite",
-          "variant of 佐"
-        ]
-      },
-      {
-        "zh": "左边",
-        "pinyin": "zuǒ bian",
-        "numeric": "zuo3 bian5",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "left",
-          "the left side",
-          "to the left of"
-        ]
-      },
-      {
-        "zh": "坐",
-        "pinyin": "zuò",
-        "numeric": "zuo4",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "surname Zuo",
-          "to sit",
-          "to take a seat",
-          "to take (a bus, airplane etc)",
-          "to bear fruit",
-          "variant of 座"
-        ]
-      },
-      {
-        "zh": "坐下",
-        "pinyin": "zuò xia",
-        "numeric": "zuo4 xia5",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "to sit down"
-        ]
-      },
-      {
-        "zh": "做",
-        "pinyin": "zuò",
-        "numeric": "zuo4",
-        "pinyinAlternates": [],
-        "numericAlternates": [],
-        "meanings": [
-          "to make",
-          "to produce",
-          "to write",
-          "to compose",
-          "to do",
-          "to engage in",
-          "to hold (a party etc)",
-          "(of a person) to be (an intermediary, a good student etc)",
-          "to become (husband and wife, friends etc)",
-          "(of a thing) to serve as",
-          "to be used for",
-          "to assume (an air or manner)"
-        ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-1",
+    "label": "New HSK 2 · Part 1",
+    "shortLabel": "New HSK 2 · Part 1",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "啊",
         "pinyin": "ā",
@@ -8889,15 +8810,7 @@
           "(bound form) shop",
           "store"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-5",
-    "label": "New HSK 1 + 2 · Part 5",
-    "shortLabel": "New HSK 1 + 2 · Part 5",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "掉",
         "pinyin": "diào",
@@ -8948,7 +8861,15 @@
           "two-character surname Dongfang",
           "east"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-2",
+    "label": "New HSK 2 · Part 2",
+    "shortLabel": "New HSK 2 · Part 2",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "东南",
         "pinyin": "dōng nán",
@@ -10534,7 +10455,15 @@
           "component",
           "classifier for events, things, clothes etc"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-3",
+    "label": "New HSK 2 · Part 3",
+    "shortLabel": "New HSK 2 · Part 3",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "健康",
         "pinyin": "jiàn kāng",
@@ -10942,15 +10871,7 @@
           "(Tw) weight equal to 600 g",
           "(HK, Malaysia, Singapore) slightly over 604 g"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-6",
-    "label": "New HSK 1 + 2 · Part 6",
-    "shortLabel": "New HSK 1 + 2 · Part 6",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "近",
         "pinyin": "jìn",
@@ -12210,7 +12131,15 @@
           "to feel unwell",
           "(of life) to be difficult"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-4",
+    "label": "New HSK 2 · Part 4",
+    "shortLabel": "New HSK 2 · Part 4",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "难看",
         "pinyin": "nán kàn",
@@ -13007,15 +12936,7 @@
         "meanings": [
           "whole family"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-7",
-    "label": "New HSK 1 + 2 · Part 7",
-    "shortLabel": "New HSK 1 + 2 · Part 7",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "全年",
         "pinyin": "quán nián",
@@ -13839,7 +13760,15 @@
           "bend (of a river or mountain range, in place names)",
           "tau (Greek letter Ττ)"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-5",
+    "label": "New HSK 2 · Part 5",
+    "shortLabel": "New HSK 2 · Part 5",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "特别",
         "pinyin": "tè bié",
@@ -15060,15 +14989,7 @@
           "at will",
           "at random"
         ]
-      }
-    ]
-  },
-  {
-    "id": "new-hsk-1-2-part-8",
-    "label": "New HSK 1 + 2 · Part 8",
-    "shortLabel": "New HSK 1 + 2 · Part 8",
-    "level": "New HSK 1 + 2",
-    "words": [
+      },
       {
         "zh": "信号",
         "pinyin": "xìn hào",
@@ -15461,7 +15382,15 @@
           "particular",
           "must"
         ]
-      },
+      }
+    ]
+  },
+  {
+    "id": "new-hsk-2-part-6",
+    "label": "New HSK 2 · Part 6",
+    "shortLabel": "New HSK 2 · Part 6",
+    "level": "New HSK 2",
+    "words": [
       {
         "zh": "一共",
         "pinyin": "yī gòng",

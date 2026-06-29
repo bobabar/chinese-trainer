@@ -133,6 +133,8 @@ const annotated = buildAnswerBoxText("我爱你。");
 const wordMarkup = buildAnnotatedChineseMarkup("我爱你。");
 const firstVocabularySet = getSelectedVocabularySet();
 const vocabularySetSizes = VOCABULARY_QUIZ_SETS.map((set) => set.words.length);
+const hsk1VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 1");
+const hsk2VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 2");
 const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
 const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
@@ -158,8 +160,11 @@ assert(normalizeEnglish("They were here.") === "they were here", "were should no
 assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
 assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
 assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
-assert(VOCABULARY_QUIZ_SETS.length === 8, "vocabulary quizzes should be split into eight comparable parts");
-assert(vocabularySetSizes.every((size) => size === 157), "every vocabulary quiz part should have 157 words");
+assert(VOCABULARY_QUIZ_SETS.length === 10, "vocabulary quizzes should be split into ten comparable parts");
+assert(hsk1VocabularySets.length === 4, "New HSK 1 vocabulary should stay in its own four quiz parts");
+assert(hsk2VocabularySets.length === 6, "New HSK 2 vocabulary should stay in its own six quiz parts");
+assert(vocabularySetSizes.every((size) => size === 125), "every vocabulary quiz part should have 125 words");
+assert(!VOCABULARY_QUIZ_SETS.some((set) => set.level.includes("1 + 2")), "vocabulary quiz parts should not combine HSK 1 and HSK 2");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
@@ -172,7 +177,7 @@ assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings s
 assert(assessVocabularyAnswer("love", loveEntry, "meaning").correct, "audio vocabulary mode should grade English meanings");
 assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "audio vocabulary mode should support replay shortcuts");
 assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pinyin vocabulary mode should not use audio replay shortcuts");
-assert(formatTimer(determineVocabularyTimeLimit(157)) === "18:00", "157-word vocabulary quiz should use an 18-minute timer");
+assert(formatTimer(determineVocabularyTimeLimit(125)) === "15:00", "125-word vocabulary quiz should use a 15-minute timer");
 
 const matchSession = {
   type: "vocabulary",

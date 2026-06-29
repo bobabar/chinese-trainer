@@ -1208,7 +1208,7 @@ function renderVocabularyPinyinSession() {
           <span>Submit</span>
           ${shortcutHint("Enter")}
         </button>
-        <button class="ghost-btn" type="button" id="giveUpVocabularyRow">Give up</button>
+        <button class="ghost-btn" type="button" id="giveUpVocabularyRow">Reveal</button>
       </form>
 
       <div class="vocab-table-section">
@@ -1757,7 +1757,7 @@ function renderVocabularyResults() {
       const id = vocabularyItemId(item, index);
       const found = foundIds.has(id);
       const givenUp = missedIds.has(id);
-      const statusText = found ? "Found" : givenUp ? "Given up" : "Missed";
+      const statusText = found ? "Found" : givenUp ? "Revealed" : "Missed";
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
@@ -3301,7 +3301,7 @@ function formatVocabularyPinyinProgressText(session) {
     return `${found} found, ${left} left`;
   }
 
-  return `${found} found, ${missed} given up, ${left} left`;
+  return `${found} found, ${missed} revealed, ${left} left`;
 }
 
 function cssEscape(value) {

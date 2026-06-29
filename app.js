@@ -1170,6 +1170,7 @@ function renderVocabularyPinyinSession() {
   const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const remaining = getVocabularyRemainingSeconds(session);
   const rows = buildVocabularyQuizRows(session, { hideTranslation: session.hideTranslations });
+  const currentWordMarkup = buildVocabularyCurrentWordMarkup(session);
 
   app.innerHTML = `
     <section class="workspace-panel session-shell vocabulary-session">
@@ -1188,6 +1189,8 @@ function renderVocabularyPinyinSession() {
       <div class="progress-track" aria-hidden="true">
         <div class="progress-fill" id="vocabularyProgress" style="width: ${progressPercent}%"></div>
       </div>
+
+      ${currentWordMarkup}
 
       <form class="vocab-guess-form" id="vocabularyGuessForm">
         <label class="field">
@@ -1248,6 +1251,21 @@ function renderVocabularyPinyinSession() {
   if (!isTouchLikeDevice()) {
     input.focus();
   }
+}
+
+function buildVocabularyCurrentWordMarkup(session) {
+  const index = getSelectedVocabularyIndex(session);
+  const item = index >= 0 ? session.items[index] : null;
+  const label = index >= 0
+    ? `Row ${index + 1} of ${session.items.length}`
+    : "No row selected";
+
+  return `
+    <div class="mobile-current-word" aria-live="polite">
+      <span id="mobileCurrentWordLabel">${escapeHtml(label)}</span>
+      <strong id="mobileCurrentWordText" class="chinese-text" lang="zh-CN">${escapeHtml(item?.zh || "")}</strong>
+    </div>
+  `;
 }
 
 function renderVocabularyMeaningSession() {
@@ -3228,6 +3246,8 @@ function updateVocabularySessionMetrics(session) {
     return;
   }
 
+  updateVocabularyCurrentWordMarkup(session);
+
   const currentId = getCurrentVocabularyRowId(session);
   session.items.forEach((item, index) => {
     const id = vocabularyItemId(item, index);
@@ -3271,6 +3291,21 @@ function updateVocabularySessionMetrics(session) {
         : formatVocabularyMeanings(item);
     }
   });
+}
+
+function updateVocabularyCurrentWordMarkup(session) {
+  const label = document.querySelector("#mobileCurrentWordLabel");
+  const word = document.querySelector("#mobileCurrentWordText");
+  if (!label || !word) {
+    return;
+  }
+
+  const index = getSelectedVocabularyIndex(session);
+  const item = index >= 0 ? session.items[index] : null;
+  label.textContent = index >= 0
+    ? `Row ${index + 1} of ${session.items.length}`
+    : "No row selected";
+  word.textContent = item?.zh || "";
 }
 
 function getVocabularyPinyinAnsweredCount(session) {

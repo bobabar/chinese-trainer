@@ -83,14 +83,18 @@ window.__tests = {
   getSelectedVocabularyIndex,
   getVocabularyHighScore,
   getVocabularyHighScoreRecords,
+  getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   formatTimer,
   getSelectedVocabularySet,
+  isVocabularyRowAnswered,
+  isVocabularyRowCorrect,
   normalizeEnglish,
   normalizePinyinForCompare,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  selectNextVocabularyRowAfter,
   sessionUsesAudioPrompt,
   speak,
   state,
@@ -114,14 +118,18 @@ const {
   getSelectedVocabularyIndex,
   getVocabularyHighScore,
   getVocabularyHighScoreRecords,
+  getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   formatTimer,
   getSelectedVocabularySet,
+  isVocabularyRowAnswered,
+  isVocabularyRowCorrect,
   normalizeEnglish,
   normalizePinyinForCompare,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
+  selectNextVocabularyRowAfter,
   sessionUsesAudioPrompt,
   speak,
   state,
@@ -138,6 +146,8 @@ const hsk2VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "N
 const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
 const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
+const eightEntry = allVocabularyWords.find((item) => item.zh === "八");
+const shortWhileEntry = allVocabularyWords.find((item) => item.zh === "不一会儿" && item.pinyin === "bù yīhuǐr5");
 
 assert(containsChinese("Reference: 我爱你。"), "Chinese detection should find Han characters inside mixed text");
 assert(annotated.includes("annotated-chinese"), "Chinese answer boxes should use annotated markup");
@@ -178,12 +188,14 @@ assert(assessVocabularyAnswer("love", loveEntry, "meaning").correct, "audio voca
 assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "audio vocabulary mode should support replay shortcuts");
 assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pinyin vocabulary mode should not use audio replay shortcuts");
 assert(formatTimer(determineVocabularyTimeLimit(125)) === "15:00", "125-word vocabulary quiz should use a 15-minute timer");
+assert(normalizePinyinForCompare("bù yīhuǐr5") === "bu4 yihuir5", "mixed tone-mark and numeric pinyin should normalize");
 
 const matchSession = {
   type: "vocabulary",
   quizMode: "pinyin",
   items: [loveEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   selectedVocabularyIndex: 0,
 };
 assert(findVocabularyGuessMatches("ài", matchSession).length === 1, "tone-mark vocabulary answer should reveal a row");
@@ -195,15 +207,28 @@ const compactPinyinSession = {
   quizMode: "pinyin",
   items: [hobbyEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   selectedVocabularyIndex: 0,
 };
 assert(findVocabularyGuessMatches("aihao", compactPinyinSession).length === 1, "tone-free compact pinyin should reveal a row");
+
+const erhuaPinyinSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [shortWhileEntry],
+  foundIds: new Set(),
+  missedIds: new Set(),
+  selectedVocabularyIndex: 0,
+};
+assert(findVocabularyGuessMatches("buyihuir", erhuaPinyinSession).length === 1, "compact erhua pinyin should reveal 不一会儿");
+assert(findVocabularyGuessMatches("buyihuier", erhuaPinyinSession).length === 1, "expanded erhua pinyin should reveal 不一会儿");
 
 const selectedOnlySession = {
   type: "vocabulary",
   quizMode: "pinyin",
   items: [loveEntry, hobbyEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   selectedVocabularyIndex: 0,
 };
 assert(
@@ -219,8 +244,9 @@ assert(
 const highlightedRowSession = {
   type: "vocabulary",
   quizMode: "pinyin",
-  items: [loveEntry, hobbyEntry],
+  items: [loveEntry, hobbyEntry, eightEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   selectedVocabularyIndex: 0,
 };
 assert(
@@ -240,12 +266,30 @@ assert(
   getSelectedVocabularyIndex(highlightedRowSession) === 1,
   "selected vocabulary index should fall forward to the next unanswered row",
 );
+const skippedRowAdvanceSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [loveEntry, hobbyEntry, eightEntry],
+  foundIds: new Set([vocabularyItemId(hobbyEntry, 1)]),
+  missedIds: new Set(),
+  selectedVocabularyIndex: 1,
+};
+assert(
+  selectNextVocabularyRowAfter(skippedRowAdvanceSession, 1) === 2,
+  "selected vocabulary row should advance forward instead of returning to an earlier skipped row",
+);
+skippedRowAdvanceSession.missedIds.add(vocabularyItemId(eightEntry, 2));
+assert(
+  selectNextVocabularyRowAfter(skippedRowAdvanceSession, 2) === 0,
+  "selected vocabulary row should wrap to earlier skipped rows only after later rows are answered",
+);
 
 const hiddenTranslationSession = {
   type: "vocabulary",
   quizMode: "pinyin",
   items: [loveEntry, hobbyEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   selectedVocabularyIndex: 0,
   hideTranslations: true,
 };
@@ -256,11 +300,29 @@ hiddenTranslationSession.foundIds.add(vocabularyItemId(loveEntry, 0));
 const revealedTranslationRows = buildVocabularyQuizRows(hiddenTranslationSession);
 assert(revealedTranslationRows.includes("to love"), "hidden translation option should reveal answered meanings");
 
+const givenUpRowSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+  missedIds: new Set([vocabularyItemId(loveEntry, 0)]),
+  selectedVocabularyIndex: 0,
+  hideTranslations: true,
+};
+const givenUpRows = buildVocabularyQuizRows(givenUpRowSession);
+assert(isVocabularyRowAnswered(givenUpRowSession, 0), "given up pinyin rows should count as answered");
+assert(!isVocabularyRowCorrect(givenUpRowSession, 0), "given up pinyin rows should not count as correct");
+assert(getVocabularyPinyinAnsweredCount(givenUpRowSession) === 1, "given up rows should count toward quiz completion");
+assert(givenUpRows.includes('class="missed"'), "given up rows should render as missed");
+assert(givenUpRows.includes("ài"), "given up rows should reveal the pinyin answer");
+assert(givenUpRows.includes("to love"), "given up rows should reveal the translation");
+
 const audioRowSession = {
   type: "vocabulary",
   quizMode: "meaning",
   items: [loveEntry, hobbyEntry],
   foundIds: new Set(),
+  missedIds: new Set(),
   answers: [],
   selectedVocabularyIndex: 0,
   index: 0,
@@ -321,6 +383,23 @@ assert(
   !getVocabularyResultStats(incompleteAudioResult).highScoreEligible,
   "ended or incomplete audio vocabulary quizzes should not be high-score eligible",
 );
+
+allVocabularyWords.forEach((item) => {
+  const session = {
+    type: "vocabulary",
+    quizMode: "pinyin",
+    items: [item],
+    foundIds: new Set(),
+    missedIds: new Set(),
+    selectedVocabularyIndex: 0,
+  };
+  const normalized = normalizePinyinForCompare(item.pinyin);
+  const compactToneFree = normalized.replace(/[1-5]/g, "").replace(/\s+/g, "");
+
+  assert(findVocabularyGuessMatches(item.pinyin, session).length === 1, `${item.zh} should accept its tone-mark pinyin`);
+  assert(findVocabularyGuessMatches(item.numeric, session).length === 1, `${item.zh} should accept its numeric pinyin`);
+  assert(findVocabularyGuessMatches(compactToneFree, session).length === 1, `${item.zh} should accept compact tone-free pinyin`);
+});
 
 validateSpeechReplay()
   .then(() => {

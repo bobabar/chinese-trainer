@@ -1166,7 +1166,8 @@ function renderVocabularyPinyinSession() {
   const mode = VOCABULARY_MODES[session.quizMode];
   const sessionLength = session.items.length;
   const foundCount = session.foundIds.size;
-  const progressPercent = Math.round((foundCount / sessionLength) * 100);
+  const answeredCount = getVocabularyPinyinAnsweredCount(session);
+  const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const remaining = getVocabularyRemainingSeconds(session);
   const rows = buildVocabularyQuizRows(session, { hideTranslation: session.hideTranslations });
 
@@ -1207,12 +1208,13 @@ function renderVocabularyPinyinSession() {
           <span>Submit</span>
           ${shortcutHint("Enter")}
         </button>
+        <button class="ghost-btn" type="button" id="giveUpVocabularyRow">Give up</button>
       </form>
 
       <div class="vocab-table-section">
         <div class="vocab-section-heading">
           <h3>${escapeHtml(session.setLabel)}</h3>
-          <span>${foundCount} found, ${sessionLength - foundCount} left</span>
+          <span>${formatVocabularyPinyinProgressText(session)}</span>
         </div>
         <div class="vocab-table-wrap" tabindex="0">
           <table class="vocab-table">
@@ -1239,6 +1241,7 @@ function renderVocabularyPinyinSession() {
     event.preventDefault();
     submitVocabularyGuess(input.value);
   });
+  document.querySelector("#giveUpVocabularyRow").addEventListener("click", giveUpVocabularyRow);
   input.addEventListener("input", () => {
     submitVocabularyGuess(input.value, { live: true });
   });
@@ -1739,6 +1742,7 @@ function renderVocabularyResults() {
   }
 
   const foundIds = new Set(result.foundIds || []);
+  const missedIds = new Set(result.missedIds || []);
   const total = result.items.length;
   const stats = getVocabularyResultStats(result);
   const correct = stats.correct;
@@ -1752,13 +1756,15 @@ function renderVocabularyResults() {
     .map((item, index) => {
       const id = vocabularyItemId(item, index);
       const found = foundIds.has(id);
+      const givenUp = missedIds.has(id);
+      const statusText = found ? "Found" : givenUp ? "Given up" : "Missed";
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
           <td class="chinese-text">${escapeHtml(item.zh)}</td>
           <td>${escapeHtml(item.pinyin)}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
-          <td class="${found ? "status-good" : "status-review"}">${found ? "Found" : "Missed"}</td>
+          <td class="${found ? "status-good" : "status-review"}">${statusText}</td>
         </tr>
       `;
     })
@@ -2006,6 +2012,7 @@ function startVocabularySession() {
     index: 0,
     selectedVocabularyIndex: 0,
     foundIds: new Set(),
+    missedIds: new Set(),
     answers: [],
     currentAssessment: null,
     startedAt,
@@ -2039,6 +2046,7 @@ function submitVocabularyGuess(answer, options = {}) {
 
   const foundAt = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   session.foundIds.add(match.id);
+  ensureVocabularyMissedIds(session).delete(match.id);
   session.answers.push({
     answer: trimmed,
     correct: true,
@@ -2047,9 +2055,9 @@ function submitVocabularyGuess(answer, options = {}) {
     itemIndex: match.index,
     score: 1,
   });
-  selectNextVocabularyRowFromTop(session);
+  selectNextVocabularyRowAfter(session, match.index);
 
-  if (session.foundIds.size >= session.items.length) {
+  if (getVocabularyPinyinAnsweredCount(session) >= session.items.length) {
     finishVocabularySession("complete");
     return;
   }
@@ -2064,6 +2072,46 @@ function submitVocabularyGuess(answer, options = {}) {
   }
 
   render();
+}
+
+function giveUpVocabularyRow() {
+  const session = state.session;
+  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
+    return;
+  }
+
+  const index = getSelectedVocabularyIndex(session);
+  if (index < 0 || !isVocabularyRowPending(session, index)) {
+    return;
+  }
+
+  const item = session.items[index];
+  const id = vocabularyItemId(item, index);
+  const foundAt = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+  ensureVocabularyMissedIds(session).add(id);
+  session.answers.push({
+    answer: "",
+    correct: false,
+    foundAt,
+    givenUp: true,
+    item,
+    itemIndex: index,
+    score: 0,
+  });
+
+  selectNextVocabularyRowAfter(session, index);
+
+  if (getVocabularyPinyinAnsweredCount(session) >= session.items.length) {
+    finishVocabularySession("complete");
+    return;
+  }
+
+  const input = document.querySelector("#vocabularyGuess");
+  if (input) {
+    input.value = "";
+  }
+  updateVocabularySessionMetrics(session);
+  focusVocabularyInput();
 }
 
 async function submitAnswer(answer) {
@@ -2109,7 +2157,7 @@ function nextQuestion() {
   const sessionLength = session.items.length;
 
   if (session.type === "vocabulary") {
-    const nextIndex = getNextVocabularyUnansweredIndex(session);
+    const nextIndex = selectNextVocabularyRowAfter(session, session.index);
     if (nextIndex < 0) {
       const result = buildSessionResult({ ...session, finishReason: "complete" });
       state.result = result;
@@ -2120,8 +2168,6 @@ function nextQuestion() {
       return;
     }
 
-    session.index = nextIndex;
-    session.selectedVocabularyIndex = nextIndex;
     session.currentAssessment = null;
     render();
 
@@ -2205,6 +2251,7 @@ function buildSessionResult(session) {
       order: session.order,
       items: session.items,
       foundIds: [...session.foundIds],
+      missedIds: [...ensureVocabularyMissedIds(session)],
       answers: session.answers,
       elapsedSeconds,
       finishReason: session.finishReason || "ended",
@@ -2408,9 +2455,7 @@ function scorePinyin(actual, item) {
   const normalizedActual = normalizePinyinForCompare(actual);
   if (!normalizedActual) return 0;
 
-  const expectedVariants = getVocabularyPinyinVariants(item)
-    .map(normalizePinyinForCompare)
-    .filter(Boolean);
+  const expectedVariants = getNormalizedVocabularyPinyinVariants(item);
   const compactActual = compactPinyin(normalizedActual);
 
   if (expectedVariants.some((expected) => normalizedActual === expected || compactActual === compactPinyin(expected))) {
@@ -2452,6 +2497,39 @@ function getVocabularyPinyinVariants(item) {
   ]);
 }
 
+function getNormalizedVocabularyPinyinVariants(item) {
+  return uniqueStrings(
+    getVocabularyPinyinVariants(item)
+      .map(normalizePinyinForCompare)
+      .filter(Boolean)
+      .flatMap(expandNormalizedPinyinVariant),
+  );
+}
+
+function expandNormalizedPinyinVariant(normalized) {
+  const variants = new Set([normalized]);
+  const syllables = normalized.split(/\s+/).filter(Boolean);
+
+  syllables.forEach((syllable, index) => {
+    const standaloneErhua = syllable.match(/^r([1-5]?)$/);
+    if (standaloneErhua) {
+      const next = [...syllables];
+      next[index] = `er${standaloneErhua[1] || ""}`;
+      variants.add(next.join(" "));
+      return;
+    }
+
+    const trailingErhua = syllable.match(/^([a-zv]+)r([1-5]?)$/);
+    if (trailingErhua) {
+      const next = [...syllables];
+      next[index] = `${trailingErhua[1]}er${trailingErhua[2] || ""}`;
+      variants.add(next.join(" "));
+    }
+  });
+
+  return [...variants];
+}
+
 function getVocabularyMeaningCandidates(item) {
   return uniqueStrings(item.meanings || [])
     .flatMap((meaning) => String(meaning).split(/[;/]/))
@@ -2481,10 +2559,6 @@ function normalizePinyinForCompare(value) {
 
 function convertPinyinSyllable(value) {
   const syllable = value.replace(/u:/g, "v").replace(/ü/g, "v");
-  if (/[1-5]$/.test(syllable)) {
-    return syllable.replace(/[^a-zv1-5]/g, "");
-  }
-
   let base = "";
   let tone = "";
   [...syllable].forEach((character) => {
@@ -2497,8 +2571,17 @@ function convertPinyinSyllable(value) {
 
     if (/[a-zv]/.test(character)) {
       base += character;
+      return;
+    }
+
+    if (/[1-5]/.test(character)) {
+      base += character;
     }
   });
+
+  if (/[1-5]$/.test(base)) {
+    return base;
+  }
 
   return `${base}${tone}`;
 }
@@ -2892,7 +2975,7 @@ function findVocabularyGuessMatches(answer, session) {
 
   const item = session.items[selectedIndex];
   const id = vocabularyItemId(item, selectedIndex);
-  if (session.foundIds.has(id) || !isAcceptedVocabularyPinyinGuess(normalizedAnswer, item)) {
+  if (isVocabularyRowAnswered(session, selectedIndex) || !isAcceptedVocabularyPinyinGuess(normalizedAnswer, item)) {
     return [];
   }
 
@@ -2938,8 +3021,11 @@ function selectVocabularyRow(index) {
   focusVocabularyInput();
 }
 
-function selectNextVocabularyRowFromTop(session) {
-  const nextIndex = getNextVocabularyUnansweredIndex(session);
+function selectNextVocabularyRowAfter(session, index) {
+  const nextAfterIndex = getNextVocabularyUnansweredIndexAfter(session, index);
+  const nextIndex = nextAfterIndex >= 0
+    ? nextAfterIndex
+    : getNextVocabularyUnansweredIndex(session);
   session.index = nextIndex >= 0 ? nextIndex : session.index;
   session.selectedVocabularyIndex = nextIndex >= 0 ? nextIndex : session.selectedVocabularyIndex;
   return nextIndex;
@@ -2958,7 +3044,10 @@ function getSelectedVocabularyIndex(session) {
     return selectedIndex;
   }
 
-  return getNextVocabularyUnansweredIndex(session);
+  const nextAfterSelected = getNextVocabularyUnansweredIndexAfter(session, selectedIndex);
+  return nextAfterSelected >= 0
+    ? nextAfterSelected
+    : getNextVocabularyUnansweredIndex(session);
 }
 
 function getNextVocabularyUnansweredIndex(session) {
@@ -2967,6 +3056,20 @@ function getNextVocabularyUnansweredIndex(session) {
   }
 
   return session.items.findIndex((_, index) => isVocabularyRowPending(session, index));
+}
+
+function getNextVocabularyUnansweredIndexAfter(session, index) {
+  if (session?.type !== "vocabulary") {
+    return -1;
+  }
+
+  for (let nextIndex = index + 1; nextIndex < session.items.length; nextIndex += 1) {
+    if (isVocabularyRowPending(session, nextIndex)) {
+      return nextIndex;
+    }
+  }
+
+  return -1;
 }
 
 function isVocabularyRowPending(session, index) {
@@ -2979,7 +3082,8 @@ function isVocabularyRowAnswered(session, index) {
   }
 
   if (session.quizMode === "pinyin") {
-    return session.foundIds.has(vocabularyItemId(session.items[index], index));
+    const id = vocabularyItemId(session.items[index], index);
+    return session.foundIds.has(id) || ensureVocabularyMissedIds(session).has(id);
   }
 
   return session.answers.some((answer) => answer.itemIndex === index);
@@ -2997,6 +3101,13 @@ function isVocabularyRowCorrect(session, index) {
   return session.answers.some((answer) => answer.itemIndex === index && answer.correct);
 }
 
+function ensureVocabularyMissedIds(session) {
+  if (!(session?.missedIds instanceof Set)) {
+    session.missedIds = new Set(session?.missedIds || []);
+  }
+  return session.missedIds;
+}
+
 function focusVocabularyInput() {
   if (isTouchLikeDevice()) {
     return;
@@ -3011,9 +3122,7 @@ function isAcceptedVocabularyPinyinGuess(normalizedAnswer, item) {
   const toneFreeAnswer = stripPinyinTones(normalizedAnswer);
   const compactToneFreeAnswer = compactPinyin(toneFreeAnswer);
 
-  return getVocabularyPinyinVariants(item)
-    .map(normalizePinyinForCompare)
-    .filter(Boolean)
+  return getNormalizedVocabularyPinyinVariants(item)
     .some((expected) => {
       const compactExpected = compactPinyin(expected);
       const toneFreeExpected = stripPinyinTones(expected);
@@ -3092,14 +3201,14 @@ function updateVocabularySessionMetrics(session) {
     ? session.foundIds.size
     : session.answers.filter((answer) => answer.correct).length;
   const progressCount = session.quizMode === "pinyin"
-    ? found
+    ? getVocabularyPinyinAnsweredCount(session)
     : session.answers.length;
   const score = document.querySelector("#vocabularyScore");
   const timer = document.querySelector("#vocabularyTimer");
   const progress = document.querySelector("#vocabularyProgress");
   const tableSection = document.querySelector(".vocab-section-heading span");
   const tableSectionText = session.quizMode === "pinyin"
-    ? `${found} found, ${total - found} left`
+    ? formatVocabularyPinyinProgressText(session)
     : `${session.answers.length} answered, ${total - session.answers.length} left`;
 
   if (score) {
@@ -3127,12 +3236,14 @@ function updateVocabularySessionMetrics(session) {
       return;
     }
 
-    const isFound = session.foundIds.has(id);
-    const isCurrent = !isFound && id === currentId;
-    row.classList.toggle("found", isFound);
-    row.classList.toggle("pending", !isFound);
+    const isAnswered = isVocabularyRowAnswered(session, index);
+    const isCorrect = isVocabularyRowCorrect(session, index);
+    const isCurrent = !isAnswered && id === currentId;
+    row.classList.toggle("found", isAnswered && isCorrect);
+    row.classList.toggle("missed", isAnswered && !isCorrect);
+    row.classList.toggle("pending", !isAnswered);
     row.classList.toggle("current", isCurrent);
-    row.classList.toggle("selectable", !isFound);
+    row.classList.toggle("selectable", !isAnswered);
     if (isCurrent) {
       row.setAttribute("aria-current", "true");
       row.setAttribute("aria-selected", "true");
@@ -3140,7 +3251,7 @@ function updateVocabularySessionMetrics(session) {
       row.removeAttribute("aria-current");
       row.setAttribute("aria-selected", "false");
     }
-    if (isFound) {
+    if (isAnswered) {
       row.removeAttribute("tabindex");
     } else {
       row.setAttribute("tabindex", "0");
@@ -3148,18 +3259,49 @@ function updateVocabularySessionMetrics(session) {
 
     const pinyinCell = row.querySelector(".pinyin-slot");
     if (pinyinCell) {
-      pinyinCell.textContent = isFound ? item.pinyin : "";
+      pinyinCell.textContent = isAnswered ? item.pinyin : "";
     }
 
     const translationCell = row.querySelector(".translation-cell");
     if (translationCell) {
-      const translationHidden = session.hideTranslations && !isFound;
+      const translationHidden = session.hideTranslations && !isAnswered;
       translationCell.classList.toggle("translation-hidden", translationHidden);
       translationCell.textContent = translationHidden
         ? HIDDEN_TRANSLATION_LABEL
         : formatVocabularyMeanings(item);
     }
   });
+}
+
+function getVocabularyPinyinAnsweredCount(session) {
+  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
+    return 0;
+  }
+
+  return new Set([
+    ...session.foundIds,
+    ...ensureVocabularyMissedIds(session),
+  ]).size;
+}
+
+function getVocabularyPinyinMissedCount(session) {
+  if (session?.type !== "vocabulary" || session.quizMode !== "pinyin") {
+    return 0;
+  }
+
+  return ensureVocabularyMissedIds(session).size;
+}
+
+function formatVocabularyPinyinProgressText(session) {
+  const found = session.foundIds.size;
+  const missed = getVocabularyPinyinMissedCount(session);
+  const left = Math.max(0, session.items.length - getVocabularyPinyinAnsweredCount(session));
+
+  if (!missed) {
+    return `${found} found, ${left} left`;
+  }
+
+  return `${found} found, ${missed} given up, ${left} left`;
 }
 
 function cssEscape(value) {

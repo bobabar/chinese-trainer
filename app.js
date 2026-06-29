@@ -113,6 +113,7 @@ const VOCABULARY_ORDER_OPTIONS = {
   list: "List order",
 };
 const DEFAULT_VOCABULARY_ORDER = "random";
+const VOCABULARY_CHOICE_COUNT = 5;
 const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
@@ -350,6 +351,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isVocabularyChoiceShortcut(event)) {
+    event.preventDefault();
+    submitVocabularyChoiceByShortcut(event.key);
+    return;
+  }
+
   const isEnter = event.key === "Enter";
   if (!isEnter) {
     return;
@@ -396,10 +403,6 @@ function handleSessionShortcut(event) {
       return;
     }
 
-    const input = document.querySelector("#answerInput");
-    if (input) {
-      submitAnswer(input.value);
-    }
     return;
   }
 
@@ -422,6 +425,16 @@ function sessionUsesAudioPrompt(session) {
   return session?.type === "vocabulary"
     ? session.quizMode === "meaning"
     : session?.mode === "listening";
+}
+
+function isVocabularyChoiceShortcut(event) {
+  return state.session?.type === "vocabulary" &&
+    state.session.quizMode === "meaning" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-5]$/.test(event.key);
 }
 
 function renderLevelOptions() {
@@ -1274,7 +1287,7 @@ function renderVocabularyMeaningSession() {
   const submitted = Boolean(session.currentAssessment);
   const currentIndex = submitted ? session.index : getSelectedVocabularyIndex(session);
   const current = session.items[currentIndex];
-  const answer = submitted ? session.currentAssessment.answer : "";
+  const choices = getVocabularyChoiceSet(session, currentIndex);
   const sessionLength = session.items.length;
   const answeredCount = session.answers.length;
   const correctCount = session.answers.filter((entry) => entry.correct).length;
@@ -1311,17 +1324,8 @@ function renderVocabularyMeaningSession() {
         ${buildVocabularyPromptMarkup(current, session.quizMode)}
       </div>
 
-      <form class="answer-form" id="answerForm">
-        <textarea
-          id="answerInput"
-          lang="en"
-          autocomplete="off"
-          autocapitalize="none"
-          spellcheck="false"
-          enterkeyhint="done"
-          placeholder="${mode.answerPlaceholder}"
-          ${submitted ? "disabled" : ""}
-        >${escapeHtml(answer)}</textarea>
+      <div class="choice-panel" id="answerChoices" role="group" aria-label="Answer choices">
+        ${buildVocabularyChoiceMarkup(choices, session.currentAssessment)}
         <div class="form-actions">
           ${
             submitted
@@ -1329,14 +1333,11 @@ function renderVocabularyMeaningSession() {
                   <span>${nextButtonLabel}</span>
                   ${shortcutHint("Enter")}
                 </button>`
-              : `<button class="primary-btn shortcut-btn" type="submit">
-                  <span>Check meaning</span>
-                  ${shortcutHint("Enter")}
-                </button>`
+              : ""
           }
           <button class="ghost-btn" type="button" id="endSessionSecondary">End quiz</button>
         </div>
-      </form>
+      </div>
 
       ${feedbackMarkup}
 
@@ -1372,15 +1373,7 @@ function renderVocabularyMeaningSession() {
     return;
   }
 
-  const form = document.querySelector("#answerForm");
-  const input = document.querySelector("#answerInput");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    submitAnswer(input.value);
-  });
-  if (!isTouchLikeDevice()) {
-    input.focus();
-  }
+  bindVocabularyChoiceHandlers();
 }
 
 function buildVocabularyPromptMarkup(item, quizMode) {
@@ -1441,6 +1434,121 @@ function buildVocabularyFeedbackMarkup(assessment, item) {
       ${referenceMarkup}
     </section>
   `;
+}
+
+function buildVocabularyChoiceMarkup(choices, assessment = null) {
+  const submitted = Boolean(assessment);
+  return `
+    <div class="choice-grid">
+      ${choices.map((choice) => {
+        const selected = assessment?.choiceId === choice.id;
+        const classes = [
+          "choice-option",
+          selected ? "selected" : "",
+          submitted && choice.correct ? "correct" : "",
+          submitted && selected && !choice.correct ? "incorrect" : "",
+        ].filter(Boolean).join(" ");
+
+        return `
+          <button
+            class="${classes}"
+            type="button"
+            data-choice-id="${escapeHtml(choice.id)}"
+            ${submitted ? "disabled" : ""}
+          >
+            <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+            <span class="choice-text">${escapeHtml(choice.text)}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function bindVocabularyChoiceHandlers() {
+  document.querySelectorAll("[data-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitVocabularyChoice(button.dataset.choiceId || ""));
+  });
+}
+
+function getVocabularyChoiceSet(session, index) {
+  if (session?.type !== "vocabulary" || session.quizMode !== "meaning" || index < 0) {
+    return [];
+  }
+
+  if (!(session.choiceSets instanceof Map)) {
+    session.choiceSets = new Map();
+  }
+
+  if (!session.choiceSets.has(index)) {
+    session.choiceSets.set(index, buildVocabularyChoiceSet(session, index));
+  }
+
+  return session.choiceSets.get(index);
+}
+
+function buildVocabularyChoiceSet(session, index) {
+  const item = session.items[index];
+  if (!item) {
+    return [];
+  }
+
+  const correctText = formatVocabularyChoiceText(item);
+  const seen = new Set([normalizeChoiceText(correctText)]);
+  const wrongOptions = [];
+  const pool = shuffle([
+    ...session.items,
+    ...VOCABULARY_QUIZ_SETS.flatMap((set) => set.words || []),
+  ]);
+
+  pool.forEach((candidate) => {
+    if (wrongOptions.length >= VOCABULARY_CHOICE_COUNT - 1) {
+      return;
+    }
+
+    const text = formatVocabularyChoiceText(candidate);
+    const key = normalizeChoiceText(text);
+    if (!key || seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    wrongOptions.push({
+      text,
+      correct: false,
+    });
+  });
+
+  return shuffle([
+    {
+      text: correctText,
+      correct: true,
+    },
+    ...wrongOptions,
+  ])
+    .slice(0, VOCABULARY_CHOICE_COUNT)
+    .map((choice, choiceIndex) => ({
+      ...choice,
+      id: `choice-${index}-${choiceIndex}`,
+      shortcut: String(choiceIndex + 1),
+    }));
+}
+
+function normalizeChoiceText(value) {
+  return normalizeEnglish(value) || String(value || "").trim().toLowerCase();
+}
+
+function formatVocabularyChoiceText(item) {
+  const meanings = getVocabularyMeaningCandidates(item).filter((meaning) => !containsChinese(meaning));
+  if (meanings.length) {
+    return meanings.join("; ");
+  }
+
+  return formatVocabularyMeanings(item)
+    .replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/gu, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*;\s*/g, "; ")
+    .trim() || "Meaning listed";
 }
 
 function buildSentenceMarkup(item, mode) {
@@ -2032,6 +2140,7 @@ function startVocabularySession() {
     foundIds: new Set(),
     missedIds: new Set(),
     answers: [],
+    choiceSets: new Map(),
     currentAssessment: null,
     startedAt,
     endsAt: startedAt + timeLimitSeconds * 1000,
@@ -2141,6 +2250,9 @@ async function submitAnswer(answer) {
   if (!session) {
     return;
   }
+  if (session.type === "vocabulary" && session.quizMode === "meaning") {
+    return;
+  }
 
   state.isCheckingAnswer = true;
   document.activeElement?.blur?.();
@@ -2165,6 +2277,63 @@ async function submitAnswer(answer) {
     ...assessment,
     item,
     ...(session.type === "vocabulary" ? { itemIndex: session.index } : {}),
+  });
+  state.isCheckingAnswer = false;
+  render();
+}
+
+function submitVocabularyChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "vocabulary" || session.quizMode !== "meaning" || session.currentAssessment) {
+    return;
+  }
+
+  const index = getSelectedVocabularyIndex(session);
+  const choice = getVocabularyChoiceSet(session, index).find((option) => option.shortcut === shortcut);
+  if (choice) {
+    submitVocabularyChoice(choice.id);
+  }
+}
+
+function submitVocabularyChoice(choiceId) {
+  if (state.isCheckingAnswer) {
+    return;
+  }
+
+  const session = state.session;
+  if (session?.type !== "vocabulary" || session.quizMode !== "meaning" || session.currentAssessment) {
+    return;
+  }
+
+  const index = getSelectedVocabularyIndex(session);
+  if (index < 0) {
+    return;
+  }
+
+  const item = session.items[index];
+  const choice = getVocabularyChoiceSet(session, index).find((option) => option.id === choiceId);
+  if (!choice) {
+    return;
+  }
+
+  state.isCheckingAnswer = true;
+  document.activeElement?.blur?.();
+
+  const assessment = {
+    quizMode: "meaning",
+    answer: choice.text,
+    choiceId: choice.id,
+    score: choice.correct ? 1 : 0,
+    correct: choice.correct,
+  };
+
+  session.index = index;
+  session.selectedVocabularyIndex = index;
+  session.currentAssessment = assessment;
+  session.answers.push({
+    ...assessment,
+    item,
+    itemIndex: index,
   });
   state.isCheckingAnswer = false;
   render();

@@ -74,13 +74,16 @@ window.__tests = {
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildHistoryRecord,
+  buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
+  formatVocabularyChoiceText,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
+  getVocabularyChoiceSet,
   getVocabularyHighScore,
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
@@ -109,13 +112,16 @@ const {
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildHistoryRecord,
+  buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
+  formatVocabularyChoiceText,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
+  getVocabularyChoiceSet,
   getVocabularyHighScore,
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
@@ -337,6 +343,45 @@ audioRowSession.answers.push({ item: loveEntry, itemIndex: 0, answer: "love", sc
 const answeredAudioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
 assert(answeredAudioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should reveal answered characters");
 assert(answeredAudioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should reveal answered pinyin");
+
+const audioChoiceSession = {
+  type: "vocabulary",
+  quizMode: "meaning",
+  items: [loveEntry, hobbyEntry],
+  foundIds: new Set(),
+  answers: [],
+  selectedVocabularyIndex: 0,
+  index: 0,
+};
+const audioChoices = getVocabularyChoiceSet(audioChoiceSession, 0);
+assert(audioChoices.length === 5, "audio vocabulary mode should render five answer choices");
+assert(audioChoices.filter((choice) => choice.correct).length === 1, "audio answer choices should include one correct answer");
+assert(
+  audioChoices.some((choice) => choice.correct && choice.text.includes("to love")),
+  "audio answer choices should include the correct English meaning",
+);
+assert(
+  audioChoices.map((choice) => choice.shortcut).join("") === "12345",
+  "audio answer choices should expose 1-5 keyboard shortcuts",
+);
+assert(
+  new Set(audioChoices.map((choice) => choice.text)).size === 5,
+  "audio answer choices should not duplicate meanings",
+);
+assert(
+  audioChoices.every((choice) => !containsChinese(choice.text)),
+  "audio answer choices should be English-only",
+);
+assert(
+  getVocabularyChoiceSet(audioChoiceSession, 0) === audioChoices,
+  "audio answer choices should stay stable for the current question",
+);
+const chineseHintChoiceText = formatVocabularyChoiceText({ meanings: ["variant of 蛋", "egg"] });
+assert(!containsChinese(chineseHintChoiceText), "audio choice text should remove Chinese hints from meanings");
+assert(chineseHintChoiceText.includes("egg"), "audio choice text should keep English alternatives");
+const choiceMarkup = buildVocabularyChoiceMarkup(audioChoices);
+assert(choiceMarkup.includes('data-choice-id="choice-0-'), "audio answer choices should be clickable buttons");
+assert(choiceMarkup.includes('<span class="choice-key">1</span>'), "audio answer choices should render shortcut labels");
 
 const completedPinyinResult = {
   type: "vocabulary",

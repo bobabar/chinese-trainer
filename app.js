@@ -44,7 +44,7 @@ const MODES = {
 
 const TOOLS = {
   drill: {
-    label: "Drill Tool",
+    label: "Sentence Drills",
   },
   vocabulary: {
     label: "Vocabulary Quiz",
@@ -976,7 +976,7 @@ function buildVocabularySetPicker(selectedSetId) {
             <span>${escapeHtml(group.meta.levelLabel)}</span>
           </div>
           <div class="quiz-set-grid">
-            ${group.sets.map((set) => buildVocabularySetButton(set, selectedSetId)).join("")}
+            ${group.sets.map((set) => buildVocabularySetButton(set, selectedSetId, group.sets.length)).join("")}
           </div>
         </section>
       `).join("")}
@@ -984,7 +984,7 @@ function buildVocabularySetPicker(selectedSetId) {
   `;
 }
 
-function buildVocabularySetButton(set, selectedSetId) {
+function buildVocabularySetButton(set, selectedSetId, totalParts = 1) {
   const meta = getVocabularySetMeta(set);
   const selected = set.id === selectedSetId;
   const levelClass = meta.levelNumber ? `hsk-level-${meta.levelNumber}` : "";
@@ -999,7 +999,7 @@ function buildVocabularySetButton(set, selectedSetId) {
       <span class="quiz-set-icon" aria-hidden="true">
         <span class="quiz-set-icon-level">${escapeHtml(meta.levelNumber || "V")}</span>
         <span class="quiz-set-icon-part">${escapeHtml(meta.partBadge)}</span>
-        ${buildVocabularyPartMarks(meta.partNumber)}
+        ${buildVocabularyPartMarks(meta.partNumber, totalParts)}
       </span>
       <span class="quiz-set-card-text">
         <strong>${escapeHtml(meta.levelLabel)}</strong>
@@ -1009,11 +1009,12 @@ function buildVocabularySetButton(set, selectedSetId) {
   `;
 }
 
-function buildVocabularyPartMarks(partNumber) {
-  const activeCount = Math.max(1, Math.min(6, Number(partNumber) || 1));
+function buildVocabularyPartMarks(partNumber, totalParts = 1) {
+  const markCount = Math.max(1, Number(totalParts) || 1);
+  const activeCount = Math.max(1, Math.min(markCount, Number(partNumber) || 1));
   return `
     <span class="quiz-set-part-marks">
-      ${Array.from({ length: 6 }).map((_, index) => `
+      ${Array.from({ length: markCount }).map((_, index) => `
         <span class="${index < activeCount ? "active" : ""}"></span>
       `).join("")}
     </span>

@@ -5,10 +5,9 @@ const path = require("node:path");
 const ROOT = path.resolve(__dirname, "..");
 const OUT_PATH = path.join(ROOT, "vocab-data.js");
 const SOURCE_URL = "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/main/complete.min.json";
-const WORDS_PER_QUIZ_SET = 125;
 const LEVELS = [
-  { id: "n1", label: "New HSK 1" },
-  { id: "n2", label: "New HSK 2" },
+  { id: "n1", label: "New HSK 1", maxParts: 3 },
+  { id: "n2", label: "New HSK 2", maxParts: 5 },
 ];
 
 main().catch((error) => {
@@ -37,12 +36,8 @@ function buildSets(source) {
       .filter((row) => Array.isArray(row.l) && row.l.includes(level.id))
       .map(toEntry)
       .filter((entry) => entry.zh && entry.pinyin && entry.numeric && entry.meanings.length);
-    const comparableEntries = entries.slice(
-      0,
-      Math.floor(entries.length / WORDS_PER_QUIZ_SET) * WORDS_PER_QUIZ_SET,
-    );
 
-    return chunk(comparableEntries, WORDS_PER_QUIZ_SET).map((words, index) => ({
+    return splitIntoParts(entries, level.maxParts).map((words, index) => ({
       id: `${slugify(level.label)}-part-${index + 1}`,
       label: `${level.label} · Part ${index + 1}`,
       shortLabel: `${level.label} · Part ${index + 1}`,
@@ -76,11 +71,19 @@ function toEntry(row) {
   };
 }
 
-function chunk(items, size) {
+function splitIntoParts(items, maxParts) {
+  const partCount = Math.min(Math.max(1, maxParts), items.length);
+  const baseSize = Math.floor(items.length / partCount);
+  const remainder = items.length % partCount;
   const parts = [];
-  for (let index = 0; index < items.length; index += size) {
-    parts.push(items.slice(index, index + size));
+
+  let start = 0;
+  for (let partIndex = 0; partIndex < partCount; partIndex += 1) {
+    const size = baseSize + (partIndex < remainder ? 1 : 0);
+    parts.push(items.slice(start, start + size));
+    start += size;
   }
+
   return parts;
 }
 

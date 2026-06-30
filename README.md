@@ -33,14 +33,14 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 ## Features
 
-- Global navigation between the Drill Tool and Vocabulary Quiz.
+- Global navigation between Sentence Drills and the Vocabulary Quiz.
 - Drill training navigation for Listening, Writing, and Reading.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.
 - Simplified Mandarin-only listening sentences with Normal, Slow, and Very slow voice speed options.
 - 30-sentence sessions with immediate assessment.
-- Timed vocabulary quizzes split into equal 125-word sets: four New HSK 1 parts and six New HSK 2 parts.
+- Timed vocabulary quizzes cover the sourced New HSK 1 and New HSK 2 lists across three HSK 1 parts and five HSK 2 parts.
 - Vocabulary quiz tables show every character and translation, then reveal pinyin when the user types a correct answer.
 - End-of-session vocabulary results show every found and missed word for review.
 - Listening mode uses the browser Speech Synthesis API and prefers Microsoft Online or Microsoft Natural mainland Chinese speech when available.

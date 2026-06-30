@@ -181,6 +181,10 @@ const firstVocabularySet = getSelectedVocabularySet();
 const vocabularySetSizes = VOCABULARY_QUIZ_SETS.map((set) => set.words.length);
 const hsk1VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 1");
 const hsk2VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 2");
+const hsk1VocabularyWords = hsk1VocabularySets.flatMap((set) => set.words);
+const hsk2VocabularyWords = hsk2VocabularySets.flatMap((set) => set.words);
+const hsk1VocabularyKeys = new Set(hsk1VocabularyWords.map(vocabularyEntryKey));
+const hsk2VocabularyKeys = new Set(hsk2VocabularyWords.map(vocabularyEntryKey));
 const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
 const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
@@ -208,10 +212,14 @@ assert(normalizeEnglish("They were here.") === "they were here", "were should no
 assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
 assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
 assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
-assert(VOCABULARY_QUIZ_SETS.length === 10, "vocabulary quizzes should be split into ten comparable parts");
-assert(hsk1VocabularySets.length === 4, "New HSK 1 vocabulary should stay in its own four quiz parts");
-assert(hsk2VocabularySets.length === 6, "New HSK 2 vocabulary should stay in its own six quiz parts");
-assert(vocabularySetSizes.every((size) => size === 125), "every vocabulary quiz part should have 125 words");
+assert(VOCABULARY_QUIZ_SETS.length === 8, "vocabulary quizzes should be split into eight level-specific parts");
+assert(hsk1VocabularySets.length === 3, "New HSK 1 vocabulary should fit in three quiz parts");
+assert(hsk2VocabularySets.length === 5, "New HSK 2 vocabulary should fit in five quiz parts");
+assert(hsk1VocabularyWords.length === 506, "New HSK 1 vocabulary parts should cover the full sourced level list");
+assert(hsk2VocabularyWords.length === 750, "New HSK 2 vocabulary parts should cover the full sourced level list");
+assert(hsk1VocabularyKeys.size === hsk1VocabularyWords.length, "New HSK 1 vocabulary parts should not duplicate entries");
+assert(hsk2VocabularyKeys.size === hsk2VocabularyWords.length, "New HSK 2 vocabulary parts should not duplicate entries");
+assert(new Set(vocabularySetSizes).size > 1, "vocabulary quiz parts should no longer be forced to equal sizes");
 assert(!VOCABULARY_QUIZ_SETS.some((set) => set.level.includes("1 + 2")), "vocabulary quiz parts should not combine HSK 1 and HSK 2");
 assert(formatVocabularySetOption(firstVocabularySet) === firstVocabularySet.label, "vocabulary set labels should not repeat the word count");
 const firstVocabularySetMeta = getVocabularySetMeta(firstVocabularySet);
@@ -221,6 +229,8 @@ const vocabularySetPickerMarkup = buildVocabularySetPicker(firstVocabularySet.id
 assert(vocabularySetPickerMarkup.includes("quiz-set-card"), "vocabulary set picker should render icon buttons");
 assert(vocabularySetPickerMarkup.includes("quiz-set-icon-level"), "vocabulary set picker should render level icons");
 assert(vocabularySetPickerMarkup.includes('aria-pressed="true"'), "vocabulary set picker should mark the selected set");
+assert(vocabularySetPickerMarkup.includes("Part 5"), "vocabulary set picker should include the fifth HSK 2 part");
+assert(!vocabularySetPickerMarkup.includes("Part 6"), "vocabulary set picker should not include a sixth HSK 2 part");
 assert(!vocabularySetPickerMarkup.includes("125 words"), "vocabulary set picker should not repeat the word count");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
@@ -576,6 +586,10 @@ function runQueuedTimer() {
   const callback = queuedTimers.shift();
   assert(typeof callback === "function", "expected speech replay to queue a timer");
   callback();
+}
+
+function vocabularyEntryKey(entry) {
+  return `${entry.zh}::${entry.numeric || entry.pinyin}`;
 }
 
 function assert(condition, message) {

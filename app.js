@@ -1313,7 +1313,6 @@ function renderVocabularyMeaningSession() {
   const correctCount = session.answers.filter((entry) => entry.correct).length;
   const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const remaining = getVocabularyRemainingSeconds(session);
-  const feedbackMarkup = submitted ? buildVocabularyFeedbackMarkup(session.currentAssessment, current) : "";
   const rows = buildVocabularyQuizRows(session, { hideTranslation: true });
   const nextUnansweredIndex = getNextVocabularyUnansweredIndex(session);
   const nextButtonLabel = nextUnansweredIndex < 0 ? "View results" : "Next word";
@@ -1359,8 +1358,6 @@ function renderVocabularyMeaningSession() {
         </div>
       </div>
 
-      ${feedbackMarkup}
-
       <div class="vocab-table-section">
         <div class="vocab-section-heading">
           <h3>${escapeHtml(session.setLabel)}</h3>
@@ -1389,7 +1386,6 @@ function renderVocabularyMeaningSession() {
 
   if (submitted) {
     document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
-    revealFeedbackPanel();
     return;
   }
 
@@ -1613,6 +1609,46 @@ function revealFeedbackPanel() {
   requestAnimationFrame(() => {
     window.setTimeout(scrollToFeedback, window.visualViewport ? 180 : 80);
   });
+}
+
+function getScrollPosition() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return {
+    x: window.scrollX || 0,
+    y: window.scrollY || 0,
+  };
+}
+
+function restoreScrollPosition(position) {
+  if (!position || typeof window === "undefined" || typeof window.scrollTo !== "function") {
+    return;
+  }
+
+  window.scrollTo(position.x, position.y);
+  window.requestAnimationFrame?.(() => {
+    window.scrollTo(position.x, position.y);
+  });
+  window.setTimeout?.(() => {
+    window.scrollTo(position.x, position.y);
+  }, 120);
+}
+
+function scrollAudioQuizPromptIntoView() {
+  const target = document.querySelector(".sentence-card");
+  if (!target) {
+    return;
+  }
+
+  const scrollToPrompt = () => {
+    target.scrollIntoView({ block: "start", behavior: "auto" });
+  };
+
+  scrollToPrompt();
+  window.requestAnimationFrame?.(scrollToPrompt);
+  window.setTimeout?.(scrollToPrompt, 120);
 }
 
 function buildFeedbackMarkup(assessment, item) {
@@ -2338,6 +2374,7 @@ function submitVocabularyChoice(choiceId) {
 
   state.isCheckingAnswer = true;
   document.activeElement?.blur?.();
+  const scrollPosition = getScrollPosition();
 
   const assessment = {
     quizMode: "meaning",
@@ -2357,6 +2394,7 @@ function submitVocabularyChoice(choiceId) {
   });
   state.isCheckingAnswer = false;
   render();
+  restoreScrollPosition(scrollPosition);
 }
 
 function nextQuestion() {
@@ -2377,6 +2415,9 @@ function nextQuestion() {
 
     session.currentAssessment = null;
     render();
+    if (session.quizMode === "meaning") {
+      scrollAudioQuizPromptIntoView();
+    }
 
     if (sessionUsesAudioPrompt(session)) {
       speak(session.items[session.index].zh, { immediate: true });

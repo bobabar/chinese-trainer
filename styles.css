@@ -513,7 +513,7 @@ select {
   --set-border: var(--theme-border);
   --set-soft: var(--theme-soft);
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   min-height: 76px;
@@ -560,7 +560,7 @@ select {
   grid-template-rows: auto auto;
   gap: 4px;
   min-height: 58px;
-  padding: 7px;
+  padding: 7px 11px 7px 7px;
   border: 1px solid var(--set-border);
   border-radius: 8px;
   background: #fff;

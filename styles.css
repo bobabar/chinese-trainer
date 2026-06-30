@@ -106,11 +106,11 @@ body[data-tool="vocabulary"] .drill-only {
   display: none;
 }
 
-.mode-nav.vocabulary-only {
+.vocabulary-only {
   display: none;
 }
 
-body[data-tool="vocabulary"] .mode-nav.vocabulary-only {
+body[data-tool="vocabulary"] .vocabulary-only {
   display: grid;
 }
 
@@ -350,7 +350,8 @@ body[data-tool="vocabulary"] .tool-controls {
 }
 
 body[data-tool="vocabulary"] .options-body {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: start;
 }
 
 .option-group,
@@ -469,14 +470,153 @@ select {
   margin-top: 18px;
 }
 
-.vocabulary-home .quiz-config {
-  grid-template-columns: minmax(240px, 1.2fr) minmax(160px, 0.7fr) minmax(190px, 0.8fr);
-  align-items: end;
-  margin-bottom: 14px;
-}
-
 .vocabulary-translation-check {
   min-height: 36px;
+}
+
+.quiz-set-picker {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.quiz-set-group {
+  display: grid;
+  gap: 9px;
+}
+
+.quiz-set-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.quiz-set-group-heading::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.quiz-set-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+}
+
+.quiz-set-card {
+  --set-accent: var(--theme);
+  --set-border: var(--theme-border);
+  --set-soft: var(--theme-soft);
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.quiz-set-card.hsk-level-1 {
+  --set-accent: #167a76;
+  --set-border: #add7d3;
+  --set-soft: #effafa;
+}
+
+.quiz-set-card.hsk-level-2 {
+  --set-accent: #8f4e96;
+  --set-border: #d3b8d7;
+  --set-soft: #fbf5fc;
+}
+
+.quiz-set-card:hover {
+  border-color: var(--set-accent);
+  background: var(--set-soft);
+  transform: translateY(-1px);
+}
+
+.quiz-set-card.selected {
+  border-color: var(--set-accent);
+  background: var(--set-soft);
+  box-shadow: 0 0 0 3px rgba(22, 122, 118, 0.12);
+}
+
+.quiz-set-icon {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px;
+  min-height: 58px;
+  padding: 7px;
+  border: 1px solid var(--set-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.quiz-set-icon-level {
+  grid-row: span 2;
+  align-self: center;
+  color: var(--set-accent);
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.quiz-set-icon-part {
+  align-self: end;
+  color: var(--set-accent);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.quiz-set-part-marks {
+  display: grid;
+  grid-template-columns: repeat(3, 6px);
+  gap: 3px;
+  align-self: start;
+}
+
+.quiz-set-part-marks span {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #e3e8e7;
+}
+
+.quiz-set-part-marks span.active {
+  background: var(--set-accent);
+}
+
+.quiz-set-card-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.quiz-set-card-text strong {
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.quiz-set-card-text span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .quiz-start-strip {

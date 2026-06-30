@@ -182,14 +182,17 @@ const state = {
 const app = document.querySelector("#app");
 const levelOptions = document.querySelector("#levelOptions");
 const voiceSpeed = document.querySelector("#voiceSpeed");
+const vocabularyOrder = document.querySelector("#vocabularyOrder");
+const vocabularyHideTranslations = document.querySelector("#vocabularyHideTranslations");
 
 function init() {
-  if (!app || !levelOptions || !voiceSpeed) {
+  if (!app || !levelOptions || !voiceSpeed || !vocabularyOrder || !vocabularyHideTranslations) {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
 
   loadSettings();
   renderLevelOptions();
+  syncVocabularyOptionControls();
   bindTopLevelControls();
   bindGlossTooltipAlignment();
   loadVoices();
@@ -243,6 +246,8 @@ function loadSettings() {
   }
 
   voiceSpeed.value = state.voiceSpeed;
+  vocabularyOrder.value = state.vocabularyOrder;
+  syncVocabularyOptionControls();
 }
 
 function saveSettings() {
@@ -327,6 +332,20 @@ function bindTopLevelControls() {
   voiceSpeed.addEventListener("change", () => {
     state.voiceSpeed = voiceSpeed.value;
     saveSettings();
+  });
+
+  vocabularyOrder.addEventListener("change", () => {
+    state.vocabularyOrder = vocabularyOrder.value;
+    state.result = null;
+    saveSettings();
+    render();
+  });
+
+  vocabularyHideTranslations.addEventListener("change", () => {
+    state.vocabularyHideTranslations = vocabularyHideTranslations.checked;
+    state.result = null;
+    saveSettings();
+    render();
   });
 }
 
@@ -772,6 +791,18 @@ function updateNavigationState() {
   document.querySelectorAll("[data-vocabulary-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.vocabularyMode === state.vocabularyMode);
   });
+  syncVocabularyOptionControls();
+}
+
+function syncVocabularyOptionControls() {
+  if (!vocabularyOrder || !vocabularyHideTranslations) {
+    return;
+  }
+
+  const translationsHidden = state.vocabularyMode === "meaning" || state.vocabularyHideTranslations;
+  vocabularyOrder.value = state.vocabularyOrder;
+  vocabularyHideTranslations.checked = translationsHidden;
+  vocabularyHideTranslations.disabled = state.vocabularyMode === "meaning";
 }
 
 function shortcutHint(key, options = {}) {
@@ -836,7 +867,7 @@ function renderVocabularyHome() {
   const canStart = Boolean(selectedSet && wordCount);
   const translationsHidden = state.vocabularyMode === "meaning" || state.vocabularyHideTranslations;
   const startLabel = wordCount
-    ? `Start ${wordCount}-word ${state.vocabularyMode === "meaning" ? "audio quiz" : "timed quiz"}`
+    ? `Start ${state.vocabularyMode === "meaning" ? "audio quiz" : "timed quiz"}`
     : "No vocabulary sets loaded";
   const previewRows = selectedSet
     ? buildVocabularyPreviewRows(selectedSet.words, VOCABULARY_PREVIEW_LIMIT, {
@@ -856,38 +887,7 @@ function renderVocabularyHome() {
         </div>
       </div>
 
-      <div class="quiz-config">
-        <label class="field">
-          <span>Quiz</span>
-          <select id="vocabularySet" ${VOCABULARY_QUIZ_SETS.length ? "" : "disabled"}>
-            ${VOCABULARY_QUIZ_SETS.map((set) => `
-              <option value="${set.id}" ${set.id === state.vocabularySetId ? "selected" : ""}>${escapeHtml(formatVocabularySetOption(set))}</option>
-            `).join("")}
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Order</span>
-          <select id="vocabularyOrder">
-            ${Object.entries(VOCABULARY_ORDER_OPTIONS).map(([id, label]) => `
-              <option value="${id}" ${id === state.vocabularyOrder ? "selected" : ""}>${label}</option>
-            `).join("")}
-          </select>
-        </label>
-
-        <div class="field">
-          <span>Translations</span>
-          <label class="level-check vocabulary-translation-check">
-            <input
-              type="checkbox"
-              id="vocabularyHideTranslations"
-              ${translationsHidden ? "checked" : ""}
-              ${state.vocabularyMode === "meaning" ? "disabled" : ""}
-            >
-            Hide until answered
-          </label>
-        </div>
-      </div>
+      ${buildVocabularySetPicker(state.vocabularySetId)}
 
       <div class="quiz-start-strip">
         <div>
@@ -938,34 +938,106 @@ function renderVocabularyHome() {
     </section>
   `;
 
-  document.querySelector("#vocabularySet").addEventListener("change", (event) => {
-    state.vocabularySetId = event.target.value;
-    state.result = null;
-    saveSettings();
-    render();
-  });
+  document.querySelectorAll("[data-vocabulary-set-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextSetId = button.dataset.vocabularySetId;
+      if (!nextSetId || nextSetId === state.vocabularySetId) {
+        return;
+      }
 
-  document.querySelector("#vocabularyOrder").addEventListener("change", (event) => {
-    state.vocabularyOrder = event.target.value;
-    state.result = null;
-    saveSettings();
-    render();
-  });
-
-  document.querySelector("#vocabularyHideTranslations").addEventListener("change", (event) => {
-    state.vocabularyHideTranslations = event.target.checked;
-    state.result = null;
-    saveSettings();
-    render();
+      state.vocabularySetId = nextSetId;
+      state.result = null;
+      saveSettings();
+      render();
+    });
   });
 
   document.querySelector("#startVocabularySession").addEventListener("click", startVocabularySession);
 }
 
+function buildVocabularySetPicker(selectedSetId) {
+  if (!VOCABULARY_QUIZ_SETS.length) {
+    return "";
+  }
+
+  const groupedSets = VOCABULARY_QUIZ_SETS.reduce((groups, set) => {
+    const meta = getVocabularySetMeta(set);
+    const group = groups.get(meta.levelLabel) || { meta, sets: [] };
+    group.sets.push(set);
+    groups.set(meta.levelLabel, group);
+    return groups;
+  }, new Map());
+
+  return `
+    <div class="quiz-set-picker" aria-label="Quiz set">
+      ${[...groupedSets.values()].map((group) => `
+        <section class="quiz-set-group" aria-label="${escapeHtml(group.meta.levelLabel)}">
+          <div class="quiz-set-group-heading">
+            <span>${escapeHtml(group.meta.levelLabel)}</span>
+          </div>
+          <div class="quiz-set-grid">
+            ${group.sets.map((set) => buildVocabularySetButton(set, selectedSetId)).join("")}
+          </div>
+        </section>
+      `).join("")}
+    </div>
+  `;
+}
+
+function buildVocabularySetButton(set, selectedSetId) {
+  const meta = getVocabularySetMeta(set);
+  const selected = set.id === selectedSetId;
+  const levelClass = meta.levelNumber ? `hsk-level-${meta.levelNumber}` : "";
+  const partClass = meta.partNumber ? `hsk-part-${meta.partNumber}` : "";
+  return `
+    <button
+      class="quiz-set-card ${levelClass} ${partClass} ${selected ? "selected" : ""}"
+      type="button"
+      data-vocabulary-set-id="${escapeHtml(set.id)}"
+      aria-pressed="${selected ? "true" : "false"}"
+    >
+      <span class="quiz-set-icon" aria-hidden="true">
+        <span class="quiz-set-icon-level">${escapeHtml(meta.levelNumber || "V")}</span>
+        <span class="quiz-set-icon-part">${escapeHtml(meta.partBadge)}</span>
+        ${buildVocabularyPartMarks(meta.partNumber)}
+      </span>
+      <span class="quiz-set-card-text">
+        <strong>${escapeHtml(meta.levelLabel)}</strong>
+        <span>${escapeHtml(meta.partLabel)}</span>
+      </span>
+    </button>
+  `;
+}
+
+function buildVocabularyPartMarks(partNumber) {
+  const activeCount = Math.max(1, Math.min(6, Number(partNumber) || 1));
+  return `
+    <span class="quiz-set-part-marks">
+      ${Array.from({ length: 6 }).map((_, index) => `
+        <span class="${index < activeCount ? "active" : ""}"></span>
+      `).join("")}
+    </span>
+  `;
+}
+
+function getVocabularySetMeta(set) {
+  const text = `${set.level || ""} ${set.label || ""} ${set.shortLabel || ""} ${set.id || ""}`;
+  const levelNumber = text.match(/hsk[\s-]*(\d+)/i)?.[1] || "";
+  const partNumber = text.match(/part[\s-]*(\d+)/i)?.[1] || "";
+  const levelLabel = levelNumber ? `HSK ${levelNumber}` : set.level || "Vocabulary";
+  const partLabel = partNumber ? `Part ${partNumber}` : set.shortLabel || set.label || "Set";
+
+  return {
+    levelLabel,
+    levelNumber,
+    partBadge: partNumber ? `P${partNumber}` : "Set",
+    partLabel,
+    partNumber,
+  };
+}
+
 function formatVocabularySetOption(set) {
-  const label = set.label || set.shortLabel;
-  const count = set.words?.length || 0;
-  return `${label} (${count} words)`;
+  return set.label || set.shortLabel || "";
 }
 
 function renderHistoryHome() {

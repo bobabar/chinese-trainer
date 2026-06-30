@@ -99,12 +99,15 @@ window.__tests = {
   buildHistoryRecord,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
+  buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
+  formatVocabularySetOption,
+  getVocabularySetMeta,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
   getVocabularyChoiceSet,
@@ -139,12 +142,15 @@ const {
   buildHistoryRecord,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
+  buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
+  formatVocabularySetOption,
+  getVocabularySetMeta,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
   getVocabularyChoiceSet,
@@ -207,6 +213,15 @@ assert(hsk1VocabularySets.length === 4, "New HSK 1 vocabulary should stay in its
 assert(hsk2VocabularySets.length === 6, "New HSK 2 vocabulary should stay in its own six quiz parts");
 assert(vocabularySetSizes.every((size) => size === 125), "every vocabulary quiz part should have 125 words");
 assert(!VOCABULARY_QUIZ_SETS.some((set) => set.level.includes("1 + 2")), "vocabulary quiz parts should not combine HSK 1 and HSK 2");
+assert(formatVocabularySetOption(firstVocabularySet) === firstVocabularySet.label, "vocabulary set labels should not repeat the word count");
+const firstVocabularySetMeta = getVocabularySetMeta(firstVocabularySet);
+assert(firstVocabularySetMeta.levelLabel === "HSK 1", "vocabulary set icons should expose the HSK level");
+assert(firstVocabularySetMeta.partLabel === "Part 1", "vocabulary set icons should expose the quiz part");
+const vocabularySetPickerMarkup = buildVocabularySetPicker(firstVocabularySet.id);
+assert(vocabularySetPickerMarkup.includes("quiz-set-card"), "vocabulary set picker should render icon buttons");
+assert(vocabularySetPickerMarkup.includes("quiz-set-icon-level"), "vocabulary set picker should render level icons");
+assert(vocabularySetPickerMarkup.includes('aria-pressed="true"'), "vocabulary set picker should mark the selected set");
+assert(!vocabularySetPickerMarkup.includes("125 words"), "vocabulary set picker should not repeat the word count");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");

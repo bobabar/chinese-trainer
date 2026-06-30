@@ -782,6 +782,12 @@ function render() {
 function updateNavigationState() {
   document.body.dataset.tool = state.tool;
   document.body.dataset.mode = state.tool === "drill" ? state.mode : state.tool;
+  document.querySelectorAll(".drill-only").forEach((element) => {
+    element.hidden = state.tool !== "drill";
+  });
+  document.querySelectorAll(".vocabulary-only").forEach((element) => {
+    element.hidden = state.tool !== "vocabulary";
+  });
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === state.tool);
   });
@@ -890,15 +896,15 @@ function renderVocabularyHome() {
       ${buildVocabularySetPicker(state.vocabularySetId)}
 
       <div class="quiz-start-strip">
-        <div>
+        <div class="quiz-start-metric">
           <strong>${wordCount}</strong>
-          <span>Words</span>
+          <span>Word count</span>
         </div>
-        <div>
+        <div class="quiz-start-metric">
           <strong>${timeLimit}</strong>
           <span>Timer</span>
         </div>
-        <div>
+        <div class="quiz-start-metric">
           <strong>${bestTime ? formatTimer(bestTime.elapsedSeconds) : "None"}</strong>
           <span>Best time</span>
         </div>
@@ -970,16 +976,22 @@ function buildVocabularySetPicker(selectedSetId) {
 
   return `
     <div class="quiz-set-picker" aria-label="Quiz set">
-      ${[...groupedSets.values()].map((group) => `
-        <section class="quiz-set-group" aria-label="${escapeHtml(group.meta.levelLabel)}">
-          <div class="quiz-set-group-heading">
-            <span>${escapeHtml(group.meta.levelLabel)}</span>
-          </div>
+      ${[...groupedSets.values()].map((group, index) => {
+        const selectedGroup = group.sets.some((set) => set.id === selectedSetId);
+        const partCount = group.sets.length;
+        const open = selectedGroup || (!selectedSetId && index === 0);
+        return `
+        <details class="quiz-set-group" ${open ? "open" : ""}>
+          <summary class="quiz-set-group-heading">
+            <span class="quiz-set-group-title">${escapeHtml(group.meta.levelLabel)}</span>
+            <span class="quiz-set-group-count">${partCount} ${partCount === 1 ? "part" : "parts"}</span>
+          </summary>
           <div class="quiz-set-grid">
             ${group.sets.map((set) => buildVocabularySetButton(set, selectedSetId, group.sets.length)).join("")}
           </div>
-        </section>
-      `).join("")}
+        </details>
+      `;
+      }).join("")}
     </div>
   `;
 }

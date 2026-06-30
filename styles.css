@@ -102,16 +102,22 @@ body[data-tool="vocabulary"] {
   --theme-rule: rgba(22, 122, 118, 0.12);
 }
 
-body[data-tool="vocabulary"] .drill-only {
-  display: none;
-}
-
 .vocabulary-only {
   display: none;
 }
 
+body:not([data-tool="drill"]) .drill-only,
+body:not([data-tool="vocabulary"]) .vocabulary-only {
+  display: none !important;
+}
+
 body[data-tool="vocabulary"] .vocabulary-only {
-  display: grid;
+  display: grid !important;
+}
+
+.drill-only[hidden],
+.vocabulary-only[hidden] {
+  display: none !important;
 }
 
 body[data-tool="history"] {
@@ -481,18 +487,38 @@ select {
 }
 
 .quiz-set-group {
-  display: grid;
-  gap: 9px;
+  display: block;
 }
 
 .quiz-set-group-heading {
   display: flex;
   align-items: center;
   gap: 10px;
+  list-style: none;
   color: var(--muted);
+  cursor: pointer;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
+  user-select: none;
+}
+
+.quiz-set-group-heading::-webkit-details-marker {
+  display: none;
+}
+
+.quiz-set-group-heading::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+}
+
+.quiz-set-group[open] .quiz-set-group-heading::before {
+  transform: rotate(45deg);
 }
 
 .quiz-set-group-heading::after {
@@ -500,6 +526,16 @@ select {
   height: 1px;
   flex: 1;
   background: var(--line);
+}
+
+.quiz-set-group-count {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.quiz-set-group[open] .quiz-set-grid {
+  margin-top: 9px;
 }
 
 .quiz-set-grid {
@@ -623,26 +659,32 @@ select {
 .quiz-start-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(112px, 0.5fr)) minmax(240px, 1fr);
-  gap: 10px;
+  column-gap: 16px;
+  row-gap: 12px;
   align-items: stretch;
   margin: 16px 0 18px;
 }
 
-.quiz-start-strip > div {
+.quiz-start-metric {
   min-height: 62px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
+  padding: 5px 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.quiz-start-strip > div strong {
+.quiz-start-metric + .quiz-start-metric {
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.quiz-start-metric strong {
   display: block;
   font-size: 25px;
   line-height: 1.1;
 }
 
-.quiz-start-strip > div span {
+.quiz-start-metric span {
   display: block;
   margin-top: 6px;
   color: var(--muted);
@@ -1770,6 +1812,18 @@ td.status-review {
   .answer-pair,
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quiz-start-metric {
+    min-height: 0;
+    padding: 0 0 10px;
+  }
+
+  .quiz-start-metric + .quiz-start-metric {
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 
   .sentence-text {

@@ -198,6 +198,7 @@ const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
 const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
 const eightEntry = allVocabularyWords.find((item) => item.zh === "八");
+const womanEntry = allVocabularyWords.find((item) => item.zh === "女");
 const shortWhileEntry = allVocabularyWords.find((item) => item.zh === "不一会儿" && item.pinyin === "bù yīhuǐr5");
 const toolNavButtons = [...indexSource.matchAll(/<button class="tool-tab"[^>]*data-tool="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
 const toolNavOrder = toolNavButtons
@@ -228,6 +229,7 @@ assert(wordMarkup.includes("annotated-pinyin-line"), "annotated Chinese should i
 assert(wordMarkup.includes("data-gloss="), "annotated Chinese words should include gloss hover text");
 assert(loveEntry, "test vocabulary should include 爱");
 assert(hobbyEntry, "test vocabulary should include 爱好");
+assert(womanEntry, "test vocabulary should include 女");
 assert(
   scoreEnglish("He went to school.", "She went to school.", { ignoreGenderPronouns: true }) >= 0.99,
   "listening mode should keep he/she pronunciation ambiguity accepted",
@@ -270,6 +272,7 @@ assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should norm
 assert(scorePinyin("ai4", loveEntry) >= 0.99, "numeric pinyin should be accepted");
 assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accepted");
 assert(scorePinyin("ai", loveEntry) >= 0.7, "tone-free pinyin should receive partial credit");
+assert(scorePinyin("nu", womanEntry) >= 0.7, "plain u should be accepted for ü pinyin");
 assert(scoreVocabularyMeaning("love", loveEntry) >= 0.99, "vocabulary meanings should match accepted meanings");
 assert(assessVocabularyAnswer("love", loveEntry, "meaning").correct, "audio vocabulary mode should grade English meanings");
 assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "audio vocabulary mode should support replay shortcuts");
@@ -288,6 +291,19 @@ const matchSession = {
 assert(findVocabularyGuessMatches("ài", matchSession).length === 1, "tone-mark vocabulary answer should reveal a row");
 assert(findVocabularyGuessMatches("ai4", matchSession).length === 1, "numeric-tone vocabulary answer should reveal a row");
 assert(findVocabularyGuessMatches("ai", matchSession).length === 1, "tone-free vocabulary answer should reveal a row");
+
+const umlautPinyinSession = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [womanEntry],
+  foundIds: new Set(),
+  missedIds: new Set(),
+  selectedVocabularyIndex: 0,
+};
+assert(findVocabularyGuessMatches("nǚ", umlautPinyinSession).length === 1, "tone-mark ü pinyin should reveal 女");
+assert(findVocabularyGuessMatches("nü", umlautPinyinSession).length === 1, "umlaut pinyin should reveal 女");
+assert(findVocabularyGuessMatches("nv", umlautPinyinSession).length === 1, "keyboard v pinyin should reveal 女");
+assert(findVocabularyGuessMatches("nu", umlautPinyinSession).length === 1, "plain u pinyin should reveal 女");
 
 const compactPinyinSession = {
   type: "vocabulary",

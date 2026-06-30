@@ -59,7 +59,7 @@ const VOCABULARY_MODES = {
     label: "Pinyin",
     task: "Read the Chinese word and type its pinyin.",
     promptLabel: "Chinese word",
-    answerPlaceholder: "Type pinyin; spaces and tones optional",
+    answerPlaceholder: "Type pinyin; spaces, tones, and ü marks optional",
   },
   meaning: {
     label: "Audio",
@@ -2966,6 +2966,14 @@ function scorePinyin(actual, item) {
     return 0.82;
   }
 
+  const actualPlainBase = stripPinyinToneAndUmlautMarks(normalizedActual);
+  const compactActualPlainBase = compactPinyin(actualPlainBase);
+  const expectedPlainBases = expectedVariants.map(stripPinyinToneAndUmlautMarks);
+
+  if (expectedPlainBases.some((expected) => actualPlainBase === expected || compactActualPlainBase === compactPinyin(expected))) {
+    return 0.82;
+  }
+
   const bestBaseSimilarity = Math.max(
     0,
     ...expectedBases.map((expected) => stringSimilarity(compactActualBase, compactPinyin(expected))),
@@ -3084,6 +3092,10 @@ function convertPinyinSyllable(value) {
 
 function stripPinyinTones(value) {
   return String(value).replace(/[1-5]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function stripPinyinToneAndUmlautMarks(value) {
+  return stripPinyinTones(value).replace(/v/g, "u");
 }
 
 function compactPinyin(value) {
@@ -3629,17 +3641,23 @@ function isAcceptedVocabularyPinyinGuess(normalizedAnswer, item) {
   const compactAnswer = compactPinyin(normalizedAnswer);
   const toneFreeAnswer = stripPinyinTones(normalizedAnswer);
   const compactToneFreeAnswer = compactPinyin(toneFreeAnswer);
+  const plainAnswer = stripPinyinToneAndUmlautMarks(normalizedAnswer);
+  const compactPlainAnswer = compactPinyin(plainAnswer);
 
   return getNormalizedVocabularyPinyinVariants(item)
     .some((expected) => {
       const compactExpected = compactPinyin(expected);
       const toneFreeExpected = stripPinyinTones(expected);
       const compactToneFreeExpected = compactPinyin(toneFreeExpected);
+      const plainExpected = stripPinyinToneAndUmlautMarks(expected);
+      const compactPlainExpected = compactPinyin(plainExpected);
 
       return normalizedAnswer === expected ||
         compactAnswer === compactExpected ||
         toneFreeAnswer === toneFreeExpected ||
-        compactToneFreeAnswer === compactToneFreeExpected;
+        compactToneFreeAnswer === compactToneFreeExpected ||
+        plainAnswer === plainExpected ||
+        compactPlainAnswer === compactPlainExpected;
     });
 }
 

@@ -199,14 +199,19 @@ const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
 const eightEntry = allVocabularyWords.find((item) => item.zh === "八");
 const shortWhileEntry = allVocabularyWords.find((item) => item.zh === "不一会儿" && item.pinyin === "bù yīhuǐr5");
-const toolNavOrder = [...indexSource.matchAll(/<button class="tool-tab"[^>]*data-tool="([^"]+)"[^>]*>([^<]+)<\/button>/g)]
-  .map((match) => `${match[1]}:${match[2]}`);
+const toolNavButtons = [...indexSource.matchAll(/<button class="tool-tab"[^>]*data-tool="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
+const toolNavOrder = toolNavButtons
+  .map((match) => `${match[1]}:${stripHtml(match[2])}`);
 const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*data-mode="([^"]+)"[^>]*>([^<]+)<\/button>/g)]
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
   toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|drill:Sentence Drills|history:History",
   "global nav should show Vocabulary Quiz before Sentence Drills",
+);
+assert(
+  toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
+  "global nav tool buttons should include distinguishing icons",
 );
 assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
@@ -661,6 +666,10 @@ function runQueuedTimer() {
 
 function vocabularyEntryKey(entry) {
   return `${entry.zh}::${entry.numeric || entry.pinyin}`;
+}
+
+function stripHtml(value) {
+  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function assert(condition, message) {

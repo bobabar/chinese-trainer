@@ -239,7 +239,25 @@ p {
 
 .tool-nav {
   grid-template-columns: repeat(3, minmax(104px, 1fr));
-  width: min(520px, 100%);
+  width: min(500px, 100%);
+}
+
+.tool-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  line-height: 1.15;
+}
+
+.tool-tab-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-tab-label {
+  min-width: 0;
 }
 
 .tool-controls {

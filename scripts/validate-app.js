@@ -3,6 +3,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const ROOT = path.resolve(__dirname, "..");
+const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
@@ -196,7 +197,19 @@ const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
 const eightEntry = allVocabularyWords.find((item) => item.zh === "八");
 const shortWhileEntry = allVocabularyWords.find((item) => item.zh === "不一会儿" && item.pinyin === "bù yīhuǐr5");
+const toolNavOrder = [...indexSource.matchAll(/<button class="tool-tab"[^>]*data-tool="([^"]+)"[^>]*>([^<]+)<\/button>/g)]
+  .map((match) => `${match[1]}:${match[2]}`);
+const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*data-mode="([^"]+)"[^>]*>([^<]+)<\/button>/g)]
+  .map((match) => `${match[1]}:${match[2]}`);
 
+assert(
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz before Sentence Drills",
+);
+assert(
+  drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
+  "sentence drill modes should show Reading, Writing, then Listening",
+);
 assert(containsChinese("Reference: 我爱你。"), "Chinese detection should find Han characters inside mixed text");
 assert(annotated.includes("annotated-chinese"), "Chinese answer boxes should use annotated markup");
 assert(annotated.includes("chinese-text"), "annotated Chinese should use the shared Chinese text styling");

@@ -1412,7 +1412,16 @@ function buildVocabularyPromptMarkup(item, quizMode, assessment = null) {
         Playing
       </span>
     </div>
+    ${buildAudioRevealedWordMarkup(item, assessment)}
   `;
+}
+
+function buildAudioRevealedWordMarkup(item, assessment) {
+  if (!assessment) {
+    return "";
+  }
+
+  return `<p class="sentence-text zh quiz-word audio-revealed-word chinese-text" lang="zh-CN" aria-live="polite">${escapeHtml(item.zh)}</p>`;
 }
 
 function buildAudioAnswerStatusMarkup(assessment) {

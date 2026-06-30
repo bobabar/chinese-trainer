@@ -856,6 +856,10 @@ select {
   flex-wrap: wrap;
 }
 
+.audio-revealed-word {
+  margin: 0;
+}
+
 .shortcut-btn {
   display: inline-flex;
   align-items: center;

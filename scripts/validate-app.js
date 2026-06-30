@@ -211,6 +211,7 @@ assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
 assert(buildVocabularyPromptMarkup(loveEntry, "meaning").includes("Play word"), "audio vocabulary mode should render a word replay button");
+assert(!buildVocabularyPromptMarkup(loveEntry, "meaning").includes("爱"), "audio vocabulary mode should hide the character before answering");
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
 assert(scorePinyin("ai4", loveEntry) >= 0.99, "numeric pinyin should be accepted");
 assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accepted");
@@ -422,6 +423,7 @@ assert(
   "correct audio answers should show an animated correct status",
 );
 assert(correctAudioPromptMarkup.includes("Correct"), "correct audio answers should label the answer as correct");
+assert(correctAudioPromptMarkup.includes("爱"), "audio vocabulary mode should reveal the character after answering");
 const wrongAudioPromptMarkup = buildVocabularyPromptMarkup(loveEntry, "meaning", {
   quizMode: "meaning",
   correct: false,

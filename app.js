@@ -667,8 +667,10 @@ function waitForVoices(timeout = 450) {
 }
 
 function choosePreferredVoice(voices) {
-  const mandarinVoices = voices.filter(isSimplifiedMandarinVoice);
-  return mandarinVoices
+  const chineseVoices = voices.filter(isMandarinVoice);
+  const mandarinVoices = chineseVoices.filter(isSimplifiedMandarinVoice);
+  const candidates = mandarinVoices.length ? mandarinVoices : chineseVoices;
+  return candidates
     .map((voice) => ({ voice, score: scoreMandarinVoice(voice) }))
     .sort((a, b) => b.score - a.score)[0]?.voice || null;
 }
@@ -676,7 +678,9 @@ function choosePreferredVoice(voices) {
 function scoreMandarinVoice(voice) {
   const name = `${voice.name || ""} ${voice.voiceURI || ""}`.toLowerCase();
   const lang = (voice.lang || "").toLowerCase();
-  let score = lang === "zh-cn" ? 140 : 100;
+  let score = lang === "zh-cn" ? 160 : 100;
+  if (lang.startsWith("cmn-cn") || lang.startsWith("zh-hans")) score += 45;
+  if (lang.startsWith("cmn") || lang.startsWith("zh")) score += 20;
 
   if (name.includes("microsoft") && (name.includes("online") || name.includes("natural"))) score += 900;
   if (name.includes("xiaoxiao")) score += 820;
@@ -693,9 +697,25 @@ function scoreMandarinVoice(voice) {
   return score;
 }
 
+function isMandarinVoice(voice) {
+  const lang = (voice.lang || "").toLowerCase();
+  const name = `${voice.name || ""} ${voice.voiceURI || ""}`.toLowerCase();
+  const excludedNames = ["cantonese", "yue"];
+
+  if (lang.startsWith("yue") || excludedNames.some((term) => name.includes(term))) {
+    return false;
+  }
+
+  return lang.startsWith("zh") ||
+    lang.startsWith("cmn") ||
+    name.includes("mandarin") ||
+    name.includes("putonghua") ||
+    name.includes("chinese");
+}
+
 function isSimplifiedMandarinVoice(voice) {
-  const lang = voice.lang.toLowerCase();
-  const name = voice.name.toLowerCase();
+  const lang = (voice.lang || "").toLowerCase();
+  const name = `${voice.name || ""} ${voice.voiceURI || ""}`.toLowerCase();
   const excludedNames = ["yue", "hong kong", "hk", "taiwan", "taiwanese", "tw"];
   const mainlandMandarinLangs = ["zh-cn", "zh-hans", "cmn-cn", "cmn-hans", "cmn-hans-cn"];
 
@@ -2980,7 +3000,10 @@ function setPlaybackState(isSpeaking) {
 function stopSpeech() {
   speechRequestId += 1;
   if (supportsSpeechSynthesis()) {
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    if (synth.speaking || synth.pending || synth.paused) {
+      synth.cancel();
+    }
   }
   setPlaybackState(false);
 }
@@ -2990,6 +3013,7 @@ async function speak(text, options = {}) {
 
   const requestId = speechRequestId + 1;
   speechRequestId = requestId;
+  const synth = window.speechSynthesis;
   if (options.immediate) {
     refreshVoices();
   } else {
@@ -3024,20 +3048,24 @@ async function speak(text, options = {}) {
     }
   };
 
-  window.speechSynthesis.cancel();
+  const wasActive = Boolean(synth.speaking || synth.pending || synth.paused);
+  if (wasActive) {
+    synth.cancel();
+  }
   setPlaybackState(true);
   const play = () => {
     if (requestId === speechRequestId) {
-      window.speechSynthesis.speak(utterance);
+      synth.resume?.();
+      synth.speak(utterance);
     }
   };
 
-  if (options.immediate) {
+  if (!wasActive) {
     play();
     return;
   }
 
-  window.setTimeout(play, 40);
+  window.setTimeout(play, 60);
 }
 
 function supportsSpeechSynthesis() {

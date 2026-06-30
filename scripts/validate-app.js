@@ -11,6 +11,11 @@ const speechCalls = {
   cancel: 0,
   speak: [],
 };
+const speechState = {
+  paused: false,
+  pending: false,
+  speaking: false,
+};
 const localStorageEntries = new Map();
 
 const context = {
@@ -27,6 +32,9 @@ const context = {
       addEventListener() {},
       cancel() {
         speechCalls.cancel += 1;
+        speechState.paused = false;
+        speechState.pending = false;
+        speechState.speaking = false;
       },
       getVoices: () => [
         {
@@ -36,8 +44,22 @@ const context = {
           voiceURI: "Microsoft Xiaoxiao Online",
         },
       ],
+      get paused() {
+        return speechState.paused;
+      },
+      get pending() {
+        return speechState.pending;
+      },
+      get speaking() {
+        return speechState.speaking;
+      },
+      resume() {
+        speechState.paused = false;
+      },
       speak(utterance) {
         speechCalls.speak.push(utterance.text);
+        speechState.pending = false;
+        speechState.speaking = true;
         utterance.onstart?.();
       },
     },
@@ -78,6 +100,7 @@ window.__tests = {
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
+  choosePreferredVoice,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
@@ -116,6 +139,7 @@ const {
   buildVocabularyQuizRows,
   buildVocabularyPromptMarkup,
   containsChinese,
+  choosePreferredVoice,
   determineVocabularyTimeLimit,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
@@ -383,6 +407,17 @@ const choiceMarkup = buildVocabularyChoiceMarkup(audioChoices);
 assert(choiceMarkup.includes('data-choice-id="choice-0-'), "audio answer choices should be clickable buttons");
 assert(choiceMarkup.includes('<span class="choice-key">1</span>'), "audio answer choices should render shortcut labels");
 
+const fallbackChineseVoice = {
+  lang: "zh-TW",
+  localService: true,
+  name: "Meijia",
+  voiceURI: "Meijia",
+};
+assert(
+  choosePreferredVoice([fallbackChineseVoice]) === fallbackChineseVoice,
+  "speech playback should fall back to non-mainland Mandarin voices when needed",
+);
+
 const completedPinyinResult = {
   type: "vocabulary",
   quizMode: "pinyin",
@@ -457,23 +492,24 @@ validateSpeechReplay()
 
 async function validateSpeechReplay() {
   await speak("爱");
-  assert(speechCalls.cancel === 1, "speech replay should cancel any active utterance before speaking");
-  assert(speechCalls.speak.length === 0, "speech replay should queue playback after cancellation");
-  runQueuedTimer();
+  assert(speechCalls.cancel === 0, "first speech playback should not cancel before speaking");
   assert(speechCalls.speak[0] === "爱", "speech replay should speak the requested word");
   assert(state.isSpeaking, "speech replay should mark playback as active");
 
   await speak("你");
-  assert(speechCalls.cancel === 2, "replaying audio should cancel the previous utterance");
+  assert(speechCalls.cancel === 1, "replaying audio should cancel the previous utterance");
+  assert(speechCalls.speak.length === 1, "replaying active audio should queue playback after cancellation");
   runQueuedTimer();
   assert(speechCalls.speak[1] === "你", "replaying audio should queue the latest utterance");
 
   await speak("好", { immediate: true });
-  assert(speechCalls.cancel === 3, "immediate speech should still cancel active playback first");
-  assert(speechCalls.speak[2] === "好", "immediate speech should play without waiting for a timer");
+  assert(speechCalls.cancel === 2, "immediate speech should still cancel active playback first");
+  assert(speechCalls.speak.length === 2, "immediate replay should queue playback after cancellation");
+  runQueuedTimer();
+  assert(speechCalls.speak[2] === "好", "immediate speech should play after the cancellation delay");
 
   stopSpeech();
-  assert(speechCalls.cancel === 4, "stopping playback should cancel speech synthesis");
+  assert(speechCalls.cancel === 3, "stopping playback should cancel speech synthesis");
   assert(!state.isSpeaking, "stopping playback should clear playback state");
 }
 

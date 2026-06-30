@@ -1079,7 +1079,7 @@ function renderHistoryHome() {
         </div>
         <div class="stat">
           <strong>${drillCount}</strong>
-          <span>Drills</span>
+          <span>Sentence drills</span>
         </div>
         <div class="stat">
           <strong>${quizCount}</strong>
@@ -1135,7 +1135,7 @@ function renderHistoryHome() {
   `;
 
   document.querySelector("#clearHistory").addEventListener("click", () => {
-    if (!window.confirm("Clear saved drill and quiz history from this browser?")) {
+    if (!window.confirm("Clear saved sentence drill and quiz history from this browser?")) {
       return;
     }
 
@@ -1145,7 +1145,7 @@ function renderHistoryHome() {
 }
 
 function buildHistoryRowMarkup(record) {
-  const typeLabel = record.type === "vocabulary" ? "Vocabulary quiz" : "Drill";
+  const typeLabel = record.type === "vocabulary" ? "Vocabulary quiz" : "Sentence drill";
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
     : MODES[record.mode]?.label || record.mode;

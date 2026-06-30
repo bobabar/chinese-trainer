@@ -34,7 +34,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 ## Features
 
 - Global navigation between Sentence Drills and the Vocabulary Quiz.
-- Drill training navigation for Listening, Writing, and Reading.
+- Sentence drill navigation for Listening, Writing, and Reading.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.

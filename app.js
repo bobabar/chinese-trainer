@@ -1340,7 +1340,7 @@ function renderVocabularyMeaningSession() {
 
       <div class="sentence-card">
         <span class="sentence-label">${mode.promptLabel}</span>
-        ${buildVocabularyPromptMarkup(current, session.quizMode)}
+        ${buildVocabularyPromptMarkup(current, session.quizMode, session.currentAssessment)}
       </div>
 
       <div class="choice-panel" id="answerChoices" role="group" aria-label="Answer choices">
@@ -1392,7 +1392,7 @@ function renderVocabularyMeaningSession() {
   bindVocabularyChoiceHandlers();
 }
 
-function buildVocabularyPromptMarkup(item, quizMode) {
+function buildVocabularyPromptMarkup(item, quizMode, assessment = null) {
   if (quizMode === "pinyin") {
     return `<p class="sentence-text zh quiz-word chinese-text" lang="zh-CN">${escapeHtml(item.zh)}</p>`;
   }
@@ -1406,11 +1406,29 @@ function buildVocabularyPromptMarkup(item, quizMode) {
       ${supportsSpeechSynthesis() ? "" : `
         <span class="audio-warning">Speech playback is unavailable in this browser.</span>
       `}
+      ${buildAudioAnswerStatusMarkup(assessment)}
       <span class="sound-indicator ${state.isSpeaking ? "active" : ""}" id="soundIndicator" aria-live="polite">
         <span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>
         Playing
       </span>
     </div>
+  `;
+}
+
+function buildAudioAnswerStatusMarkup(assessment) {
+  if (!assessment) {
+    return "";
+  }
+
+  const classes = [
+    "answer-status-pill",
+    assessment.correct ? "correct" : "wrong",
+    assessment.correct ? "correct-celebration" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <span class="${classes}" aria-live="polite">
+      ${assessment.correct ? "Correct" : "Wrong"}
+    </span>
   `;
 }
 
@@ -1435,7 +1453,7 @@ function buildVocabularyFeedbackMarkup(assessment, item) {
     `;
 
   return `
-    <section class="feedback ${status}" id="feedbackPanel" tabindex="-1">
+    <section class="feedback ${status} ${assessment.correct ? "correct-celebration" : ""}" id="feedbackPanel" tabindex="-1">
       <div class="feedback-title">
         <span>${title}</span>
         <span class="score-badge">${Math.round(assessment.score * 100)}%</span>
@@ -1463,6 +1481,7 @@ function buildVocabularyChoiceMarkup(choices, assessment = null) {
           selected ? "selected" : "",
           submitted && choice.correct ? "correct" : "",
           submitted && selected && !choice.correct ? "incorrect" : "",
+          submitted && selected && choice.correct ? "correct-celebration" : "",
         ].filter(Boolean).join(" ");
 
         return `
@@ -1657,7 +1676,7 @@ function buildFeedbackMarkup(assessment, item) {
   const expectedPrimary = assessment.mode === "writing" ? item.zh : item.en;
   const expectedSecondary = assessment.mode === "writing" ? item.en : item.zh;
   return `
-    <section class="feedback ${status}" id="feedbackPanel" tabindex="-1">
+    <section class="feedback ${status} ${assessment.correct ? "correct-celebration" : ""}" id="feedbackPanel" tabindex="-1">
       <div class="feedback-title">
         <span>${title}</span>
         <span class="score-badge">${Math.round(assessment.score * 100)}%</span>
@@ -2197,6 +2216,7 @@ function startVocabularySession() {
     missedIds: new Set(),
     answers: [],
     choiceSets: new Map(),
+    lastCorrectItemIndex: -1,
     currentAssessment: null,
     startedAt,
     endsAt: startedAt + timeLimitSeconds * 1000,
@@ -2230,6 +2250,7 @@ function submitVocabularyGuess(answer, options = {}) {
   const foundAt = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   session.foundIds.add(match.id);
   ensureVocabularyMissedIds(session).delete(match.id);
+  session.lastCorrectItemIndex = match.index;
   session.answers.push({
     answer: trimmed,
     correct: true,
@@ -2272,6 +2293,7 @@ function giveUpVocabularyRow() {
   const id = vocabularyItemId(item, index);
   const foundAt = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   ensureVocabularyMissedIds(session).add(id);
+  session.lastCorrectItemIndex = -1;
   session.answers.push({
     answer: "",
     correct: false,
@@ -3171,10 +3193,12 @@ function buildVocabularyQuizRows(session, options = {}) {
     const correct = isVocabularyRowCorrect(session, index);
     const current = !answered && id === currentId;
     const selectable = !answered;
+    const justAnsweredCorrect = correct && session.lastCorrectItemIndex === index;
     const rowClasses = [
       answered ? (correct ? "found" : "missed") : "pending",
       current ? "current" : "",
       selectable ? "selectable" : "",
+      justAnsweredCorrect ? "correct-celebration" : "",
     ].filter(Boolean).join(" ");
     const translationHidden = hiddenTranslation && !answered;
     const translationText = translationHidden
@@ -3502,6 +3526,7 @@ function updateVocabularySessionMetrics(session) {
     row.classList.toggle("pending", !isAnswered);
     row.classList.toggle("current", isCurrent);
     row.classList.toggle("selectable", !isAnswered);
+    row.classList.toggle("correct-celebration", isAnswered && isCorrect && session.lastCorrectItemIndex === index);
     if (isCurrent) {
       row.setAttribute("aria-current", "true");
       row.setAttribute("aria-selected", "true");

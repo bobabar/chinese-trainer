@@ -95,6 +95,7 @@ window.__tests = {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildFeedbackMarkup,
   buildHistoryRecord,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
@@ -134,6 +135,7 @@ const {
   assessVocabularyAnswer,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
+  buildFeedbackMarkup,
   buildHistoryRecord,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
@@ -288,6 +290,11 @@ assert(
   "current vocabulary row should render with a highlight class",
 );
 highlightedRowSession.foundIds.add(vocabularyItemId(loveEntry, 0));
+highlightedRowSession.lastCorrectItemIndex = 0;
+assert(
+  buildVocabularyQuizRows(highlightedRowSession).includes("correct-celebration"),
+  "recently correct pinyin vocabulary rows should animate",
+);
 assert(
   getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(hobbyEntry, 1),
   "current vocabulary row should advance after a word is found",
@@ -406,6 +413,41 @@ assert(chineseHintChoiceText.includes("egg"), "audio choice text should keep Eng
 const choiceMarkup = buildVocabularyChoiceMarkup(audioChoices);
 assert(choiceMarkup.includes('data-choice-id="choice-0-'), "audio answer choices should be clickable buttons");
 assert(choiceMarkup.includes('<span class="choice-key">1</span>'), "audio answer choices should render shortcut labels");
+const correctAudioPromptMarkup = buildVocabularyPromptMarkup(loveEntry, "meaning", {
+  quizMode: "meaning",
+  correct: true,
+});
+assert(
+  correctAudioPromptMarkup.includes("answer-status-pill correct correct-celebration"),
+  "correct audio answers should show an animated correct status",
+);
+assert(correctAudioPromptMarkup.includes("Correct"), "correct audio answers should label the answer as correct");
+const wrongAudioPromptMarkup = buildVocabularyPromptMarkup(loveEntry, "meaning", {
+  quizMode: "meaning",
+  correct: false,
+});
+assert(wrongAudioPromptMarkup.includes("answer-status-pill wrong"), "wrong audio answers should show a wrong status");
+assert(wrongAudioPromptMarkup.includes("Wrong"), "wrong audio answers should label the answer as wrong");
+assert(
+  !wrongAudioPromptMarkup.includes("wrong correct-celebration"),
+  "wrong audio answers should not use the correct animation",
+);
+const selectedCorrectChoiceMarkup = buildVocabularyChoiceMarkup(
+  [{ id: "choice-test", shortcut: "1", text: "to love", correct: true }],
+  { choiceId: "choice-test", correct: true },
+);
+assert(
+  selectedCorrectChoiceMarkup.includes("correct-celebration"),
+  "correct selected audio choices should animate",
+);
+const correctDrillFeedbackMarkup = buildFeedbackMarkup(
+  { mode: "reading", answer: "to love", score: 1, correct: true },
+  { zh: "爱", en: "to love" },
+);
+assert(
+  correctDrillFeedbackMarkup.includes("feedback good correct-celebration"),
+  "correct sentence drill feedback should animate",
+);
 
 const fallbackChineseVoice = {
   lang: "zh-TW",

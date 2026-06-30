@@ -1752,6 +1752,53 @@ function scrollAudioQuizPromptIntoView() {
   window.setTimeout?.(scrollToPrompt, 120);
 }
 
+function scrollVocabularyWordListToCurrentRow(session) {
+  if (session?.type !== "vocabulary") {
+    return;
+  }
+
+  scrollVocabularyWordListToIndex(getSelectedVocabularyIndex(session));
+}
+
+function scrollVocabularyWordListToIndex(index) {
+  if (!Number.isInteger(index) || index < 0) {
+    return;
+  }
+
+  const scrollToRow = () => {
+    const wrapper = document.querySelector(".vocabulary-session .vocab-table-wrap");
+    const row = wrapper?.querySelector(`tr[data-vocab-index="${index}"]`);
+    if (!wrapper || !row) {
+      return;
+    }
+
+    const header = wrapper.querySelector("thead");
+    const headerHeight = header?.getBoundingClientRect().height || 0;
+    const rowTop = row.offsetTop;
+    const rowBottom = rowTop + row.offsetHeight;
+    const visibleTop = wrapper.scrollTop + headerHeight;
+    const visibleBottom = wrapper.scrollTop + wrapper.clientHeight;
+    const isVisible = rowTop >= visibleTop && rowBottom <= visibleBottom;
+    if (isVisible) {
+      return;
+    }
+
+    const nextTop = Math.max(0, rowTop - wrapper.clientHeight * 0.42);
+    if (typeof wrapper.scrollTo === "function") {
+      wrapper.scrollTo({
+        top: nextTop,
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
+      return;
+    }
+
+    wrapper.scrollTop = nextTop;
+  };
+
+  requestAnimationFrame(scrollToRow);
+  window.setTimeout?.(scrollToRow, 120);
+}
+
 function buildFeedbackMarkup(assessment, item) {
   const status = answerStatusTone(assessment);
   const title = answerStatusLabel(assessment);
@@ -2354,10 +2401,12 @@ function submitVocabularyGuess(answer, options = {}) {
       input.value = "";
     }
     updateVocabularySessionMetrics(session);
+    scrollVocabularyWordListToCurrentRow(session);
     return;
   }
 
   render();
+  scrollVocabularyWordListToCurrentRow(session);
 }
 
 function giveUpVocabularyRow() {
@@ -2398,6 +2447,7 @@ function giveUpVocabularyRow() {
     input.value = "";
   }
   updateVocabularySessionMetrics(session);
+  scrollVocabularyWordListToCurrentRow(session);
   focusVocabularyInput();
 }
 
@@ -2499,6 +2549,7 @@ function submitVocabularyChoice(choiceId) {
   state.isCheckingAnswer = false;
   render();
   restoreScrollPosition(scrollPosition);
+  scrollVocabularyWordListToIndex(index);
 }
 
 function nextQuestion() {
@@ -2519,6 +2570,7 @@ function nextQuestion() {
 
     session.currentAssessment = null;
     render();
+    scrollVocabularyWordListToCurrentRow(session);
     if (session.quizMode === "meaning") {
       scrollAudioQuizPromptIntoView();
     }

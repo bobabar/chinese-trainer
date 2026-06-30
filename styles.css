@@ -757,6 +757,24 @@ select {
   font-weight: 800;
 }
 
+.icon-label-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.button-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 .secondary-btn {
   background: var(--theme-soft);
   color: var(--theme);

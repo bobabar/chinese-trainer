@@ -825,6 +825,18 @@ function shortcutHint(key, options = {}) {
   `;
 }
 
+function trashIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3 6h18"></path>
+      <path d="M8 6V4h8v2"></path>
+      <path d="M19 6l-1 14H6L5 6"></path>
+      <path d="M10 11v5"></path>
+      <path d="M14 11v5"></path>
+    </svg>
+  `;
+}
+
 function renderModeHome() {
   const mode = MODES[state.mode];
   const preview = PREVIEW_CELLS[state.mode];
@@ -1080,7 +1092,10 @@ function renderHistoryHome() {
           <p>${history.length} saved sessions in this browser.</p>
         </div>
         <div class="result-actions">
-          <button class="ghost-btn" type="button" id="clearHistory" ${history.length ? "" : "disabled"}>Clear history</button>
+          <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" ${history.length ? "" : "disabled"}>
+            ${trashIconMarkup()}
+            <span>Clear history</span>
+          </button>
         </div>
       </div>
 

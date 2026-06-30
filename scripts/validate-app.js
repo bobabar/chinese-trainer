@@ -133,6 +133,7 @@ window.__tests = {
   speak,
   state,
   stopSpeech,
+  trashIconMarkup,
   vocabularyItemId,
 };`, context, { filename: "app.js" });
 
@@ -179,6 +180,7 @@ const {
   speak,
   state,
   stopSpeech,
+  trashIconMarkup,
   vocabularyItemId,
 } =
   context.window.__tests;
@@ -210,6 +212,9 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+const trashIcon = trashIconMarkup();
+assert(trashIcon.includes("<svg"), "clear history should use a trash can icon");
+assert(trashIcon.includes('aria-hidden="true"'), "clear history icon should be hidden from assistive tech");
 assert(containsChinese("Reference: 我爱你。"), "Chinese detection should find Han characters inside mixed text");
 assert(annotated.includes("annotated-chinese"), "Chinese answer boxes should use annotated markup");
 assert(annotated.includes("chinese-text"), "annotated Chinese should use the shared Chinese text styling");

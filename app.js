@@ -2130,6 +2130,8 @@ function renderVocabularyResults() {
         </div>
       </div>
 
+      ${buildHighScoreCelebration(result)}
+
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${total}</strong>
@@ -2172,6 +2174,7 @@ function renderVocabularyResults() {
     state.session = null;
     render();
   });
+  dismissHighScoreCelebration();
 }
 
 function renderVocabularyMeaningResults() {
@@ -2222,6 +2225,8 @@ function renderVocabularyMeaningResults() {
         </div>
       </div>
 
+      ${buildHighScoreCelebration(result)}
+
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${total}</strong>
@@ -2266,6 +2271,46 @@ function renderVocabularyMeaningResults() {
     state.session = null;
     render();
   });
+  dismissHighScoreCelebration();
+}
+
+function buildHighScoreCelebration(result) {
+  if (!result?.isNewHighScore) {
+    return "";
+  }
+
+  const previousBest = Number.isFinite(result.previousBestSeconds)
+    ? ` Beat ${formatTimer(result.previousBestSeconds)}.`
+    : "";
+
+  return `
+    <div class="high-score-celebration" role="status" aria-live="polite">
+      <span class="high-score-icon" aria-hidden="true">
+        <span></span>
+      </span>
+      <div>
+        <strong>Nice, new best time!</strong>
+        <span>Finished in ${formatTimer(result.elapsedSeconds)}.${previousBest}</span>
+      </div>
+    </div>
+  `;
+}
+
+function dismissHighScoreCelebration() {
+  const celebration = document.querySelector(".high-score-celebration");
+  if (!celebration) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    if (!celebration.isConnected) {
+      return;
+    }
+
+    celebration.classList.add("dismissed");
+    const removeDelay = prefersReducedMotion() ? 0 : 260;
+    window.setTimeout(() => celebration.remove(), removeDelay);
+  }, 3800);
 }
 
 function startActiveSession() {
@@ -2573,7 +2618,7 @@ function nextQuestion() {
   if (session.type === "vocabulary") {
     const nextIndex = selectNextVocabularyRowAfter(session, session.index);
     if (nextIndex < 0) {
-      const result = buildSessionResult({ ...session, finishReason: "complete" });
+      const result = markVocabularyHighScoreResult(buildSessionResult({ ...session, finishReason: "complete" }));
       state.result = result;
       saveHistoryResult(result);
       state.session = null;
@@ -2646,7 +2691,7 @@ function finishVocabularySession(reason) {
     return;
   }
 
-  const result = buildSessionResult({ ...session, finishReason: reason });
+  const result = markVocabularyHighScoreResult(buildSessionResult({ ...session, finishReason: reason }));
   state.result = result;
   saveHistoryResult(result);
   state.session = null;
@@ -2693,6 +2738,24 @@ function saveHistoryResult(result) {
   } catch {
     // History is browser-local convenience data; session results still render if storage is unavailable.
   }
+}
+
+function markVocabularyHighScoreResult(result) {
+  if (result?.type !== "vocabulary") {
+    return result;
+  }
+
+  const stats = getVocabularyResultStats(result);
+  if (!stats.highScoreEligible) {
+    return result;
+  }
+
+  const previousBest = getVocabularyHighScore(result.quizMode, result.setId);
+  return {
+    ...result,
+    isNewHighScore: !previousBest || result.elapsedSeconds < previousBest.elapsedSeconds,
+    previousBestSeconds: previousBest?.elapsedSeconds ?? null,
+  };
 }
 
 function buildHistoryRecord(result) {

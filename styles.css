@@ -1646,8 +1646,132 @@ button:focus-visible {
   color: var(--muted);
 }
 
-.results-header + .stat-grid {
+.results-header + .stat-grid,
+.high-score-celebration + .stat-grid {
   margin-bottom: 18px;
+}
+
+.high-score-celebration {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0 18px;
+  border: 1px solid #e2c46b;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff9df;
+  box-shadow: 0 12px 24px rgba(144, 111, 20, 0.08);
+  color: var(--ink);
+  animation: high-score-in 360ms ease-out, high-score-halo 900ms ease-out;
+}
+
+.high-score-celebration.dismissed {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.high-score-celebration > div > strong,
+.high-score-celebration > div > span {
+  display: block;
+}
+
+.high-score-celebration > div > strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.high-score-celebration > div > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.high-score-icon {
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #16857c;
+  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.28);
+}
+
+.high-score-icon::before,
+.high-score-icon::after,
+.high-score-icon span {
+  position: absolute;
+  display: block;
+  content: "";
+  border-radius: 999px;
+  background: #f3c642;
+}
+
+.high-score-icon::before {
+  width: 8px;
+  height: 8px;
+  top: -3px;
+  right: 2px;
+  animation: high-score-spark 620ms ease-out;
+}
+
+.high-score-icon::after {
+  width: 6px;
+  height: 6px;
+  right: -2px;
+  bottom: 7px;
+  animation: high-score-spark 620ms ease-out 80ms;
+}
+
+.high-score-icon span {
+  width: 10px;
+  height: 10px;
+  left: 12px;
+  top: 12px;
+  background: #ffffff;
+}
+
+@keyframes high-score-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes high-score-halo {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 133, 124, 0.2);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(22, 133, 124, 0);
+  }
+
+  100% {
+    box-shadow: 0 12px 24px rgba(144, 111, 20, 0.08);
+  }
+}
+
+@keyframes high-score-spark {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .history-panel {

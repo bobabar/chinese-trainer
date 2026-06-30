@@ -97,6 +97,7 @@ window.__tests = {
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
+  buildHighScoreCelebration,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -119,6 +120,8 @@ window.__tests = {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  dismissHighScoreCelebration,
+  markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   scoreEnglish,
@@ -140,6 +143,7 @@ const {
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
+  buildHighScoreCelebration,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -162,6 +166,8 @@ const {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  dismissHighScoreCelebration,
+  markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   scoreEnglish,
@@ -514,6 +520,53 @@ assert(
   getVocabularyHighScoreRecords([slowerPinyinRecord, completedPinyinRecord]).length === 1,
   "high score history should keep one best record per vocabulary mode and set",
 );
+localStorageEntries.set("chineseTrainerHistory", JSON.stringify([slowerPinyinRecord]));
+const fasterPinyinResult = markVocabularyHighScoreResult({ ...completedPinyinResult, elapsedSeconds: 82 });
+assert(fasterPinyinResult.isNewHighScore, "faster completed vocabulary results should be marked as a new high score");
+assert(fasterPinyinResult.previousBestSeconds === 120, "new high scores should retain the previous best time");
+const tiedPinyinResult = markVocabularyHighScoreResult({ ...completedPinyinResult, elapsedSeconds: 120 });
+assert(!tiedPinyinResult.isNewHighScore, "ties should not be marked as new vocabulary high scores");
+const incompleteHighScoreResult = markVocabularyHighScoreResult({ ...completedPinyinResult, finishReason: "ended" });
+assert(
+  !("isNewHighScore" in incompleteHighScoreResult),
+  "incomplete vocabulary results should not receive high score celebration state",
+);
+const highScoreMarkup = buildHighScoreCelebration(fasterPinyinResult);
+assert(highScoreMarkup.includes('role="status"'), "high score celebration should announce itself as status text");
+assert(highScoreMarkup.includes("Nice, new best time!"), "high score celebration should include a short congratulation");
+assert(
+  highScoreMarkup.includes("Finished in 1:22. Beat 2:00."),
+  "high score celebration should show the new time and previous best",
+);
+assert(
+  buildHighScoreCelebration({ ...fasterPinyinResult, isNewHighScore: false }) === "",
+  "non-high-score vocabulary results should not render a celebration",
+);
+let celebrationDismissed = false;
+let celebrationRemoved = false;
+const fakeCelebration = {
+  isConnected: true,
+  classList: {
+    add(className) {
+      if (className === "dismissed") {
+        celebrationDismissed = true;
+      }
+    },
+  },
+  remove() {
+    celebrationRemoved = true;
+  },
+};
+context.document.querySelector = (selector) => (
+  selector === ".high-score-celebration" ? fakeCelebration : null
+);
+dismissHighScoreCelebration();
+runQueuedTimer();
+assert(celebrationDismissed, "high score celebration should mark itself dismissed after a delay");
+runQueuedTimer();
+assert(celebrationRemoved, "high score celebration should remove itself after the fade");
+context.document.querySelector = () => null;
+localStorageEntries.delete("chineseTrainerHistory");
 
 const incompleteAudioResult = {
   type: "vocabulary",

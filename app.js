@@ -162,7 +162,7 @@ const PINYIN_TONE_MARKS = {
 
 const state = {
   tool: "drill",
-  mode: "listening",
+  mode: "reading",
   vocabularyMode: "pinyin",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,

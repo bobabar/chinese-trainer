@@ -1786,20 +1786,20 @@ function scrollVocabularyWordListToIndex(index) {
 
     const header = wrapper.querySelector("thead");
     const headerHeight = header?.getBoundingClientRect().height || 0;
-    const rowTop = row.offsetTop;
-    const rowBottom = rowTop + row.offsetHeight;
-    const visibleTop = wrapper.scrollTop + headerHeight;
-    const visibleBottom = wrapper.scrollTop + wrapper.clientHeight;
-    const isVisible = rowTop >= visibleTop && rowBottom <= visibleBottom;
-    if (isVisible) {
-      return;
-    }
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const rowTopInWrapper = rowRect.top - wrapperRect.top + wrapper.scrollTop;
+    const targetOffset = Math.max(headerHeight + 12, wrapper.clientHeight * 0.36);
+    const maxScrollTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+    const nextTop = Math.min(
+      maxScrollTop,
+      Math.max(0, rowTopInWrapper - targetOffset),
+    );
 
-    const nextTop = Math.max(0, rowTop - wrapper.clientHeight * 0.42);
     if (typeof wrapper.scrollTo === "function") {
       wrapper.scrollTo({
         top: nextTop,
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
+        behavior: "auto",
       });
       return;
     }
@@ -1807,8 +1807,10 @@ function scrollVocabularyWordListToIndex(index) {
     wrapper.scrollTop = nextTop;
   };
 
-  requestAnimationFrame(scrollToRow);
-  window.setTimeout?.(scrollToRow, 120);
+  scrollToRow();
+  window.requestAnimationFrame?.(scrollToRow);
+  window.setTimeout?.(scrollToRow, 80);
+  window.setTimeout?.(scrollToRow, 240);
 }
 
 function buildFeedbackMarkup(assessment, item) {
@@ -3439,11 +3441,13 @@ function selectVocabularyRow(index) {
 
   if (session.quizMode === "meaning") {
     render();
+    scrollVocabularyWordListToIndex(index);
     speak(session.items[index].zh, { immediate: true });
     return;
   }
 
   updateVocabularySessionMetrics(session);
+  scrollVocabularyWordListToCurrentRow(session);
   focusVocabularyInput();
 }
 

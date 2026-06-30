@@ -845,7 +845,29 @@ select {
 }
 
 .mobile-current-word {
-  display: none;
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: #fffaf0;
+  box-shadow: 0 6px 18px rgba(28, 35, 33, 0.08);
+}
+
+.mobile-current-word span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-current-word strong {
+  font-size: 34px;
+  line-height: 1.12;
 }
 
 .vocab-table-section {
@@ -1860,30 +1882,8 @@ td.status-review {
     padding: 14px;
   }
 
-  .mobile-current-word {
-    position: sticky;
-    top: 8px;
-    z-index: 4;
-    display: grid;
-    gap: 5px;
-    min-height: 76px;
-    padding: 10px 12px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    background: #fffaf0;
-    box-shadow: 0 6px 18px rgba(28, 35, 33, 0.08);
-  }
-
-  .mobile-current-word span {
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-  }
-
   .mobile-current-word strong {
     font-size: 30px;
-    line-height: 1.15;
   }
 
   textarea {

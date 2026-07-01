@@ -105,11 +105,32 @@ body[data-tool="vocabulary"] {
   --theme-rule: rgba(15, 118, 110, 0.12);
 }
 
+body[data-tool="pronunciation"] {
+  --theme: #0e7490;
+  --theme-hover: #155e75;
+  --theme-soft: #eefbfd;
+  --theme-border: #a5dce8;
+  --theme-focus: rgba(14, 116, 144, 0.18);
+  --theme-wash: rgba(14, 116, 144, 0.08);
+  --theme-rule: rgba(14, 116, 144, 0.12);
+}
+
+body[data-tool="map"] {
+  --theme: #0d9488;
+  --theme-hover: #0f766e;
+  --theme-soft: #ecfdf9;
+  --theme-border: #99d9cf;
+  --theme-focus: rgba(13, 148, 136, 0.18);
+  --theme-wash: rgba(13, 148, 136, 0.08);
+  --theme-rule: rgba(13, 148, 136, 0.12);
+}
+
 .vocabulary-only {
   display: none;
 }
 
 body:not([data-tool="drill"]) .drill-only,
+body:not([data-tool="pronunciation"]) .pronunciation-only,
 body:not([data-tool="vocabulary"]) .vocabulary-only {
   display: none !important;
 }
@@ -118,7 +139,19 @@ body[data-tool="vocabulary"] .vocabulary-only {
   display: grid !important;
 }
 
+.sentence-bank-only {
+  display: none;
+}
+
+body[data-tool="drill"] .sentence-bank-only,
+body[data-tool="pronunciation"] .sentence-bank-only,
+body[data-tool="pronunciation"] .pronunciation-only {
+  display: grid !important;
+}
+
 .drill-only[hidden],
+.pronunciation-only[hidden],
+.sentence-bank-only[hidden],
 .vocabulary-only[hidden] {
   display: none !important;
 }
@@ -242,8 +275,8 @@ p {
 }
 
 .tool-nav {
-  grid-template-columns: repeat(3, minmax(104px, 1fr));
-  width: min(500px, 100%);
+  grid-template-columns: repeat(5, minmax(94px, 1fr));
+  width: min(800px, 100%);
 }
 
 .tool-tab {
@@ -527,6 +560,18 @@ body[data-tool="vocabulary"] .options-body {
     content: "Vocabulary Quiz";
   }
 
+  body[data-tool="pronunciation"] .tool-controls::before {
+    content: "Pronunciation";
+  }
+
+  body[data-tool="map"] .tool-controls::before {
+    content: "Map Quiz";
+  }
+
+  body[data-tool="history"] .tool-controls::before {
+    content: "History";
+  }
+
   .workspace {
     grid-column: 2;
     padding: 20px 28px 32px;
@@ -541,6 +586,15 @@ body[data-tool="vocabulary"] .options-body {
   .tool-controls,
   body[data-tool="vocabulary"] .tool-controls {
     grid-template-columns: 1fr;
+  }
+
+  .map-home-grid,
+  .map-quiz-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-question-panel {
+    position: static;
   }
 }
 
@@ -1179,6 +1233,19 @@ select {
   box-shadow: var(--shadow-soft);
 }
 
+.sentence-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compact-btn {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
 .sentence-label {
   color: var(--muted);
   font-size: 12px;
@@ -1210,6 +1277,528 @@ select {
 
 .audio-revealed-word {
   margin: 0;
+}
+
+.pronunciation-session {
+  max-width: 980px;
+}
+
+.pronunciation-card {
+  gap: 18px;
+}
+
+.pronunciation-prompt {
+  display: grid;
+  gap: 10px;
+}
+
+.pronunciation-hanzi-line,
+.pronunciation-pinyin-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 4px;
+  margin: 0;
+}
+
+.pronunciation-hanzi-line {
+  font-size: 34px;
+  line-height: 1.45;
+}
+
+.pronunciation-pinyin-line {
+  color: var(--muted-strong);
+  font-size: 15px;
+  font-weight: 780;
+  line-height: 1.55;
+}
+
+.pronunciation-token,
+.pronunciation-pinyin-token {
+  border-radius: 7px;
+}
+
+.pronunciation-token {
+  padding: 0 4px;
+}
+
+.pronunciation-pinyin-token {
+  padding: 1px 4px;
+}
+
+.pronunciation-token.good,
+.pronunciation-pinyin-token.good {
+  background: #e9f8ef;
+  color: #166534;
+}
+
+.pronunciation-token.missed,
+.pronunciation-pinyin-token.missed {
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.pronunciation-token.pending {
+  background: transparent;
+}
+
+.pronunciation-punctuation,
+.pronunciation-pinyin-punctuation {
+  color: inherit;
+}
+
+.pronunciation-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pronunciation-feedback {
+  margin-top: 0;
+}
+
+.pronunciation-breakdown {
+  display: grid;
+  gap: 12px;
+}
+
+.pronunciation-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pronunciation-breakdown-card {
+  display: grid;
+  gap: 12px;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.pronunciation-breakdown-card h4 {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--muted);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pronunciation-metric-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.pronunciation-metric-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pronunciation-metric-list li.empty {
+  justify-content: flex-start;
+  color: var(--muted);
+  font-weight: 760;
+}
+
+.pronunciation-metric-list strong {
+  color: var(--theme);
+}
+
+.map-home-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.map-home-copy {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.map-source-panel,
+.china-map-panel {
+  display: grid;
+  min-width: 0;
+}
+
+.map-quiz-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.map-question-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.map-question-panel p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.map-prompt {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.quiz-mini-stats {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  gap: 10px;
+}
+
+.quiz-mini-stats > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.quiz-mini-stats strong,
+.quiz-mini-stats span {
+  display: block;
+}
+
+.quiz-mini-stats strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.quiz-mini-stats span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.china-map-wrap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(13, 148, 136, 0.08), transparent 32%),
+    #f8fbfc;
+}
+
+.china-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 360px;
+}
+
+.map-info-bubble {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 3;
+}
+
+.map-info-bubble summary {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(115, 188, 182, 0.72);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--theme);
+  cursor: pointer;
+  list-style: none;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.map-info-bubble summary::-webkit-details-marker {
+  display: none;
+}
+
+.map-info-bubble summary:hover,
+.map-info-bubble summary:focus-visible {
+  border-color: var(--theme);
+  background: #ffffff;
+  outline: none;
+}
+
+.map-info-bubble .button-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.map-info-popover {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(310px, calc(100vw - 40px));
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--muted-strong);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+}
+
+.map-info-popover strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.map-info-popover p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.map-info-popover a {
+  color: var(--theme);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.map-info-popover a:hover {
+  text-decoration: underline;
+}
+
+.map-ocean {
+  fill: #eef8fa;
+}
+
+.china-region {
+  cursor: pointer;
+  outline: none;
+}
+
+.china-region polygon,
+.china-region circle {
+  fill: #f8f4df;
+  stroke: #73bcb6;
+  stroke-width: 2;
+  transition:
+    fill 160ms ease,
+    stroke 160ms ease,
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.china-region:hover polygon,
+.china-region:hover circle,
+.china-region:focus-visible polygon,
+.china-region:focus-visible circle {
+  fill: #e4f7ee;
+  stroke: var(--theme);
+  filter: drop-shadow(0 6px 8px rgba(13, 148, 136, 0.18));
+}
+
+.china-region.correct-target polygon,
+.china-region.correct-target circle {
+  fill: #dff8ea;
+  stroke: #15803d;
+}
+
+.china-region.wrong-selection polygon,
+.china-region.wrong-selection circle {
+  fill: #fff1f2;
+  stroke: #b42318;
+}
+
+.map-province-labels {
+  pointer-events: none;
+}
+
+.map-province-labels text {
+  fill: #31514e;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.88);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.map-city-pin {
+  cursor: pointer;
+  outline: none;
+}
+
+.city-pin-hit {
+  fill: transparent;
+  stroke: transparent;
+}
+
+.city-pin-dot {
+  fill: #0f766e;
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  transition:
+    fill 160ms ease,
+    stroke 160ms ease,
+    r 160ms ease,
+    filter 160ms ease;
+}
+
+.city-pin-core {
+  fill: #ffffff;
+  pointer-events: none;
+}
+
+.map-city-pin text {
+  opacity: 0;
+  pointer-events: none;
+  fill: #12312e;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  transition: opacity 160ms ease;
+}
+
+.map-city-pin:hover .city-pin-dot,
+.map-city-pin:focus-visible .city-pin-dot {
+  r: 7;
+  fill: #115e59;
+  filter: drop-shadow(0 0 8px rgba(13, 148, 136, 0.35));
+}
+
+.map-city-pin:hover text,
+.map-city-pin:focus-visible text,
+.map-city-pin.correct-target text,
+.map-city-pin.wrong-selection text {
+  opacity: 1;
+}
+
+.map-city-pin.correct-target .city-pin-dot {
+  fill: #15803d;
+  stroke: #dcfce7;
+}
+
+.map-city-pin.wrong-selection .city-pin-dot {
+  fill: #b42318;
+  stroke: #ffe4e6;
+}
+
+.map-answer-pulse {
+  pointer-events: none;
+  fill: none;
+  stroke-width: 4;
+  transform-origin: center;
+  animation: map-pulse 720ms ease-out;
+}
+
+.map-answer-pulse.correct {
+  stroke: #22c55e;
+}
+
+.map-answer-pulse.review {
+  stroke: #f97316;
+}
+
+@keyframes map-pulse {
+  0% {
+    opacity: 0.88;
+    r: 6;
+  }
+
+  100% {
+    opacity: 0;
+    r: 46;
+  }
+}
+
+.south-sea-inset rect {
+  fill: rgba(255, 255, 255, 0.72);
+  stroke: #9ccbc6;
+}
+
+.south-sea-inset text {
+  fill: #31514e;
+  font-size: 11px;
+  font-weight: 900;
+  text-anchor: middle;
+}
+
+.south-sea-inset circle {
+  fill: var(--theme);
+  opacity: 0.72;
+}
+
+.map-feedback {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.map-feedback.good {
+  border-color: #9ed4bb;
+  background: #f1fbf6;
+}
+
+.map-feedback.review {
+  border-color: #e7b49a;
+  background: #fff7ed;
+}
+
+.map-feedback strong,
+.map-feedback span {
+  display: block;
+}
+
+.map-feedback strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.map-feedback span,
+.map-feedback p {
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.45;
 }
 
 .shortcut-btn {
@@ -2093,7 +2682,7 @@ td.status-review {
   }
 
   .tool-nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
@@ -2112,7 +2701,11 @@ td.status-review {
   .quiz-play-header,
   .vocab-guess-form,
   .answer-pair,
-  .stat-grid {
+  .stat-grid,
+  .pronunciation-breakdown-grid,
+  .map-home-grid,
+  .map-quiz-layout,
+  .quiz-mini-stats {
     grid-template-columns: 1fr;
   }
 
@@ -2160,6 +2753,36 @@ td.status-review {
   .sentence-card,
   .feedback {
     padding: 14px;
+  }
+
+  .sentence-card-header,
+  .pronunciation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pronunciation-hanzi-line {
+    font-size: 28px;
+  }
+
+  .pronunciation-pinyin-line {
+    font-size: 14px;
+  }
+
+  .map-prompt {
+    font-size: 34px;
+  }
+
+  .china-map {
+    min-height: 320px;
+  }
+
+  .map-province-labels text {
+    font-size: 10px;
+  }
+
+  .map-city-pin text {
+    display: none;
   }
 
   .mobile-current-word strong {

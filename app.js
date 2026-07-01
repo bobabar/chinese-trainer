@@ -1,6 +1,8 @@
 "use strict";
 
 const SESSION_LENGTH = 30;
+const PRONUNCIATION_SESSION_LENGTH = 15;
+const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
@@ -43,11 +45,17 @@ const MODES = {
 };
 
 const TOOLS = {
-  drill: {
-    label: "Sentence Drills",
-  },
   vocabulary: {
     label: "Vocabulary Quiz",
+  },
+  pronunciation: {
+    label: "Pronunciation",
+  },
+  map: {
+    label: "Map Quiz",
+  },
+  drill: {
+    label: "Sentence Drills",
   },
   history: {
     label: "History",
@@ -118,6 +126,88 @@ const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
+const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
+const MAP_QUIZ_SESSION_LENGTH = 20;
+const CHINA_MAP_SOURCE_URL = "http://bzdt.ch.mnr.gov.cn/index.html";
+const CHINA_MAP_SOURCE_LABEL = "自然资源部标准地图服务";
+const CHINA_MAP_RULES_URL = "https://www.mfa.gov.cn/web/wjb_673085/zzjg_673183/bjhysws_674671/bhflfg/dtdmxgfl/202303/P020230313585504979937.pdf";
+const CHINA_MAP_RULES_LABEL = "《公开地图内容表示规范》";
+const CHINA_PROVINCES = [
+  { id: "xinjiang", name: "新疆维吾尔自治区", shortName: "新疆", pinyin: "Xīnjiāng Wéiwú'ěr Zìzhìqū", label: ["新疆维吾尔", "自治区"], labelX: 190, labelY: 255, points: "70,210 135,135 245,145 315,200 320,285 270,355 180,370 90,315 48,255" },
+  { id: "xizang", name: "西藏自治区", shortName: "西藏", pinyin: "Xīzàng Zìzhìqū", label: ["西藏", "自治区"], labelX: 220, labelY: 455, points: "120,385 265,355 365,395 355,485 290,540 170,520 80,455" },
+  { id: "qinghai", name: "青海省", shortName: "青海", pinyin: "Qīnghǎi Shěng", label: ["青海省"], labelX: 345, labelY: 355, points: "300,300 410,305 445,375 370,420 265,360" },
+  { id: "gansu", name: "甘肃省", shortName: "甘肃", pinyin: "Gānsù Shěng", label: ["甘肃省"], labelX: 390, labelY: 285, points: "330,230 415,245 465,310 445,345 400,315 370,270 325,265" },
+  { id: "ningxia", name: "宁夏回族自治区", shortName: "宁夏", pinyin: "Níngxià Huízú Zìzhìqū", label: ["宁夏"], labelX: 458, labelY: 306, circle: { cx: 458, cy: 305, r: 18 } },
+  { id: "neimenggu", name: "内蒙古自治区", shortName: "内蒙古", pinyin: "Nèi Měnggǔ Zìzhìqū", label: ["内蒙古自治区"], labelX: 530, labelY: 180, points: "350,145 480,105 635,105 740,155 720,225 620,245 500,225 430,245 365,205" },
+  { id: "heilongjiang", name: "黑龙江省", shortName: "黑龙江", pinyin: "Hēilóngjiāng Shěng", label: ["黑龙江省"], labelX: 710, labelY: 135, points: "650,75 755,72 792,130 755,190 670,175 625,125" },
+  { id: "jilin", name: "吉林省", shortName: "吉林", pinyin: "Jílín Shěng", label: ["吉林省"], labelX: 675, labelY: 212, points: "640,180 728,190 718,235 645,235 610,205" },
+  { id: "liaoning", name: "辽宁省", shortName: "辽宁", pinyin: "Liáoníng Shěng", label: ["辽宁省"], labelX: 650, labelY: 265, points: "615,238 704,242 692,295 630,295 592,262" },
+  { id: "beijing", name: "北京市", shortName: "北京", pinyin: "Běijīng Shì", label: ["北京"], labelX: 570, labelY: 286, circle: { cx: 570, cy: 285, r: 13 } },
+  { id: "tianjin", name: "天津市", shortName: "天津", pinyin: "Tiānjīn Shì", label: ["天津"], labelX: 594, labelY: 301, circle: { cx: 594, cy: 300, r: 11 } },
+  { id: "hebei", name: "河北省", shortName: "河北", pinyin: "Héběi Shěng", label: ["河北省"], labelX: 560, labelY: 325, points: "535,260 615,285 610,345 560,365 520,330" },
+  { id: "shanxi", name: "山西省", shortName: "山西", pinyin: "Shānxī Shěng", label: ["山西省"], labelX: 502, labelY: 330, points: "500,285 540,310 535,365 485,370 465,320" },
+  { id: "shandong", name: "山东省", shortName: "山东", pinyin: "Shāndōng Shěng", label: ["山东省"], labelX: 630, labelY: 375, points: "575,340 675,340 705,382 650,410 585,390" },
+  { id: "henan", name: "河南省", shortName: "河南", pinyin: "Hénán Shěng", label: ["河南省"], labelX: 548, labelY: 410, points: "510,365 585,380 605,430 545,455 495,420" },
+  { id: "jiangsu", name: "江苏省", shortName: "江苏", pinyin: "Jiāngsū Shěng", label: ["江苏省"], labelX: 650, labelY: 432, points: "625,400 675,410 690,455 640,465 610,430" },
+  { id: "shanghai", name: "上海市", shortName: "上海", pinyin: "Shànghǎi Shì", label: ["上海"], labelX: 690, labelY: 456, circle: { cx: 690, cy: 455, r: 10 } },
+  { id: "anhui", name: "安徽省", shortName: "安徽", pinyin: "Ānhuī Shěng", label: ["安徽省"], labelX: 594, labelY: 458, points: "585,415 635,430 638,480 580,495 550,455" },
+  { id: "zhejiang", name: "浙江省", shortName: "浙江", pinyin: "Zhèjiāng Shěng", label: ["浙江省"], labelX: 642, labelY: 500, points: "630,468 690,465 675,520 625,535 598,500" },
+  { id: "fujian", name: "福建省", shortName: "福建", pinyin: "Fújiàn Shěng", label: ["福建省"], labelX: 618, labelY: 555, points: "600,525 665,525 655,590 600,585 570,555" },
+  { id: "jiangxi", name: "江西省", shortName: "江西", pinyin: "Jiāngxī Shěng", label: ["江西省"], labelX: 558, labelY: 530, points: "545,485 600,500 598,560 540,570 515,525" },
+  { id: "hubei", name: "湖北省", shortName: "湖北", pinyin: "Húběi Shěng", label: ["湖北省"], labelX: 520, labelY: 470, points: "490,430 555,445 565,500 500,510 460,470" },
+  { id: "hunan", name: "湖南省", shortName: "湖南", pinyin: "Húnán Shěng", label: ["湖南省"], labelX: 520, labelY: 552, points: "500,505 560,520 555,585 500,590 465,545" },
+  { id: "guangdong", name: "广东省", shortName: "广东", pinyin: "Guǎngdōng Shěng", label: ["广东省"], labelX: 555, labelY: 617, points: "515,585 600,585 628,625 565,655 500,635" },
+  { id: "guangxi", name: "广西壮族自治区", shortName: "广西", pinyin: "Guǎngxī Zhuàngzú Zìzhìqū", label: ["广西壮族", "自治区"], labelX: 455, labelY: 595, points: "425,550 505,565 505,635 430,625 390,585" },
+  { id: "hainan", name: "海南省", shortName: "海南", pinyin: "Hǎinán Shěng", label: ["海南省"], labelX: 520, labelY: 670, circle: { cx: 520, cy: 670, r: 24 } },
+  { id: "sichuan", name: "四川省", shortName: "四川", pinyin: "Sìchuān Shěng", label: ["四川省"], labelX: 410, labelY: 455, points: "370,395 465,405 485,480 430,530 345,500 330,440" },
+  { id: "chongqing", name: "重庆市", shortName: "重庆", pinyin: "Chóngqìng Shì", label: ["重庆"], labelX: 470, labelY: 488, points: "462,455 500,470 500,515 460,520 440,485" },
+  { id: "guizhou", name: "贵州省", shortName: "贵州", pinyin: "Guìzhōu Shěng", label: ["贵州省"], labelX: 458, labelY: 555, points: "430,520 500,525 505,580 445,590 410,555" },
+  { id: "yunnan", name: "云南省", shortName: "云南", pinyin: "Yúnnán Shěng", label: ["云南省"], labelX: 375, labelY: 585, points: "335,520 430,535 430,620 355,640 300,590" },
+  { id: "shaanxi", name: "陕西省", shortName: "陕西", pinyin: "Shǎnxī Shěng", label: ["陕西省"], labelX: 462, labelY: 385, points: "450,330 505,355 492,435 445,425 425,365" },
+  { id: "taiwan", name: "台湾省", shortName: "台湾", pinyin: "Táiwān Shěng", label: ["台湾省"], labelX: 696, labelY: 585, points: "690,545 720,555 715,610 682,620 670,575" },
+  { id: "hongkong", name: "香港特别行政区", shortName: "香港", pinyin: "Xiānggǎng Tèbié Xíngzhèngqū", label: ["香港"], labelX: 585, labelY: 634, circle: { cx: 585, cy: 634, r: 8 } },
+  { id: "macao", name: "澳门特别行政区", shortName: "澳门", pinyin: "Àomén Tèbié Xíngzhèngqū", label: ["澳门"], labelX: 560, labelY: 635, circle: { cx: 560, cy: 635, r: 7 } },
+];
+const CHINA_CITIES = [
+  { id: "beijing-city", provinceId: "beijing", name: "北京市", pinyin: "Běijīng Shì", x: 570, y: 285 },
+  { id: "tianjin-city", provinceId: "tianjin", name: "天津市", pinyin: "Tiānjīn Shì", x: 594, y: 300 },
+  { id: "shijiazhuang", provinceId: "hebei", name: "石家庄市", pinyin: "Shíjiāzhuāng Shì", x: 552, y: 332 },
+  { id: "taiyuan", provinceId: "shanxi", name: "太原市", pinyin: "Tàiyuán Shì", x: 505, y: 333 },
+  { id: "hohhot", provinceId: "neimenggu", name: "呼和浩特市", pinyin: "Hūhéhàotè Shì", x: 495, y: 238 },
+  { id: "shenyang", provinceId: "liaoning", name: "沈阳市", pinyin: "Shěnyáng Shì", x: 650, y: 265 },
+  { id: "changchun", provinceId: "jilin", name: "长春市", pinyin: "Chángchūn Shì", x: 675, y: 212 },
+  { id: "haerbin", provinceId: "heilongjiang", name: "哈尔滨市", pinyin: "Hā'ěrbīn Shì", x: 705, y: 145 },
+  { id: "shanghai-city", provinceId: "shanghai", name: "上海市", pinyin: "Shànghǎi Shì", x: 690, y: 455 },
+  { id: "nanjing", provinceId: "jiangsu", name: "南京市", pinyin: "Nánjīng Shì", x: 632, y: 424 },
+  { id: "hangzhou", provinceId: "zhejiang", name: "杭州市", pinyin: "Hángzhōu Shì", x: 645, y: 492 },
+  { id: "hefei", provinceId: "anhui", name: "合肥市", pinyin: "Héféi Shì", x: 592, y: 456 },
+  { id: "fuzhou", provinceId: "fujian", name: "福州市", pinyin: "Fúzhōu Shì", x: 625, y: 555 },
+  { id: "nanchang", provinceId: "jiangxi", name: "南昌市", pinyin: "Nánchāng Shì", x: 558, y: 530 },
+  { id: "jinan", provinceId: "shandong", name: "济南市", pinyin: "Jǐnán Shì", x: 625, y: 370 },
+  { id: "zhengzhou", provinceId: "henan", name: "郑州市", pinyin: "Zhèngzhōu Shì", x: 548, y: 410 },
+  { id: "wuhan", provinceId: "hubei", name: "武汉市", pinyin: "Wǔhàn Shì", x: 522, y: 468 },
+  { id: "changsha", provinceId: "hunan", name: "长沙市", pinyin: "Chángshā Shì", x: 525, y: 550 },
+  { id: "guangzhou", provinceId: "guangdong", name: "广州市", pinyin: "Guǎngzhōu Shì", x: 555, y: 617 },
+  { id: "nanning", provinceId: "guangxi", name: "南宁市", pinyin: "Nánníng Shì", x: 455, y: 596 },
+  { id: "haikou", provinceId: "hainan", name: "海口市", pinyin: "Hǎikǒu Shì", x: 520, y: 670 },
+  { id: "chengdu", provinceId: "sichuan", name: "成都市", pinyin: "Chéngdū Shì", x: 410, y: 455 },
+  { id: "chongqing-city", provinceId: "chongqing", name: "重庆市", pinyin: "Chóngqìng Shì", x: 470, y: 488 },
+  { id: "guiyang", provinceId: "guizhou", name: "贵阳市", pinyin: "Guìyáng Shì", x: 458, y: 555 },
+  { id: "kunming", provinceId: "yunnan", name: "昆明市", pinyin: "Kūnmíng Shì", x: 375, y: 585 },
+  { id: "lasa", provinceId: "xizang", name: "拉萨市", pinyin: "Lāsà Shì", x: 240, y: 455 },
+  { id: "xian", provinceId: "shaanxi", name: "西安市", pinyin: "Xī'ān Shì", x: 462, y: 385 },
+  { id: "lanzhou", provinceId: "gansu", name: "兰州市", pinyin: "Lánzhōu Shì", x: 405, y: 315 },
+  { id: "xining", provinceId: "qinghai", name: "西宁市", pinyin: "Xīníng Shì", x: 360, y: 345 },
+  { id: "yinchuan", provinceId: "ningxia", name: "银川市", pinyin: "Yínchuān Shì", x: 458, y: 305 },
+  { id: "wulumuqi", provinceId: "xinjiang", name: "乌鲁木齐市", pinyin: "Wūlǔmùqí Shì", x: 165, y: 245 },
+  { id: "taibei", provinceId: "taiwan", name: "台北市", pinyin: "Táiběi Shì", x: 700, y: 565 },
+  { id: "xianggang", provinceId: "hongkong", name: "香港", pinyin: "Xiānggǎng", x: 585, y: 634 },
+  { id: "aomen", provinceId: "macao", name: "澳门", pinyin: "Àomén", x: 560, y: 635 },
+];
+const CHINA_MAP_ITEMS = [
+  ...CHINA_PROVINCES.map((item) => ({ ...item, kind: "province" })),
+  ...CHINA_CITIES.map((item) => ({ ...item, kind: "city" })),
+];
 const loadedScripts = new Map();
 let sentenceDataPromise = null;
 let sentenceDataLoaded = false;
@@ -125,6 +215,8 @@ let wordDataPromise = null;
 let wordDataLoaded = false;
 let vocabularyTimerId = 0;
 let speechRequestId = 0;
+let pronunciationRecognition = null;
+let pronunciationRecognitionRequestId = 0;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
@@ -167,6 +259,7 @@ const state = {
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
   vocabularyHideTranslations: false,
+  pronunciationShowPinyin: true,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
   voices: [],
@@ -184,9 +277,10 @@ const levelOptions = document.querySelector("#levelOptions");
 const voiceSpeed = document.querySelector("#voiceSpeed");
 const vocabularyOrder = document.querySelector("#vocabularyOrder");
 const vocabularyHideTranslations = document.querySelector("#vocabularyHideTranslations");
+const pronunciationShowPinyin = document.querySelector("#pronunciationShowPinyin");
 
 function init() {
-  if (!app || !levelOptions || !voiceSpeed || !vocabularyOrder || !vocabularyHideTranslations) {
+  if (!app || !levelOptions || !voiceSpeed || !vocabularyOrder || !vocabularyHideTranslations || !pronunciationShowPinyin) {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
 
@@ -225,6 +319,9 @@ function loadSettings() {
     if (typeof saved.vocabularyHideTranslations === "boolean") {
       state.vocabularyHideTranslations = saved.vocabularyHideTranslations;
     }
+    if (typeof saved.pronunciationShowPinyin === "boolean") {
+      state.pronunciationShowPinyin = saved.pronunciationShowPinyin;
+    }
     if (Array.isArray(saved.selectedLevels) && saved.selectedLevels.length) {
       state.selectedLevels = new Set(
         saved.selectedLevels.filter((level) => LEVELS.some((item) => item.id === level)),
@@ -247,6 +344,7 @@ function loadSettings() {
 
   voiceSpeed.value = state.voiceSpeed;
   vocabularyOrder.value = state.vocabularyOrder;
+  pronunciationShowPinyin.checked = state.pronunciationShowPinyin;
   syncVocabularyOptionControls();
 }
 
@@ -262,6 +360,7 @@ function saveSettings() {
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
+        pronunciationShowPinyin: state.pronunciationShowPinyin,
         selectedLevels: [...state.selectedLevels],
         voiceSpeed: state.voiceSpeed,
       }),
@@ -281,6 +380,7 @@ function bindTopLevelControls() {
         return;
       }
 
+      stopPronunciationRecognition();
       stopSpeech();
       state.tool = nextTool;
       state.session = null;
@@ -300,6 +400,7 @@ function bindTopLevelControls() {
         return;
       }
 
+      stopPronunciationRecognition();
       stopSpeech();
       state.mode = nextMode;
       state.session = null;
@@ -318,6 +419,7 @@ function bindTopLevelControls() {
         return;
       }
 
+      stopPronunciationRecognition();
       stopSpeech();
       state.vocabularyMode = nextMode;
       state.session = null;
@@ -344,6 +446,12 @@ function bindTopLevelControls() {
   vocabularyHideTranslations.addEventListener("change", () => {
     state.vocabularyHideTranslations = vocabularyHideTranslations.checked;
     state.result = null;
+    saveSettings();
+    render();
+  });
+
+  pronunciationShowPinyin.addEventListener("change", () => {
+    state.pronunciationShowPinyin = pronunciationShowPinyin.checked;
     saveSettings();
     render();
   });
@@ -425,6 +533,11 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (state.session.type === "pronunciation") {
+    startPronunciationRecording();
+    return;
+  }
+
   const input = document.querySelector("#answerInput");
   if (input) {
     submitAnswer(input.value);
@@ -441,6 +554,10 @@ function shouldStartSessionFromShortcut(target) {
 }
 
 function sessionUsesAudioPrompt(session) {
+  if (session?.type === "pronunciation") {
+    return true;
+  }
+
   return session?.type === "vocabulary"
     ? session.quizMode === "meaning"
     : session?.mode === "listening";
@@ -749,6 +866,10 @@ function render() {
     stopVocabularyTimer();
     if (state.result.type === "vocabulary") {
       renderVocabularyResults();
+    } else if (state.result.type === "pronunciation") {
+      renderPronunciationResults();
+    } else if (state.result.type === "map") {
+      renderMapQuizResults();
     } else {
       renderResults();
     }
@@ -776,6 +897,16 @@ function render() {
     return;
   }
 
+  if (state.tool === "pronunciation") {
+    renderPronunciationHome();
+    return;
+  }
+
+  if (state.tool === "map") {
+    renderMapQuizHome();
+    return;
+  }
+
   renderModeHome();
 }
 
@@ -784,6 +915,12 @@ function updateNavigationState() {
   document.body.dataset.mode = state.tool === "drill" ? state.mode : state.tool;
   document.querySelectorAll(".drill-only").forEach((element) => {
     element.hidden = state.tool !== "drill";
+  });
+  document.querySelectorAll(".sentence-bank-only").forEach((element) => {
+    element.hidden = state.tool !== "drill" && state.tool !== "pronunciation";
+  });
+  document.querySelectorAll(".pronunciation-only").forEach((element) => {
+    element.hidden = state.tool !== "pronunciation";
   });
   document.querySelectorAll(".vocabulary-only").forEach((element) => {
     element.hidden = state.tool !== "vocabulary";
@@ -874,6 +1011,115 @@ function renderModeHome() {
   `;
 
   document.querySelector("#startSession").addEventListener("click", startSession);
+}
+
+function renderPronunciationHome() {
+  const shortSentenceCount = getSelectedPronunciationSentenceCount();
+  const hasEnoughSentences = shortSentenceCount >= PRONUNCIATION_SESSION_LENGTH;
+  const recognitionAvailable = supportsSpeechRecognition();
+  const startLabel = state.isLoadingSentences ? "Loading sentence bank..." : "Start 15-sentence session";
+
+  app.innerHTML = `
+    <section class="workspace-panel">
+      <div class="mode-heading">
+        <div>
+          <h2>Pronunciation Practice</h2>
+          <p>Read short Chinese sentences aloud and compare what the browser recognizes.</p>
+        </div>
+      </div>
+
+      <div class="task-preview pronunciation-preview" aria-hidden="true">
+        <div class="preview-cell">
+          <strong>说</strong>
+          <span>Short sentence speaking practice</span>
+        </div>
+      </div>
+
+      <div class="stat-grid pronunciation-home-stats">
+        <div class="stat">
+          <strong>${PRONUNCIATION_SESSION_LENGTH}</strong>
+          <span>Sentences</span>
+        </div>
+        <div class="stat">
+          <strong>${shortSentenceCount}</strong>
+          <span>Short prompts in pool</span>
+        </div>
+        <div class="stat">
+          <strong>${state.pronunciationShowPinyin ? "On" : "Off"}</strong>
+          <span>Pinyin hint</span>
+        </div>
+      </div>
+
+      ${recognitionAvailable ? "" : `
+        <p class="empty-note error-note">
+          Speech recognition is not available in this browser. Try Chrome or Edge on an HTTPS page.
+        </p>
+      `}
+      ${hasEnoughSentences ? "" : `
+        <p class="empty-note">
+          Select at least ${PRONUNCIATION_SESSION_LENGTH} short sentences before starting a session.
+        </p>
+      `}
+      ${state.dataError ? `<p class="empty-note error-note">${escapeHtml(state.dataError)}</p>` : ""}
+
+      <button class="primary-btn shortcut-btn" type="button" id="startPronunciationSession" ${hasEnoughSentences && !state.isLoadingSentences && recognitionAvailable ? "" : "disabled"}>
+        <span>${startLabel}</span>
+        ${shortcutHint("Enter")}
+      </button>
+    </section>
+  `;
+
+  document.querySelector("#startPronunciationSession").addEventListener("click", startPronunciationSession);
+}
+
+function renderMapQuizHome() {
+  app.innerHTML = `
+    <section class="workspace-panel map-home">
+      <div class="mode-heading">
+        <div>
+          <h2>China Map Quiz</h2>
+          <p>Learn official Chinese names by locating province-level regions and city pins on the map.</p>
+        </div>
+      </div>
+
+      <div class="map-home-grid">
+        <div class="map-home-copy">
+          <div class="task-preview map-preview" aria-hidden="true">
+            <div class="preview-cell">
+              <strong>图</strong>
+              <span>省级行政区 and city location practice</span>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <strong>${MAP_QUIZ_SESSION_LENGTH}</strong>
+              <span>Questions</span>
+            </div>
+            <div class="stat">
+              <strong>${CHINA_PROVINCES.length}</strong>
+              <span>Province-level targets</span>
+            </div>
+            <div class="stat">
+              <strong>${CHINA_CITIES.length}</strong>
+              <span>City pins</span>
+            </div>
+          </div>
+
+          <button class="primary-btn shortcut-btn" type="button" id="startMapQuizSession">
+            <span>Start map quiz</span>
+            ${shortcutHint("Enter")}
+          </button>
+        </div>
+
+        <div class="map-source-panel">
+          ${buildChinaMapMarkup({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true })}
+        </div>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
 }
 
 function renderVocabularyHome() {
@@ -1069,6 +1315,8 @@ function renderHistoryHome() {
   const history = loadHistoryRecords();
   const drillCount = history.filter((record) => record.type === "drill").length;
   const quizCount = history.filter((record) => record.type === "vocabulary").length;
+  const pronunciationCount = history.filter((record) => record.type === "pronunciation").length;
+  const mapCount = history.filter((record) => record.type === "map").length;
   const highScores = getVocabularyHighScoreRecords(history);
   const highScoreRows = highScores.length
     ? highScores.map((record) => `
@@ -1111,6 +1359,14 @@ function renderHistoryHome() {
         <div class="stat">
           <strong>${quizCount}</strong>
           <span>Quizzes</span>
+        </div>
+        <div class="stat">
+          <strong>${pronunciationCount}</strong>
+          <span>Pronunciation</span>
+        </div>
+        <div class="stat">
+          <strong>${mapCount}</strong>
+          <span>Map quizzes</span>
         </div>
         <div class="stat">
           <strong>${highScores.length}</strong>
@@ -1162,7 +1418,7 @@ function renderHistoryHome() {
   `;
 
   document.querySelector("#clearHistory").addEventListener("click", () => {
-    if (!window.confirm("Clear saved sentence drill and quiz history from this browser?")) {
+    if (!window.confirm("Clear saved practice and quiz history from this browser?")) {
       return;
     }
 
@@ -1172,13 +1428,27 @@ function renderHistoryHome() {
 }
 
 function buildHistoryRowMarkup(record) {
-  const typeLabel = record.type === "vocabulary" ? "Vocabulary quiz" : "Sentence drill";
+  const typeLabel = record.type === "vocabulary"
+    ? "Vocabulary quiz"
+    : record.type === "pronunciation"
+      ? "Pronunciation"
+      : record.type === "map"
+        ? "Map quiz"
+      : "Sentence drill";
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
-    : MODES[record.mode]?.label || record.mode;
+    : record.type === "pronunciation"
+      ? selectedLevelLabels(record.levels)
+      : record.type === "map"
+        ? "Province and city locations"
+      : MODES[record.mode]?.label || record.mode;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
-    : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+    : record.type === "pronunciation"
+      ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
+      : record.type === "map"
+        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+      : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
   const answerCount = Array.isArray(record.answers) ? record.answers.length : 0;
 
   return `
@@ -1204,6 +1474,16 @@ function buildVocabularyHistoryResultLabel(record) {
 function renderSession() {
   if (state.session?.type === "vocabulary") {
     renderVocabularySession();
+    return;
+  }
+
+  if (state.session?.type === "pronunciation") {
+    renderPronunciationSession();
+    return;
+  }
+
+  if (state.session?.type === "map") {
+    renderMapQuizSession();
     return;
   }
 
@@ -1283,6 +1563,633 @@ function renderSession() {
       input.focus();
     }
   }
+}
+
+function renderPronunciationSession() {
+  const session = state.session;
+  const current = session.items[session.index];
+  const submitted = Boolean(session.currentAssessment);
+  const sessionLength = session.items.length;
+  const progressPercent = Math.round((session.index / sessionLength) * 100);
+  const promptMarkup = buildPronunciationSentenceMarkup(current, session.currentAssessment);
+  const recognized = session.currentAssessment?.transcript || "";
+  const score = session.currentAssessment ? Math.round(session.currentAssessment.score * 100) : 0;
+  const recordLabel = session.isListening ? "Listening..." : "Record sentence";
+
+  app.innerHTML = `
+    <section class="workspace-panel session-shell pronunciation-session">
+      <div class="progress-row">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+        <span class="progress-label">Sentence ${session.index + 1} of ${sessionLength}</span>
+      </div>
+
+      <div class="sentence-card pronunciation-card">
+        <div class="sentence-card-header">
+          <span class="sentence-label">Read aloud</span>
+          <button class="secondary-btn compact-btn" type="button" id="playPronunciationAudio">
+            <span>Play sentence</span>
+            ${shortcutHint("Enter", { commandControl: true })}
+          </button>
+        </div>
+        ${promptMarkup}
+      </div>
+
+      ${session.recognitionError ? `<p class="empty-note error-note">${escapeHtml(session.recognitionError)}</p>` : ""}
+
+      <div class="pronunciation-actions">
+        <button class="primary-btn shortcut-btn" type="button" id="recordPronunciation" ${submitted ? "disabled" : ""}>
+          <span>${recordLabel}</span>
+          ${session.isListening ? `<span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>` : shortcutHint("Enter")}
+        </button>
+        ${
+          session.isListening
+            ? `<button class="secondary-btn" type="button" id="stopPronunciation">Stop recording</button>`
+            : ""
+        }
+        ${
+          submitted
+            ? `<button class="secondary-btn shortcut-btn" type="button" id="nextQuestion">
+                <span>${session.index + 1 === sessionLength ? "View results" : "Next sentence"}</span>
+                ${shortcutHint("Enter")}
+              </button>`
+            : ""
+        }
+        <button class="ghost-btn" type="button" id="endSession">End session</button>
+      </div>
+
+      ${
+        submitted
+          ? `<section class="feedback ${session.currentAssessment.score >= 0.7 ? "good" : session.currentAssessment.score >= 0.45 ? "okay" : "review"} pronunciation-feedback">
+              <div class="feedback-title">
+                <strong>${score}% recognized</strong>
+                <span>${session.currentAssessment.goodCount}/${session.currentAssessment.tokenCount} words recognized</span>
+              </div>
+              <div class="answer-pair">
+                ${buildAnswerBox("Recognized", recognized || "No Chinese speech recognized")}
+                ${buildAnswerBox("Expected", current.zh)}
+              </div>
+            </section>`
+          : ""
+      }
+    </section>
+  `;
+
+  document.querySelector("#playPronunciationAudio").addEventListener("click", () => speak(current.zh, { immediate: true }));
+  document.querySelector("#recordPronunciation").addEventListener("click", startPronunciationRecording);
+  document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
+  document.querySelector("#stopPronunciation")?.addEventListener("click", () => {
+    stopPronunciationRecognition();
+    session.isListening = false;
+    render();
+  });
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+}
+
+function renderMapQuizSession() {
+  const session = state.session;
+  const current = session.items[session.index];
+  const submitted = Boolean(session.currentAssessment);
+  const sessionLength = session.items.length;
+  const progressPercent = Math.round((session.index / sessionLength) * 100);
+  const correctCount = session.answers.filter((answer) => answer.correct).length;
+  const promptType = current.kind === "province" ? "省级行政区" : "城市";
+  const instruction = current.kind === "province"
+    ? "Click inside the province-level region, avoiding city pins."
+    : "Click the city pin inside its province-level region.";
+  const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
+
+  app.innerHTML = `
+    <section class="workspace-panel session-shell map-quiz-session">
+      <div class="progress-row">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+        <span class="progress-label">Question ${session.index + 1} of ${sessionLength}</span>
+      </div>
+
+      <div class="map-quiz-layout">
+        <aside class="map-question-panel">
+          <span class="sentence-label">${promptType}</span>
+          <h2 class="map-prompt chinese-text" lang="zh-CN">${escapeHtml(current.name)}</h2>
+          <p>${instruction}</p>
+
+          <div class="quiz-mini-stats">
+            <div>
+              <strong>${correctCount}/${session.answers.length || 0}</strong>
+              <span>Correct</span>
+            </div>
+            <div>
+              <strong>${submitted ? escapeHtml(current.pinyin) : "Hidden"}</strong>
+              <span>Pinyin</span>
+            </div>
+          </div>
+
+          ${feedback}
+
+          <div class="form-actions">
+            ${
+              submitted
+                ? `<button class="primary-btn shortcut-btn" type="button" id="nextQuestion">
+                    <span>${session.index + 1 === sessionLength ? "View results" : "Next question"}</span>
+                    ${shortcutHint("Enter")}
+                  </button>`
+                : ""
+            }
+            <button class="ghost-btn" type="button" id="endSession">End quiz</button>
+          </div>
+        </aside>
+
+        <div class="china-map-panel">
+          ${buildChinaMapMarkup(session)}
+        </div>
+      </div>
+    </section>
+  `;
+
+  bindMapQuizTargetEvents();
+  document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+}
+
+function buildPronunciationSentenceMarkup(item, assessment) {
+  const tokens = assessment?.tokens || getPronunciationTokens(item.zh);
+  const showPinyin = state.session?.showPinyin ?? state.pronunciationShowPinyin;
+  const hanziMarkup = tokens.map(buildPronunciationHanziTokenMarkup).join("");
+  const pinyinMarkup = tokens.map(buildPronunciationPinyinTokenMarkup).join("");
+
+  return `
+    <div class="pronunciation-prompt">
+      <p class="pronunciation-hanzi-line chinese-text" lang="zh-CN">${hanziMarkup}</p>
+      ${showPinyin ? `<p class="pronunciation-pinyin-line">${pinyinMarkup}</p>` : ""}
+    </div>
+  `;
+}
+
+function buildPronunciationHanziTokenMarkup(token) {
+  if (token.type !== "word") {
+    return `<span class="pronunciation-punctuation">${escapeHtml(token.text)}</span>`;
+  }
+
+  const status = typeof token.recognized === "boolean"
+    ? token.recognized
+      ? "good correct-celebration"
+      : "missed"
+    : "pending";
+  const label = typeof token.recognized === "boolean"
+    ? `${token.text}: ${token.recognized ? "recognized" : "not recognized"}`
+    : token.text;
+
+  return `<span class="pronunciation-token ${status}" aria-label="${escapeHtml(label)}">${escapeHtml(token.text)}</span>`;
+}
+
+function buildPronunciationPinyinTokenMarkup(token) {
+  if (token.type !== "word") {
+    return `<span class="pronunciation-pinyin-punctuation">${escapeHtml(token.text)}</span>`;
+  }
+
+  const status = typeof token.recognized === "boolean"
+    ? token.recognized
+      ? "good"
+      : "missed"
+    : "pending";
+
+  return `<span class="pronunciation-pinyin-token ${status}">${escapeHtml(token.pinyin || "")}</span>`;
+}
+
+function getPronunciationTokens(value) {
+  hydrateWordDataFromWindow();
+  return tokenizeAnnotatedChinese(value).map((token) => {
+    if (token.type !== "word") {
+      return { type: "punctuation", text: token.text };
+    }
+
+    return {
+      type: "word",
+      text: token.text,
+      pinyin: token.entry?.pinyin || "",
+    };
+  });
+}
+
+function assessPronunciationTranscript(transcript, item) {
+  const normalizedTranscript = normalizeChinese(transcript);
+  let cursor = 0;
+  const tokens = getPronunciationTokens(item.zh).map((token) => {
+    if (token.type !== "word") {
+      return token;
+    }
+
+    const expected = normalizeChinese(token.text);
+    const foundAt = expected ? normalizedTranscript.indexOf(expected, cursor) : -1;
+    const recognized = foundAt >= 0;
+    if (recognized) {
+      cursor = foundAt + expected.length;
+    }
+
+    return {
+      ...token,
+      recognized,
+    };
+  });
+  const wordTokens = tokens.filter((token) => token.type === "word");
+  const goodCount = wordTokens.filter((token) => token.recognized).length;
+  const tokenCount = wordTokens.length;
+  const score = tokenCount ? goodCount / tokenCount : 0;
+
+  return {
+    mode: "pronunciation",
+    transcript,
+    normalizedTranscript,
+    tokens,
+    score,
+    correct: score >= ACCEPTANCE_THRESHOLD,
+    goodCount,
+    missedCount: tokenCount - goodCount,
+    tokenCount,
+  };
+}
+
+function getSpeechRecognitionConstructor() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function supportsSpeechRecognition() {
+  return Boolean(getSpeechRecognitionConstructor());
+}
+
+function stopPronunciationRecognition() {
+  pronunciationRecognitionRequestId += 1;
+  if (pronunciationRecognition) {
+    try {
+      pronunciationRecognition.abort?.();
+    } catch {
+      // Some browser implementations throw when aborting an idle recognizer.
+    }
+  }
+  pronunciationRecognition = null;
+
+  if (state.session?.type === "pronunciation") {
+    state.session.isListening = false;
+  }
+}
+
+function startPronunciationRecording() {
+  const session = state.session;
+  if (session?.type !== "pronunciation" || session.currentAssessment) {
+    return;
+  }
+
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+  if (!SpeechRecognition) {
+    session.recognitionError = "Speech recognition is not available in this browser. Try Chrome or Edge on an HTTPS page.";
+    render();
+    return;
+  }
+
+  stopSpeech();
+  stopPronunciationRecognition();
+  pronunciationRecognitionRequestId += 1;
+  const requestId = pronunciationRecognitionRequestId;
+  const recognition = new SpeechRecognition();
+  pronunciationRecognition = recognition;
+
+  recognition.lang = "zh-CN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 3;
+
+  session.isListening = true;
+  session.recognitionError = "";
+  render();
+
+  recognition.onresult = (event) => {
+    if (requestId !== pronunciationRecognitionRequestId) {
+      return;
+    }
+
+    const transcript = getSpeechRecognitionTranscript(event);
+    submitPronunciationTranscript(transcript);
+  };
+
+  recognition.onnomatch = () => {
+    handlePronunciationRecognitionError("No Chinese speech was recognized. Try the sentence again.", requestId);
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === "aborted") {
+      return;
+    }
+
+    const message = event.error === "not-allowed" || event.error === "service-not-allowed"
+      ? "Microphone permission was blocked for this site."
+      : event.error === "no-speech"
+        ? "No speech was detected. Try speaking a little closer to the microphone."
+        : "Speech recognition stopped before it could read the sentence.";
+    handlePronunciationRecognitionError(message, requestId);
+  };
+
+  recognition.onend = () => {
+    if (requestId !== pronunciationRecognitionRequestId) {
+      return;
+    }
+
+    pronunciationRecognition = null;
+    if (state.session === session && session.isListening) {
+      session.isListening = false;
+      render();
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    handlePronunciationRecognitionError("Speech recognition could not start. Try again in a moment.", requestId);
+  }
+}
+
+function getSpeechRecognitionTranscript(event) {
+  const results = event?.results ? Array.from(event.results) : [];
+  return results
+    .map((result) => result?.[0]?.transcript || "")
+    .join("")
+    .trim();
+}
+
+function handlePronunciationRecognitionError(message, requestId) {
+  if (requestId && requestId !== pronunciationRecognitionRequestId) {
+    return;
+  }
+
+  if (state.session?.type !== "pronunciation") {
+    return;
+  }
+
+  pronunciationRecognition = null;
+  state.session.isListening = false;
+  state.session.recognitionError = message;
+  render();
+}
+
+function submitPronunciationTranscript(transcript) {
+  const session = state.session;
+  if (session?.type !== "pronunciation" || session.currentAssessment) {
+    return;
+  }
+
+  const item = session.items[session.index];
+  const assessment = assessPronunciationTranscript(transcript, item);
+  session.currentAssessment = assessment;
+  session.isListening = false;
+  session.recognitionError = "";
+  session.answers.push({
+    ...assessment,
+    item,
+    itemIndex: session.index,
+  });
+  pronunciationRecognition = null;
+  render();
+}
+
+function buildChinaMapMarkup(session, options = {}) {
+  const current = session?.items?.[session.index] || null;
+  const assessment = session?.currentAssessment || null;
+  const targetKey = current ? mapTargetKey(current.kind, current.id) : "";
+  const selectedKey = assessment ? mapTargetKey(assessment.selectedKind, assessment.selectedId) : "";
+  const correctKey = assessment ? mapTargetKey(current.kind, current.id) : "";
+  const pulseTarget = assessment
+    ? getMapTargetByKindAndId(assessment.correct ? assessment.selectedKind : current.kind, assessment.correct ? assessment.selectedId : current.id)
+    : null;
+  const provinceMarkup = CHINA_PROVINCES.map((province) => {
+    const key = mapTargetKey("province", province.id);
+    const classes = [
+      "china-region",
+      key === targetKey && !assessment ? "active-target-type" : "",
+      key === selectedKey && !assessment?.correct ? "wrong-selection" : "",
+      key === correctKey && assessment ? "correct-target" : "",
+    ].filter(Boolean).join(" ");
+    const shape = province.circle
+      ? `<circle cx="${province.circle.cx}" cy="${province.circle.cy}" r="${province.circle.r}"></circle>`
+      : `<polygon points="${province.points}"></polygon>`;
+
+    return `
+      <g
+        class="${classes}"
+        role="button"
+        tabindex="${options.preview ? "-1" : "0"}"
+        data-map-target-kind="province"
+        data-map-target-id="${escapeHtml(province.id)}"
+        aria-label="选择${escapeHtml(province.name)}"
+      >
+        <title>${escapeHtml(province.name)} · ${escapeHtml(province.pinyin)}</title>
+        ${shape}
+      </g>
+    `;
+  }).join("");
+  const labelMarkup = CHINA_PROVINCES.map((province) => buildProvinceLabelMarkup(province)).join("");
+  const cityMarkup = CHINA_CITIES.map((city) => {
+    const key = mapTargetKey("city", city.id);
+    const classes = [
+      "map-city-pin",
+      key === targetKey && !assessment ? "active-target-type" : "",
+      key === selectedKey && !assessment?.correct ? "wrong-selection" : "",
+      key === correctKey && assessment ? "correct-target" : "",
+    ].filter(Boolean).join(" ");
+
+    return `
+      <g
+        class="${classes}"
+        role="button"
+        tabindex="${options.preview ? "-1" : "0"}"
+        data-map-target-kind="city"
+        data-map-target-id="${escapeHtml(city.id)}"
+        aria-label="选择${escapeHtml(city.name)}"
+      >
+        <title>${escapeHtml(city.name)} · ${escapeHtml(city.pinyin)}</title>
+        <circle class="city-pin-hit" cx="${city.x}" cy="${city.y}" r="12"></circle>
+        <circle class="city-pin-dot" cx="${city.x}" cy="${city.y}" r="4.8"></circle>
+        <circle class="city-pin-core" cx="${city.x}" cy="${city.y}" r="2"></circle>
+        <text x="${city.x + 8}" y="${city.y - 8}">${escapeHtml(city.name.replace(/市$/, ""))}</text>
+      </g>
+    `;
+  }).join("");
+  const pulseMarkup = pulseTarget
+    ? `<circle class="map-answer-pulse ${assessment.correct ? "correct" : "review"}" cx="${pulseTarget.x}" cy="${pulseTarget.y}" r="${pulseTarget.r}"></circle>`
+    : "";
+
+  return `
+    <div class="china-map-wrap">
+      <svg
+        class="china-map"
+        id="chinaMapQuiz"
+        viewBox="0 0 800 700"
+        role="img"
+        aria-label="中国地图定位练习"
+      >
+        <defs>
+          <filter id="mapShadow" x="-8%" y="-8%" width="116%" height="116%">
+            <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#0f172a" flood-opacity="0.12"></feDropShadow>
+          </filter>
+        </defs>
+        <rect class="map-ocean" x="0" y="0" width="800" height="700" rx="24"></rect>
+        <g class="china-land" filter="url(#mapShadow)">
+          ${provinceMarkup}
+        </g>
+        <g class="map-province-labels" aria-hidden="true">${labelMarkup}</g>
+        <g class="map-city-pins">${cityMarkup}</g>
+        ${pulseMarkup}
+        <g class="south-sea-inset" aria-hidden="true">
+          <rect x="650" y="600" width="112" height="72" rx="10"></rect>
+          <text x="706" y="618">南海诸岛</text>
+          <circle cx="680" cy="642" r="3"></circle>
+          <circle cx="705" cy="652" r="2.5"></circle>
+          <circle cx="730" cy="636" r="2.5"></circle>
+        </g>
+      </svg>
+      ${buildMapInfoBubbleMarkup()}
+    </div>
+  `;
+}
+
+function buildMapInfoBubbleMarkup() {
+  return `
+    <details class="map-info-bubble">
+      <summary aria-label="Map source information">
+        <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 17v-5"></path>
+          <path d="M12 8h.01"></path>
+          <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+        </svg>
+      </summary>
+      <div class="map-info-popover">
+        <strong>官方地图来源</strong>
+        <p>
+          参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
+          和 <a href="${CHINA_MAP_RULES_URL}" target="_blank" rel="noopener">${CHINA_MAP_RULES_LABEL}</a>。
+          本练习按省级行政区显示台湾省。
+        </p>
+        <p>交互热区用于学习定位，不替代权威标准地图。</p>
+      </div>
+    </details>
+  `;
+}
+
+function buildProvinceLabelMarkup(province) {
+  const lines = Array.isArray(province.label) ? province.label : [province.shortName || province.name];
+  const tspanMarkup = lines.map((line, index) => `
+    <tspan x="${province.labelX}" dy="${index === 0 ? 0 : 15}">${escapeHtml(line)}</tspan>
+  `).join("");
+
+  return `<text x="${province.labelX}" y="${province.labelY}" text-anchor="middle">${tspanMarkup}</text>`;
+}
+
+function bindMapQuizTargetEvents() {
+  const map = document.querySelector("#chinaMapQuiz");
+  if (!map) {
+    return;
+  }
+
+  map.addEventListener("click", (event) => {
+    const target = event.target.closest?.("[data-map-target-kind][data-map-target-id]");
+    if (!target) {
+      return;
+    }
+
+    submitMapQuizSelection(target.dataset.mapTargetKind, target.dataset.mapTargetId);
+  });
+
+  map.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const target = event.target.closest?.("[data-map-target-kind][data-map-target-id]");
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    submitMapQuizSelection(target.dataset.mapTargetKind, target.dataset.mapTargetId);
+  });
+}
+
+function submitMapQuizSelection(kind, id) {
+  const session = state.session;
+  if (session?.type !== "map" || session.currentAssessment) {
+    return;
+  }
+
+  const item = session.items[session.index];
+  const assessment = assessMapQuizSelection(kind, id, item);
+  session.currentAssessment = assessment;
+  session.answers.push({
+    ...assessment,
+    item,
+    itemIndex: session.index,
+  });
+  render();
+}
+
+function assessMapQuizSelection(kind, id, item) {
+  const selected = getMapTargetByKindAndId(kind, id);
+  const correct = Boolean(selected && kind === item.kind && id === item.id);
+
+  return {
+    mode: "map",
+    selectedKind: kind,
+    selectedId: id,
+    selectedName: selected?.name || "Unknown target",
+    selectedPinyin: selected?.pinyin || "",
+    answer: selected?.name || "",
+    score: correct ? 1 : 0,
+    correct,
+  };
+}
+
+function buildMapQuizFeedbackMarkup(assessment) {
+  const current = state.session.items[state.session.index];
+  const status = assessment.correct ? "good correct-celebration" : "review";
+  const title = assessment.correct ? "Correct" : "Wrong location";
+  const guidance = current.kind === "province"
+    ? "Province questions use the region shape."
+    : "City questions use the pin.";
+
+  return `
+    <section class="map-feedback ${status}" role="status" aria-live="polite">
+      <div>
+        <strong>${title}</strong>
+        <span>${escapeHtml(current.name)} · ${escapeHtml(current.pinyin)}</span>
+      </div>
+      ${
+        assessment.correct
+          ? ""
+          : `<p>You selected ${escapeHtml(assessment.selectedName)}. ${guidance}</p>`
+      }
+    </section>
+  `;
+}
+
+function getMapTargetByKindAndId(kind, id) {
+  if (kind === "province") {
+    const province = CHINA_PROVINCES.find((item) => item.id === id);
+    return province ? { ...province, x: province.labelX, y: province.labelY, r: province.circle?.r ? province.circle.r + 12 : 34 } : null;
+  }
+
+  if (kind === "city") {
+    const city = CHINA_CITIES.find((item) => item.id === id);
+    return city ? { ...city, r: 18 } : null;
+  }
+
+  return null;
+}
+
+function mapTargetKey(kind, id) {
+  return `${kind}:${id}`;
 }
 
 function renderVocabularySession() {
@@ -2093,6 +3000,265 @@ function renderResults() {
   });
 }
 
+function renderPronunciationResults() {
+  const result = state.result;
+  const average = result.answers.length
+    ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
+    : 0;
+  const percent = Math.round(average * 100);
+  const recognizedWords = result.answers.reduce((sum, answer) => sum + (answer.goodCount || 0), 0);
+  const totalWords = result.answers.reduce((sum, answer) => sum + (answer.tokenCount || 0), 0);
+  const weaknessStats = getPronunciationWeaknessStats(result.answers);
+  const rows = result.answers
+    .map((answer, index) => {
+      const missedWords = (answer.tokens || [])
+        .filter((token) => token.type === "word" && !token.recognized)
+        .map((token) => token.text)
+        .join("、");
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td class="chinese-text">${escapeHtml(answer.item.zh)}</td>
+          <td class="chinese-text">${escapeHtml(answer.transcript || "No speech recognized")}</td>
+          <td>${Math.round(answer.score * 100)}%</td>
+          <td>${escapeHtml(missedWords || "None")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel">
+      <div class="results-header">
+        <div>
+          <h2>Pronunciation Results</h2>
+          <p>${percent}% average recognition across ${result.answers.length} sentences.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Start another session</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to practice</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <strong>${percent}%</strong>
+          <span>Average recognized</span>
+        </div>
+        <div class="stat">
+          <strong>${recognizedWords}/${totalWords}</strong>
+          <span>Words recognized</span>
+        </div>
+        <div class="stat">
+          <strong>${selectedLevelLabels(result.levels)}</strong>
+          <span>Difficulty filter</span>
+        </div>
+        <div class="stat">
+          <strong>${formatTimer(result.elapsedSeconds || 0)}</strong>
+          <span>Session time</span>
+        </div>
+      </div>
+
+      <section class="pronunciation-breakdown">
+        <div class="vocab-section-heading">
+          <h3>Focus Areas</h3>
+          <span>Inferred from words the browser did not recognize</span>
+        </div>
+        <div class="pronunciation-breakdown-grid">
+          ${buildPronunciationWeaknessCard("Tones", weaknessStats.tones, "No missed tones yet")}
+          ${buildPronunciationWeaknessCard("Initials", weaknessStats.initials, "No missed initials yet")}
+          ${buildPronunciationWeaknessCard("Finals", weaknessStats.finals, "No missed finals yet")}
+        </div>
+      </section>
+
+      <div class="results-table-wrap pronunciation-results-table" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Expected</th>
+              <th>Recognized</th>
+              <th>Score</th>
+              <th>Missed words</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession").addEventListener("click", startPronunciationSession);
+  document.querySelector("#backToModes").addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    render();
+  });
+}
+
+function renderMapQuizResults() {
+  const result = state.result;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const total = result.answers.length;
+  const percent = total ? Math.round((correct / total) * 100) : 0;
+  const provinceCorrect = countMapAnswersByKind(result.answers, "province", true);
+  const provinceTotal = countMapAnswersByKind(result.answers, "province");
+  const cityCorrect = countMapAnswersByKind(result.answers, "city", true);
+  const cityTotal = countMapAnswersByKind(result.answers, "city");
+  const rows = result.answers.map((answer, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${answer.item.kind === "province" ? "省级行政区" : "城市"}</td>
+      <td class="chinese-text">${escapeHtml(answer.item.name)}</td>
+      <td>${escapeHtml(answer.item.pinyin)}</td>
+      <td>${escapeHtml(answer.selectedName || "No selection")}</td>
+      <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Review"}</td>
+    </tr>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel">
+      <div class="results-header">
+        <div>
+          <h2>Map Quiz Results</h2>
+          <p>${correct} correct out of ${total}; ${percent}% location accuracy.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Start another quiz</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to map</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <strong>${correct}/${total}</strong>
+          <span>Correct</span>
+        </div>
+        <div class="stat">
+          <strong>${provinceCorrect}/${provinceTotal}</strong>
+          <span>Province targets</span>
+        </div>
+        <div class="stat">
+          <strong>${cityCorrect}/${cityTotal}</strong>
+          <span>City pins</span>
+        </div>
+        <div class="stat">
+          <strong>${formatTimer(result.elapsedSeconds || 0)}</strong>
+          <span>Quiz time</span>
+        </div>
+      </div>
+
+      <div class="results-table-wrap map-results-table" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Type</th>
+              <th>Prompt</th>
+              <th>Pinyin</th>
+              <th>Your selection</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession").addEventListener("click", startMapQuizSession);
+  document.querySelector("#backToModes").addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    render();
+  });
+}
+
+function countMapAnswersByKind(answers, kind, correctOnly = false) {
+  return answers.filter((answer) => answer.item?.kind === kind && (!correctOnly || answer.correct)).length;
+}
+
+function buildPronunciationWeaknessCard(title, items, emptyText) {
+  const list = items.length
+    ? items.slice(0, 6).map((item) => `
+        <li>
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${item.count}</strong>
+        </li>
+      `).join("")
+    : `<li class="empty">${escapeHtml(emptyText)}</li>`;
+
+  return `
+    <div class="pronunciation-breakdown-card">
+      <h4>${escapeHtml(title)}</h4>
+      <ul class="pronunciation-metric-list">${list}</ul>
+    </div>
+  `;
+}
+
+function getPronunciationWeaknessStats(answers) {
+  const tones = new Map();
+  const initials = new Map();
+  const finals = new Map();
+
+  answers.forEach((answer) => {
+    (answer.tokens || []).forEach((token) => {
+      if (token.type !== "word" || token.recognized || !token.pinyin) {
+        return;
+      }
+
+      splitPinyinSyllables(normalizePinyinForCompare(token.pinyin)).forEach((syllable) => {
+        const parsed = parsePinyinSyllable(syllable);
+        incrementMapCount(tones, parsed.toneLabel);
+        incrementMapCount(initials, parsed.initial || "No initial");
+        incrementMapCount(finals, parsed.final || "No final");
+      });
+    });
+  });
+
+  return {
+    tones: mapCountsToSortedItems(tones),
+    initials: mapCountsToSortedItems(initials),
+    finals: mapCountsToSortedItems(finals),
+  };
+}
+
+function parsePinyinSyllable(syllable) {
+  const normalized = String(syllable || "").trim();
+  const toneMatch = normalized.match(/([1-5])$/);
+  const tone = toneMatch?.[1] || "5";
+  const base = normalized.replace(/[1-5]$/, "");
+  const initial = PINYIN_INITIALS.find((candidate) => base.startsWith(candidate)) || "";
+  const final = base.slice(initial.length);
+
+  return {
+    tone,
+    toneLabel: tone === "5" ? "Neutral tone" : `Tone ${tone}`,
+    initial,
+    final,
+  };
+}
+
+function incrementMapCount(map, key) {
+  if (!key) {
+    return;
+  }
+
+  map.set(key, (map.get(key) || 0) + 1);
+}
+
+function mapCountsToSortedItems(map) {
+  return [...map.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
 function renderVocabularyResults() {
   const result = state.result;
   if (result.quizMode === "meaning") {
@@ -2334,6 +3500,16 @@ function startActiveSession() {
     return;
   }
 
+  if (state.tool === "pronunciation") {
+    startPronunciationSession();
+    return;
+  }
+
+  if (state.tool === "map") {
+    startMapQuizSession();
+    return;
+  }
+
   if (state.tool === "history") {
     renderHistoryHome();
     return;
@@ -2347,6 +3523,7 @@ async function startSession() {
     return;
   }
 
+  stopPronunciationRecognition();
   stopSpeech();
   state.dataError = "";
   state.isLoadingSentences = true;
@@ -2390,12 +3567,90 @@ async function startSession() {
   }
 }
 
+async function startPronunciationSession() {
+  if (state.isLoadingSentences) {
+    return;
+  }
+
+  if (!supportsSpeechRecognition()) {
+    state.dataError = "Speech recognition is not available in this browser. Try Chrome or Edge on an HTTPS page.";
+    render();
+    return;
+  }
+
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.dataError = "";
+  state.isLoadingSentences = true;
+  render();
+
+  try {
+    await ensureSentenceData();
+  } catch {
+    state.dataError = "The sentence bank could not be loaded. Check your connection and try again.";
+    state.isLoadingSentences = false;
+    render();
+    return;
+  }
+
+  try {
+    await ensureWordData();
+  } catch {
+    // Word-level pinyin is used for richer feedback; the session can still run with character tokens.
+  }
+
+  state.isLoadingSentences = false;
+  const pool = shuffle(getPronunciationPool());
+  if (pool.length < PRONUNCIATION_SESSION_LENGTH) {
+    state.dataError = `Select at least ${PRONUNCIATION_SESSION_LENGTH} short sentences before starting a session.`;
+    render();
+    return;
+  }
+
+  state.result = null;
+  state.session = {
+    type: "pronunciation",
+    levels: [...state.selectedLevels],
+    showPinyin: state.pronunciationShowPinyin,
+    items: pool.slice(0, PRONUNCIATION_SESSION_LENGTH),
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    isListening: false,
+    recognitionError: "",
+    startedAt: Date.now(),
+  };
+
+  saveSettings();
+  render();
+}
+
+function startMapQuizSession() {
+  stopPronunciationRecognition();
+  stopSpeech();
+  const items = shuffle(CHINA_MAP_ITEMS).slice(0, MAP_QUIZ_SESSION_LENGTH);
+
+  state.result = null;
+  state.session = {
+    type: "map",
+    items,
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+
+  saveSettings();
+  render();
+}
+
 function startVocabularySession() {
   const selectedSet = getSelectedVocabularySet();
   if (!selectedSet?.words.length) {
     return;
   }
 
+  stopPronunciationRecognition();
   stopSpeech();
   const items = state.vocabularyOrder === "random"
     ? shuffle(selectedSet.words)
@@ -2655,6 +3910,42 @@ function nextQuestion() {
     return;
   }
 
+  if (session.type === "pronunciation") {
+    stopPronunciationRecognition();
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      stopSpeech();
+      render();
+      return;
+    }
+
+    session.index += 1;
+    session.currentAssessment = null;
+    session.recognitionError = "";
+    session.isListening = false;
+    render();
+    return;
+  }
+
+  if (session.type === "map") {
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      render();
+      return;
+    }
+
+    session.index += 1;
+    session.currentAssessment = null;
+    render();
+    return;
+  }
+
   if (session.index + 1 >= sessionLength) {
     const result = buildSessionResult(
       session.type === "vocabulary"
@@ -2683,6 +3974,14 @@ function finishSessionEarly() {
   if (session?.type === "vocabulary") {
     finishVocabularySession("ended");
     return;
+  }
+
+  if (session?.type === "pronunciation") {
+    stopPronunciationRecognition();
+  }
+
+  if (session?.type === "map") {
+    stopSpeech();
   }
 
   if (!session.answers.length) {
@@ -2734,6 +4033,30 @@ function buildSessionResult(session) {
       elapsedSeconds,
       finishReason: session.finishReason || "ended",
       timeLimitSeconds: session.timeLimitSeconds,
+    };
+  }
+
+  if (session.type === "pronunciation") {
+    const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+    return {
+      type: "pronunciation",
+      levels: session.levels,
+      showPinyin: session.showPinyin,
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds,
+      total: session.items.length,
+    };
+  }
+
+  if (session.type === "map") {
+    const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+    return {
+      type: "map",
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds,
+      total: session.items.length,
     };
   }
 
@@ -2809,6 +4132,62 @@ function buildHistoryRecord(result) {
       highScoreEligible: stats.highScoreEligible,
       timeLimitSeconds: result.timeLimitSeconds,
       answers: answerRows,
+    };
+  }
+
+  if (result.type === "pronunciation") {
+    const averageScore = result.answers.length
+      ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
+      : 0;
+    const weaknesses = getPronunciationWeaknessStats(result.answers);
+
+    return {
+      id,
+      type: "pronunciation",
+      completedAt,
+      levels: result.levels,
+      total: result.answers.length,
+      averageScore,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      weaknesses,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        zh: answer.item.zh,
+        en: answer.item.en,
+        transcript: answer.transcript || "",
+        score: answer.score,
+        recognizedWords: answer.goodCount || 0,
+        totalWords: answer.tokenCount || 0,
+        missedWords: (answer.tokens || [])
+          .filter((token) => token.type === "word" && !token.recognized)
+          .map((token) => ({
+            text: token.text,
+            pinyin: token.pinyin || "",
+          })),
+      })),
+    };
+  }
+
+  if (result.type === "map") {
+    const correct = result.answers.filter((answer) => answer.correct).length;
+
+    return {
+      id,
+      type: "map",
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        prompt: answer.item.name,
+        kind: answer.item.kind,
+        pinyin: answer.item.pinyin,
+        selected: answer.selectedName,
+        selectedKind: answer.selectedKind,
+        correct: answer.correct,
+        score: answer.score,
+      })),
     };
   }
 
@@ -3861,6 +5240,18 @@ function getFilteredPool() {
   return SENTENCES.filter((item) => state.selectedLevels.has(item.level));
 }
 
+function getPronunciationPool() {
+  return getFilteredPool().filter((item) => {
+    const hanCount = countHanCharacters(item.zh);
+    return hanCount > 0 && hanCount <= PRONUNCIATION_MAX_HAN_LENGTH;
+  });
+}
+
+function getSelectedPronunciationSentenceCount() {
+  hydrateSentenceDataFromWindow();
+  return sentenceDataLoaded ? getPronunciationPool().length : getSelectedSentenceCount();
+}
+
 function getSelectedSentenceCount() {
   return [...state.selectedLevels].reduce((total, level) => total + (SENTENCE_COUNTS[level] || 0), 0);
 }
@@ -3896,6 +5287,10 @@ function clamp(value, min, max) {
 
 function containsChinese(value) {
   return [...String(value)].some(isChineseCharacter);
+}
+
+function countHanCharacters(value) {
+  return [...String(value)].filter(isChineseCharacter).length;
 }
 
 function isChineseText(value) {

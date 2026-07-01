@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="A simplified Mandarin trainer for listening, writing, and reading practice.">
+    <meta name="description" content="A simplified Mandarin trainer for pronunciation, map, listening, writing, reading, and vocabulary practice.">
     <meta name="theme-color" content="#f7f8fb">
     <meta property="og:title" content="Chinese Trainer">
-    <meta property="og:description" content="30-sentence simplified Mandarin practice sessions for listening, writing, and reading.">
+    <meta property="og:description" content="Simplified Mandarin practice sessions for pronunciation, maps, listening, writing, reading, and vocabulary.">
     <meta property="og:type" content="website">
     <title>Chinese Trainer</title>
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
@@ -25,7 +25,7 @@
           <img class="brand-mark" src="./assets/icon.svg" alt="" aria-hidden="true">
           <div>
             <h1>Chinese Trainer</h1>
-            <p>Sentence drills and vocabulary quizzes</p>
+            <p>Pronunciation, maps, sentence drills, and vocabulary quizzes</p>
           </div>
         </div>
 
@@ -38,6 +38,26 @@
               <path d="M19 8h1a2 2 0 0 1 2 2v11h-3"></path>
             </svg>
             <span class="tool-tab-label">Vocabulary Quiz</span>
+          </button>
+          <button class="tool-tab" type="button" data-tool="pronunciation">
+            <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path>
+              <path d="M5 10v1a7 7 0 0 0 14 0v-1"></path>
+              <path d="M12 18v3"></path>
+              <path d="M8 21h8"></path>
+            </svg>
+            <span class="tool-tab-label">Pronunciation</span>
+          </button>
+          <button class="tool-tab" type="button" data-tool="map">
+            <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+              <path d="M9 3v15"></path>
+              <path d="M15 6v15"></path>
+              <path d="M6.5 9.5h.01"></path>
+              <path d="M12 12h.01"></path>
+              <path d="M17.5 8.5h.01"></path>
+            </svg>
+            <span class="tool-tab-label">Map Quiz</span>
           </button>
           <button class="tool-tab" type="button" data-tool="drill">
             <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -74,7 +94,7 @@
         <details class="global-options" aria-label="Global options">
           <summary class="options-summary">Options</summary>
           <div class="options-body">
-            <div class="option-group drill-only">
+            <div class="option-group sentence-bank-only">
               <span class="option-label">Difficulty filter</span>
               <div class="check-row" id="levelOptions"></div>
             </div>
@@ -101,6 +121,14 @@
               <label class="level-check vocabulary-translation-check">
                 <input type="checkbox" id="vocabularyHideTranslations">
                 Hide until answered
+              </label>
+            </div>
+
+            <div class="option-group pronunciation-only">
+              <span class="option-label">Prompt text</span>
+              <label class="level-check">
+                <input type="checkbox" id="pronunciationShowPinyin">
+                Show pinyin
               </label>
             </div>
           </div>

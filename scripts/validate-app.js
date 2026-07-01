@@ -91,14 +91,21 @@ vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
+  CHINA_CITIES,
+  CHINA_MAP_ITEMS,
+  CHINA_PROVINCES,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
+  assessMapQuizSelection,
   assessVocabularyAnswer,
+  assessPronunciationTranscript,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
   buildHighScoreCelebration,
+  buildChinaMapMarkup,
+  buildPronunciationSentenceMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -117,6 +124,7 @@ window.__tests = {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getPronunciationWeaknessStats,
   formatTimer,
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
@@ -125,6 +133,7 @@ window.__tests = {
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
+  parsePinyinSyllable,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -138,14 +147,21 @@ window.__tests = {
 };`, context, { filename: "app.js" });
 
 const {
+  CHINA_CITIES,
+  CHINA_MAP_ITEMS,
+  CHINA_PROVINCES,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
+  assessMapQuizSelection,
   assessVocabularyAnswer,
+  assessPronunciationTranscript,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
   buildHighScoreCelebration,
+  buildChinaMapMarkup,
+  buildPronunciationSentenceMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -164,6 +180,7 @@ const {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getPronunciationWeaknessStats,
   formatTimer,
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
@@ -172,6 +189,7 @@ const {
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
+  parsePinyinSyllable,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -207,8 +225,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz before Sentence Drills",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Map Quiz|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Pronunciation, Map Quiz, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -217,6 +235,40 @@ assert(
 assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
+);
+assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 province-level targets");
+assert(CHINA_CITIES.length >= 30, "map quiz should include city pin targets");
+assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");
+assert(
+  CHINA_PROVINCES.some((item) => item.name === "新疆维吾尔自治区") &&
+    CHINA_PROVINCES.some((item) => item.name === "台湾省") &&
+    CHINA_PROVINCES.some((item) => item.name === "香港特别行政区") &&
+    CHINA_PROVINCES.some((item) => item.name === "澳门特别行政区"),
+  "map quiz should use official Chinese province-level names",
+);
+const guangdongProvince = CHINA_PROVINCES.find((item) => item.name === "广东省");
+const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");
+assert(guangdongProvince, "map data should include 广东省");
+assert(guangzhouCity, "map data should include 广州市");
+const mapMarkup = buildChinaMapMarkup({ type: "map", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
+assert(mapMarkup.includes("china-map"), "map quiz should render an SVG map");
+assert(mapMarkup.includes('data-map-target-kind="province"'), "map quiz should render province region targets");
+assert(mapMarkup.includes('data-map-target-kind="city"'), "map quiz should render city pin targets");
+assert(mapMarkup.includes("南海诸岛"), "map quiz should include a South China Sea islands inset label");
+assert(mapMarkup.includes("map-info-bubble"), "map quiz should include a discreet official-source info bubble");
+assert(mapMarkup.includes("自然资源部标准地图服务"), "map source bubble should link to the official standard map service");
+assert(mapMarkup.includes("按省级行政区显示台湾省"), "map source bubble should state Taiwan is shown as a province-level unit");
+assert(
+  assessMapQuizSelection("province", guangdongProvince.id, { ...guangdongProvince, kind: "province" }).correct,
+  "province questions should be correct when the matching province is selected",
+);
+assert(
+  !assessMapQuizSelection("city", guangzhouCity.id, { ...guangdongProvince, kind: "province" }).correct,
+  "province questions should not accept clicking a city pin",
+);
+assert(
+  assessMapQuizSelection("city", guangzhouCity.id, { ...guangzhouCity, kind: "city" }).correct,
+  "city questions should be correct when the matching city pin is selected",
 );
 const trashIcon = trashIconMarkup();
 assert(trashIcon.includes("<svg"), "clear history should use a trash can icon");
@@ -520,6 +572,70 @@ assert(
   correctDrillFeedbackMarkup.includes("feedback good correct-celebration"),
   "correct sentence drill feedback should animate",
 );
+
+const pronunciationItem = { zh: "我爱你。", en: "I love you.", level: "beginner" };
+const perfectPronunciation = assessPronunciationTranscript("我爱你", pronunciationItem);
+assert(perfectPronunciation.score === 1, "perfect pronunciation transcripts should recognize all words");
+assert(
+  perfectPronunciation.tokens.filter((token) => token.type === "word").every((token) => token.recognized),
+  "perfect pronunciation transcripts should mark each word recognized",
+);
+const partialPronunciation = assessPronunciationTranscript("我", pronunciationItem);
+assert(partialPronunciation.goodCount === 1, "partial pronunciation transcripts should count recognized words");
+assert(partialPronunciation.missedCount === 2, "partial pronunciation transcripts should count missed words");
+const pronunciationMarkup = buildPronunciationSentenceMarkup(pronunciationItem, partialPronunciation);
+assert(pronunciationMarkup.includes("pronunciation-token good"), "recognized pronunciation words should render green");
+assert(pronunciationMarkup.includes("pronunciation-token missed"), "missed pronunciation words should render red");
+assert(pronunciationMarkup.includes("pronunciation-pinyin-line"), "pronunciation prompts should optionally include pinyin");
+const pronunciationWeaknesses = getPronunciationWeaknessStats([partialPronunciation]);
+assert(
+  pronunciationWeaknesses.tones.some((item) => item.label === "Tone 4"),
+  "missed pronunciation words should contribute tone weaknesses",
+);
+assert(
+  pronunciationWeaknesses.initials.some((item) => item.label === "n"),
+  "missed pronunciation words should contribute initial weaknesses",
+);
+assert(
+  pronunciationWeaknesses.finals.some((item) => item.label === "ai"),
+  "missed pronunciation words should contribute final weaknesses",
+);
+const parsedZhInitial = parsePinyinSyllable("zhong1");
+assert(parsedZhInitial.initial === "zh", "pinyin parsing should prefer compound initials");
+assert(parsedZhInitial.final === "ong", "pinyin parsing should extract finals");
+assert(parsedZhInitial.toneLabel === "Tone 1", "pinyin parsing should expose tone labels");
+const pronunciationRecord = buildHistoryRecord({
+  type: "pronunciation",
+  levels: ["beginner"],
+  answers: [{ ...partialPronunciation, item: pronunciationItem, itemIndex: 0 }],
+  elapsedSeconds: 18,
+});
+assert(pronunciationRecord.type === "pronunciation", "pronunciation history should store pronunciation records");
+assert(pronunciationRecord.answers[0].missedWords.length === 2, "pronunciation history should store missed words");
+assert(pronunciationRecord.weaknesses.tones.length > 0, "pronunciation history should store weakness summaries");
+const mapRecord = buildHistoryRecord({
+  type: "map",
+  answers: [
+    {
+      item: { ...guangdongProvince, kind: "province" },
+      selectedName: "广东省",
+      selectedKind: "province",
+      correct: true,
+      score: 1,
+    },
+    {
+      item: { ...guangzhouCity, kind: "city" },
+      selectedName: "广东省",
+      selectedKind: "province",
+      correct: false,
+      score: 0,
+    },
+  ],
+  elapsedSeconds: 25,
+});
+assert(mapRecord.type === "map", "map quiz history should store map records");
+assert(mapRecord.correct === 1 && mapRecord.total === 2, "map quiz history should store score totals");
+assert(mapRecord.answers[1].pinyin === guangzhouCity.pinyin, "map quiz history should store pinyin");
 
 const fallbackChineseVoice = {
   lang: "zh-TW",

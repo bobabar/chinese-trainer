@@ -7,6 +7,7 @@ const FILES = [
   "index.html",
   "app.js",
   "styles.css",
+  "amap-config.js",
   "sentence-data.js",
   "word-data.js",
   "vocab-data.js",
@@ -23,6 +24,7 @@ FILES.forEach((file) => {
 });
 
 copyDirectory(path.join(ROOT, "assets"), path.join(OUT_DIR, "assets"));
+writeAmapConfig(path.join(OUT_DIR, "amap-config.js"));
 
 console.log(`Built static site in ${path.relative(ROOT, OUT_DIR)}/`);
 
@@ -42,4 +44,33 @@ function copyDirectory(from, to) {
       fs.copyFileSync(source, target);
     }
   });
+}
+
+function writeAmapConfig(target) {
+  const gaodeMapKey = firstEnv([
+    "GAODE_MAP_KEY",
+    "AMAP_KEY",
+    "AMAP_MAP_KEY",
+    "VITE_GAODE_MAP_KEY",
+    "VITE_AMAP_KEY",
+  ]);
+  const gaodeSecurityJsCode = firstEnv([
+    "GAODE_SECURITY_JS_CODE",
+    "GAODE_MAP_SECURITY_CODE",
+    "GAODE_MAP_WEB_SECRET_KEY",
+    "AMAP_SECURITY_JS_CODE",
+    "AMAP_SECURITY_CODE",
+    "VITE_GAODE_SECURITY_JS_CODE",
+    "VITE_AMAP_SECURITY_JS_CODE",
+  ]);
+  const config = { gaodeMapKey, gaodeSecurityJsCode };
+
+  fs.writeFileSync(
+    target,
+    `window.CHINESE_TRAINER_CONFIG = ${JSON.stringify(config)};\n`,
+  );
+}
+
+function firstEnv(names) {
+  return names.map((name) => process.env[name]).find(Boolean) || "";
 }

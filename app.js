@@ -52,7 +52,7 @@ const TOOLS = {
     label: "Pronunciation",
   },
   map: {
-    label: "Map Quiz",
+    label: "Province & City Quiz",
   },
   drill: {
     label: "Sentence Drills",
@@ -128,6 +128,12 @@ const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
 const MAP_QUIZ_SESSION_LENGTH = 20;
+const CHINA_MAP_AUDIT_NUMBER = "GS(2023)2767号";
+const GAODE_JS_API_URL = "https://webapi.amap.com/maps";
+const GAODE_JS_API_VERSION = "2.0";
+const GAODE_MAP_CENTER = [104.1954, 35.8617];
+const GAODE_MAP_ZOOM = 4.25;
+const GAODE_MAP_PLUGINS = ["AMap.Geocoder", "AMap.DistrictSearch", "AMap.Scale"];
 const CHINA_MAP_SOURCE_URL = "http://bzdt.ch.mnr.gov.cn/index.html";
 const CHINA_MAP_SOURCE_LABEL = "自然资源部标准地图服务";
 const CHINA_MAP_RULES_URL = "https://www.mfa.gov.cn/web/wjb_673085/zzjg_673183/bjhysws_674671/bhflfg/dtdmxgfl/202303/P020230313585504979937.pdf";
@@ -169,40 +175,40 @@ const CHINA_PROVINCES = [
   { id: "macao", name: "澳门特别行政区", shortName: "澳门", pinyin: "Àomén Tèbié Xíngzhèngqū", label: ["澳门"], labelX: 560, labelY: 635, circle: { cx: 560, cy: 635, r: 7 } },
 ];
 const CHINA_CITIES = [
-  { id: "beijing-city", provinceId: "beijing", name: "北京市", pinyin: "Běijīng Shì", x: 570, y: 285 },
-  { id: "tianjin-city", provinceId: "tianjin", name: "天津市", pinyin: "Tiānjīn Shì", x: 594, y: 300 },
-  { id: "shijiazhuang", provinceId: "hebei", name: "石家庄市", pinyin: "Shíjiāzhuāng Shì", x: 552, y: 332 },
-  { id: "taiyuan", provinceId: "shanxi", name: "太原市", pinyin: "Tàiyuán Shì", x: 505, y: 333 },
-  { id: "hohhot", provinceId: "neimenggu", name: "呼和浩特市", pinyin: "Hūhéhàotè Shì", x: 495, y: 238 },
-  { id: "shenyang", provinceId: "liaoning", name: "沈阳市", pinyin: "Shěnyáng Shì", x: 650, y: 265 },
-  { id: "changchun", provinceId: "jilin", name: "长春市", pinyin: "Chángchūn Shì", x: 675, y: 212 },
-  { id: "haerbin", provinceId: "heilongjiang", name: "哈尔滨市", pinyin: "Hā'ěrbīn Shì", x: 705, y: 145 },
-  { id: "shanghai-city", provinceId: "shanghai", name: "上海市", pinyin: "Shànghǎi Shì", x: 690, y: 455 },
-  { id: "nanjing", provinceId: "jiangsu", name: "南京市", pinyin: "Nánjīng Shì", x: 632, y: 424 },
-  { id: "hangzhou", provinceId: "zhejiang", name: "杭州市", pinyin: "Hángzhōu Shì", x: 645, y: 492 },
-  { id: "hefei", provinceId: "anhui", name: "合肥市", pinyin: "Héféi Shì", x: 592, y: 456 },
-  { id: "fuzhou", provinceId: "fujian", name: "福州市", pinyin: "Fúzhōu Shì", x: 625, y: 555 },
-  { id: "nanchang", provinceId: "jiangxi", name: "南昌市", pinyin: "Nánchāng Shì", x: 558, y: 530 },
-  { id: "jinan", provinceId: "shandong", name: "济南市", pinyin: "Jǐnán Shì", x: 625, y: 370 },
-  { id: "zhengzhou", provinceId: "henan", name: "郑州市", pinyin: "Zhèngzhōu Shì", x: 548, y: 410 },
-  { id: "wuhan", provinceId: "hubei", name: "武汉市", pinyin: "Wǔhàn Shì", x: 522, y: 468 },
-  { id: "changsha", provinceId: "hunan", name: "长沙市", pinyin: "Chángshā Shì", x: 525, y: 550 },
-  { id: "guangzhou", provinceId: "guangdong", name: "广州市", pinyin: "Guǎngzhōu Shì", x: 555, y: 617 },
-  { id: "nanning", provinceId: "guangxi", name: "南宁市", pinyin: "Nánníng Shì", x: 455, y: 596 },
-  { id: "haikou", provinceId: "hainan", name: "海口市", pinyin: "Hǎikǒu Shì", x: 520, y: 670 },
-  { id: "chengdu", provinceId: "sichuan", name: "成都市", pinyin: "Chéngdū Shì", x: 410, y: 455 },
-  { id: "chongqing-city", provinceId: "chongqing", name: "重庆市", pinyin: "Chóngqìng Shì", x: 470, y: 488 },
-  { id: "guiyang", provinceId: "guizhou", name: "贵阳市", pinyin: "Guìyáng Shì", x: 458, y: 555 },
-  { id: "kunming", provinceId: "yunnan", name: "昆明市", pinyin: "Kūnmíng Shì", x: 375, y: 585 },
-  { id: "lasa", provinceId: "xizang", name: "拉萨市", pinyin: "Lāsà Shì", x: 240, y: 455 },
-  { id: "xian", provinceId: "shaanxi", name: "西安市", pinyin: "Xī'ān Shì", x: 462, y: 385 },
-  { id: "lanzhou", provinceId: "gansu", name: "兰州市", pinyin: "Lánzhōu Shì", x: 405, y: 315 },
-  { id: "xining", provinceId: "qinghai", name: "西宁市", pinyin: "Xīníng Shì", x: 360, y: 345 },
-  { id: "yinchuan", provinceId: "ningxia", name: "银川市", pinyin: "Yínchuān Shì", x: 458, y: 305 },
-  { id: "wulumuqi", provinceId: "xinjiang", name: "乌鲁木齐市", pinyin: "Wūlǔmùqí Shì", x: 165, y: 245 },
-  { id: "taibei", provinceId: "taiwan", name: "台北市", pinyin: "Táiběi Shì", x: 700, y: 565 },
-  { id: "xianggang", provinceId: "hongkong", name: "香港", pinyin: "Xiānggǎng", x: 585, y: 634 },
-  { id: "aomen", provinceId: "macao", name: "澳门", pinyin: "Àomén", x: 560, y: 635 },
+  { id: "beijing-city", provinceId: "beijing", name: "北京市", pinyin: "Běijīng Shì", lng: 116.4074, lat: 39.9042, x: 570, y: 285 },
+  { id: "tianjin-city", provinceId: "tianjin", name: "天津市", pinyin: "Tiānjīn Shì", lng: 117.201, lat: 39.0842, x: 594, y: 300 },
+  { id: "shijiazhuang", provinceId: "hebei", name: "石家庄市", pinyin: "Shíjiāzhuāng Shì", lng: 114.5149, lat: 38.0428, x: 552, y: 332 },
+  { id: "taiyuan", provinceId: "shanxi", name: "太原市", pinyin: "Tàiyuán Shì", lng: 112.5492, lat: 37.8706, x: 505, y: 333 },
+  { id: "hohhot", provinceId: "neimenggu", name: "呼和浩特市", pinyin: "Hūhéhàotè Shì", lng: 111.7492, lat: 40.8426, x: 495, y: 238 },
+  { id: "shenyang", provinceId: "liaoning", name: "沈阳市", pinyin: "Shěnyáng Shì", lng: 123.4315, lat: 41.8057, x: 650, y: 265 },
+  { id: "changchun", provinceId: "jilin", name: "长春市", pinyin: "Chángchūn Shì", lng: 125.3235, lat: 43.8171, x: 675, y: 212 },
+  { id: "haerbin", provinceId: "heilongjiang", name: "哈尔滨市", pinyin: "Hā'ěrbīn Shì", lng: 126.6424, lat: 45.756, x: 705, y: 145 },
+  { id: "shanghai-city", provinceId: "shanghai", name: "上海市", pinyin: "Shànghǎi Shì", lng: 121.4737, lat: 31.2304, x: 690, y: 455 },
+  { id: "nanjing", provinceId: "jiangsu", name: "南京市", pinyin: "Nánjīng Shì", lng: 118.7969, lat: 32.0603, x: 632, y: 424 },
+  { id: "hangzhou", provinceId: "zhejiang", name: "杭州市", pinyin: "Hángzhōu Shì", lng: 120.1551, lat: 30.2741, x: 645, y: 492 },
+  { id: "hefei", provinceId: "anhui", name: "合肥市", pinyin: "Héféi Shì", lng: 117.2272, lat: 31.8206, x: 592, y: 456 },
+  { id: "fuzhou", provinceId: "fujian", name: "福州市", pinyin: "Fúzhōu Shì", lng: 119.2965, lat: 26.0745, x: 625, y: 555 },
+  { id: "nanchang", provinceId: "jiangxi", name: "南昌市", pinyin: "Nánchāng Shì", lng: 115.8582, lat: 28.6829, x: 558, y: 530 },
+  { id: "jinan", provinceId: "shandong", name: "济南市", pinyin: "Jǐnán Shì", lng: 117.1201, lat: 36.6512, x: 625, y: 370 },
+  { id: "zhengzhou", provinceId: "henan", name: "郑州市", pinyin: "Zhèngzhōu Shì", lng: 113.6254, lat: 34.7466, x: 548, y: 410 },
+  { id: "wuhan", provinceId: "hubei", name: "武汉市", pinyin: "Wǔhàn Shì", lng: 114.3055, lat: 30.5928, x: 522, y: 468 },
+  { id: "changsha", provinceId: "hunan", name: "长沙市", pinyin: "Chángshā Shì", lng: 112.9388, lat: 28.2282, x: 525, y: 550 },
+  { id: "guangzhou", provinceId: "guangdong", name: "广州市", pinyin: "Guǎngzhōu Shì", lng: 113.2644, lat: 23.1291, x: 555, y: 617 },
+  { id: "nanning", provinceId: "guangxi", name: "南宁市", pinyin: "Nánníng Shì", lng: 108.3669, lat: 22.817, x: 455, y: 596 },
+  { id: "haikou", provinceId: "hainan", name: "海口市", pinyin: "Hǎikǒu Shì", lng: 110.3312, lat: 20.031, x: 520, y: 670 },
+  { id: "chengdu", provinceId: "sichuan", name: "成都市", pinyin: "Chéngdū Shì", lng: 104.0665, lat: 30.5728, x: 410, y: 455 },
+  { id: "chongqing-city", provinceId: "chongqing", name: "重庆市", pinyin: "Chóngqìng Shì", lng: 106.5516, lat: 29.563, x: 470, y: 488 },
+  { id: "guiyang", provinceId: "guizhou", name: "贵阳市", pinyin: "Guìyáng Shì", lng: 106.6302, lat: 26.647, x: 458, y: 555 },
+  { id: "kunming", provinceId: "yunnan", name: "昆明市", pinyin: "Kūnmíng Shì", lng: 102.8329, lat: 24.8801, x: 375, y: 585 },
+  { id: "lasa", provinceId: "xizang", name: "拉萨市", pinyin: "Lāsà Shì", lng: 91.1322, lat: 29.6604, x: 240, y: 455 },
+  { id: "xian", provinceId: "shaanxi", name: "西安市", pinyin: "Xī'ān Shì", lng: 108.9398, lat: 34.3416, x: 462, y: 385 },
+  { id: "lanzhou", provinceId: "gansu", name: "兰州市", pinyin: "Lánzhōu Shì", lng: 103.8343, lat: 36.0611, x: 405, y: 315 },
+  { id: "xining", provinceId: "qinghai", name: "西宁市", pinyin: "Xīníng Shì", lng: 101.7782, lat: 36.6171, x: 360, y: 345 },
+  { id: "yinchuan", provinceId: "ningxia", name: "银川市", pinyin: "Yínchuān Shì", lng: 106.2309, lat: 38.4872, x: 458, y: 305 },
+  { id: "wulumuqi", provinceId: "xinjiang", name: "乌鲁木齐市", pinyin: "Wūlǔmùqí Shì", lng: 87.6168, lat: 43.8256, x: 165, y: 245 },
+  { id: "taibei", provinceId: "taiwan", name: "台北市", pinyin: "Táiběi Shì", lng: 121.5654, lat: 25.033, x: 700, y: 565 },
+  { id: "xianggang", provinceId: "hongkong", name: "香港", pinyin: "Xiānggǎng", lng: 114.1694, lat: 22.3193, x: 585, y: 634 },
+  { id: "aomen", provinceId: "macao", name: "澳门", pinyin: "Àomén", lng: 113.5439, lat: 22.1987, x: 560, y: 635 },
 ];
 const CHINA_MAP_ITEMS = [
   ...CHINA_PROVINCES.map((item) => ({ ...item, kind: "province" })),
@@ -217,6 +223,11 @@ let vocabularyTimerId = 0;
 let speechRequestId = 0;
 let pronunciationRecognition = null;
 let pronunciationRecognitionRequestId = 0;
+let gaodeMapLoadPromise = null;
+let gaodeMapInstance = null;
+let gaodeGeocoder = null;
+let gaodeDistrictSearch = null;
+let gaodeMapGeneration = 0;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
@@ -862,6 +873,10 @@ function isSimplifiedMandarinVoice(voice) {
 function render() {
   updateNavigationState();
 
+  if (state.tool !== "map" && gaodeMapInstance) {
+    destroyGaodeMap();
+  }
+
   if (state.result) {
     stopVocabularyTimer();
     if (state.result.type === "vocabulary") {
@@ -1037,10 +1052,6 @@ function renderPronunciationHome() {
 
       <div class="stat-grid pronunciation-home-stats">
         <div class="stat">
-          <strong>${PRONUNCIATION_SESSION_LENGTH}</strong>
-          <span>Sentences</span>
-        </div>
-        <div class="stat">
           <strong>${shortSentenceCount}</strong>
           <span>Short prompts in pool</span>
         </div>
@@ -1062,10 +1073,12 @@ function renderPronunciationHome() {
       `}
       ${state.dataError ? `<p class="empty-note error-note">${escapeHtml(state.dataError)}</p>` : ""}
 
-      <button class="primary-btn shortcut-btn" type="button" id="startPronunciationSession" ${hasEnoughSentences && !state.isLoadingSentences && recognitionAvailable ? "" : "disabled"}>
-        <span>${startLabel}</span>
-        ${shortcutHint("Enter")}
-      </button>
+      <div class="pronunciation-start-row">
+        <button class="primary-btn shortcut-btn" type="button" id="startPronunciationSession" ${hasEnoughSentences && !state.isLoadingSentences && recognitionAvailable ? "" : "disabled"}>
+          <span>${startLabel}</span>
+          ${shortcutHint("Enter")}
+        </button>
+      </div>
     </section>
   `;
 
@@ -1073,46 +1086,45 @@ function renderPronunciationHome() {
 }
 
 function renderMapQuizHome() {
+  destroyGaodeMap();
   app.innerHTML = `
-    <section class="workspace-panel map-home">
-      <div class="mode-heading">
-        <div>
-          <h2>China Map Quiz</h2>
-          <p>Learn official Chinese names by locating province-level regions and city pins on the map.</p>
-        </div>
-      </div>
+    <section class="workspace-panel map-quiz-workspace map-home">
+      ${buildMapToolbarMarkup({ isHome: true })}
 
-      <div class="map-home-grid">
-        <div class="map-home-copy">
-          <div class="task-preview map-preview" aria-hidden="true">
-            <div class="preview-cell">
-              <strong>图</strong>
-              <span>省级行政区 and city location practice</span>
-            </div>
-          </div>
-
-          <div class="stat-grid">
-            <div class="stat">
+      <div class="map-game-shell map-home-shell">
+        <aside class="map-question-panel map-home-panel">
+          <div class="map-score-card">
+            <div>
+              <span>Practice Set</span>
               <strong>${MAP_QUIZ_SESSION_LENGTH}</strong>
-              <span>Questions</span>
+              <small>Questions</small>
             </div>
-            <div class="stat">
-              <strong>${CHINA_PROVINCES.length}</strong>
-              <span>Province-level targets</span>
-            </div>
-            <div class="stat">
-              <strong>${CHINA_CITIES.length}</strong>
-              <span>City pins</span>
+            <div>
+              <span>Targets</span>
+              <strong>${CHINA_PROVINCES.length + CHINA_CITIES.length}</strong>
+              <small>Regions + pins</small>
             </div>
           </div>
 
-          <button class="primary-btn shortcut-btn" type="button" id="startMapQuizSession">
+          <div class="map-prompt-card">
+            <span>China Map</span>
+            <h2 class="map-prompt chinese-text" lang="zh-CN">中国地图</h2>
+            <p>Locate province-level regions and city pins using official Chinese names.</p>
+          </div>
+
+          <div class="map-answer-card map-source-note">
+            <strong>Official map base</strong>
+            <span>审图号 ${CHINA_MAP_AUDIT_NUMBER}</span>
+            <p>Gaode map tiles power the interactive quiz surface with official Chinese map labeling.</p>
+          </div>
+
+          <button class="primary-btn shortcut-btn map-next-btn" type="button" id="startMapQuizSession">
             <span>Start map quiz</span>
             ${shortcutHint("Enter")}
           </button>
-        </div>
+        </aside>
 
-        <div class="map-source-panel">
+        <div class="map-stage-panel">
           ${buildChinaMapMarkup({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true })}
         </div>
       </div>
@@ -1120,6 +1132,8 @@ function renderMapQuizHome() {
   `;
 
   document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
+  bindMapViewControls();
+  mountGaodeMap({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true });
 }
 
 function renderVocabularyHome() {
@@ -1652,46 +1666,70 @@ function renderMapQuizSession() {
   const current = session.items[session.index];
   const submitted = Boolean(session.currentAssessment);
   const sessionLength = session.items.length;
-  const progressPercent = Math.round((session.index / sessionLength) * 100);
   const correctCount = session.answers.filter((answer) => answer.correct).length;
+  const answeredCount = session.answers.length;
+  const progressPercent = Math.round((answeredCount / sessionLength) * 100);
+  const streak = getMapQuizStreak(session.answers);
   const promptType = current.kind === "province" ? "省级行政区" : "城市";
   const instruction = current.kind === "province"
-    ? "Click inside the province-level region, avoiding city pins."
-    : "Click the city pin inside its province-level region.";
+    ? "Select the correct region on the map."
+    : "Select the correct city pin on the map.";
   const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
+  const hintMarkup = !submitted && session.hintVisible
+    ? `<p class="map-hint-note">Hint: ${escapeHtml(current.pinyin)}</p>`
+    : "";
 
+  destroyGaodeMap();
   app.innerHTML = `
-    <section class="workspace-panel session-shell map-quiz-session">
-      <div class="progress-row">
-        <div class="progress-track" aria-hidden="true">
-          <div class="progress-fill" style="width: ${progressPercent}%"></div>
-        </div>
-        <span class="progress-label">Question ${session.index + 1} of ${sessionLength}</span>
-      </div>
+    <section class="workspace-panel session-shell map-quiz-workspace map-quiz-session">
+      ${buildMapToolbarMarkup({ isSession: true })}
 
-      <div class="map-quiz-layout">
+      <div class="map-game-shell">
         <aside class="map-question-panel">
-          <span class="sentence-label">${promptType}</span>
-          <h2 class="map-prompt chinese-text" lang="zh-CN">${escapeHtml(current.name)}</h2>
-          <p>${instruction}</p>
-
-          <div class="quiz-mini-stats">
+          <div class="map-score-card">
             <div>
-              <strong>${correctCount}/${session.answers.length || 0}</strong>
-              <span>Correct</span>
+              <span>Score</span>
+              <strong>${correctCount}/${sessionLength}</strong>
+              <small>${progressPercent}% answered</small>
             </div>
             <div>
-              <strong>${submitted ? escapeHtml(current.pinyin) : "Hidden"}</strong>
-              <span>Pinyin</span>
+              <span>Streak</span>
+              <strong>${streak}</strong>
+              <small>${streak >= 3 ? "On fire" : "Keep going"}</small>
+            </div>
+            <div class="map-progress-line" aria-hidden="true">
+              <span style="width: ${progressPercent}%"></span>
             </div>
           </div>
 
+          <p class="map-question-count">Question ${session.index + 1} of ${sessionLength}</p>
+
+          <div class="map-prompt-card">
+            <span>${promptType}</span>
+            <h2 class="map-prompt chinese-text" lang="zh-CN">${escapeHtml(current.name)}</h2>
+            <p>${instruction}</p>
+          </div>
+
+          ${
+            submitted
+              ? ""
+              : `<button class="secondary-btn map-hint-btn" type="button" id="showMapHint" ${session.hintVisible ? "disabled" : ""}>
+                  <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M9 18h6"></path>
+                    <path d="M10 22h4"></path>
+                    <path d="M8.5 14.5a6 6 0 1 1 7 0c-.8.6-1.5 1.4-1.5 2.5h-4c0-1.1-.7-1.9-1.5-2.5z"></path>
+                  </svg>
+                  <span>${session.hintVisible ? "Hint shown" : "Show hint"}</span>
+                </button>`
+          }
+          ${hintMarkup}
+
           ${feedback}
 
-          <div class="form-actions">
+          <div class="map-panel-actions">
             ${
               submitted
-                ? `<button class="primary-btn shortcut-btn" type="button" id="nextQuestion">
+                ? `<button class="primary-btn shortcut-btn map-next-btn" type="button" id="nextQuestion">
                     <span>${session.index + 1 === sessionLength ? "View results" : "Next question"}</span>
                     ${shortcutHint("Enter")}
                   </button>`
@@ -1701,16 +1739,53 @@ function renderMapQuizSession() {
           </div>
         </aside>
 
-        <div class="china-map-panel">
+        <div class="map-stage-panel">
           ${buildChinaMapMarkup(session)}
         </div>
       </div>
     </section>
   `;
 
-  bindMapQuizTargetEvents();
+  bindMapViewControls();
+  document.querySelector("#showMapHint")?.addEventListener("click", showMapHint);
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+  mountGaodeMap(session);
+}
+
+function buildMapToolbarMarkup({ isHome = false, isSession = false } = {}) {
+  return `
+    <div class="map-toolbar" aria-label="Map quiz controls">
+      <div class="map-toolbar-tabs" aria-label="Quiz view">
+        <button class="map-toolbar-tab active" type="button">Map Quiz</button>
+        <button class="map-toolbar-tab" type="button" disabled>List Quiz</button>
+      </div>
+      <span class="map-toolbar-chip">Level: Provinces & Cities</span>
+      <span class="map-toolbar-chip">Mode: China Map</span>
+      <span class="map-toolbar-chip">Options</span>
+    </div>
+  `;
+}
+
+function getMapQuizStreak(answers) {
+  let streak = 0;
+  for (let index = answers.length - 1; index >= 0; index -= 1) {
+    if (!answers[index]?.correct) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function showMapHint() {
+  if (state.session?.type !== "map" || state.session.currentAssessment) {
+    return;
+  }
+
+  state.session.hintVisible = true;
+  render();
 }
 
 function buildPronunciationSentenceMarkup(item, assessment) {
@@ -1959,99 +2034,374 @@ function submitPronunciationTranscript(transcript) {
 function buildChinaMapMarkup(session, options = {}) {
   const current = session?.items?.[session.index] || null;
   const assessment = session?.currentAssessment || null;
-  const targetKey = current ? mapTargetKey(current.kind, current.id) : "";
-  const selectedKey = assessment ? mapTargetKey(assessment.selectedKind, assessment.selectedId) : "";
-  const correctKey = assessment ? mapTargetKey(current.kind, current.id) : "";
-  const pulseTarget = assessment
-    ? getMapTargetByKindAndId(assessment.correct ? assessment.selectedKind : current.kind, assessment.correct ? assessment.selectedId : current.id)
-    : null;
-  const provinceMarkup = CHINA_PROVINCES.map((province) => {
-    const key = mapTargetKey("province", province.id);
-    const classes = [
-      "china-region",
-      key === targetKey && !assessment ? "active-target-type" : "",
-      key === selectedKey && !assessment?.correct ? "wrong-selection" : "",
-      key === correctKey && assessment ? "correct-target" : "",
-    ].filter(Boolean).join(" ");
-    const shape = province.circle
-      ? `<circle cx="${province.circle.cx}" cy="${province.circle.cy}" r="${province.circle.r}"></circle>`
-      : `<polygon points="${province.points}"></polygon>`;
-
-    return `
-      <g
-        class="${classes}"
-        role="button"
-        tabindex="${options.preview ? "-1" : "0"}"
-        data-map-target-kind="province"
-        data-map-target-id="${escapeHtml(province.id)}"
-        aria-label="选择${escapeHtml(province.name)}"
-      >
-        <title>${escapeHtml(province.name)} · ${escapeHtml(province.pinyin)}</title>
-        ${shape}
-      </g>
-    `;
-  }).join("");
-  const labelMarkup = CHINA_PROVINCES.map((province) => buildProvinceLabelMarkup(province)).join("");
-  const cityMarkup = CHINA_CITIES.map((city) => {
-    const key = mapTargetKey("city", city.id);
-    const classes = [
-      "map-city-pin",
-      key === targetKey && !assessment ? "active-target-type" : "",
-      key === selectedKey && !assessment?.correct ? "wrong-selection" : "",
-      key === correctKey && assessment ? "correct-target" : "",
-    ].filter(Boolean).join(" ");
-
-    return `
-      <g
-        class="${classes}"
-        role="button"
-        tabindex="${options.preview ? "-1" : "0"}"
-        data-map-target-kind="city"
-        data-map-target-id="${escapeHtml(city.id)}"
-        aria-label="选择${escapeHtml(city.name)}"
-      >
-        <title>${escapeHtml(city.name)} · ${escapeHtml(city.pinyin)}</title>
-        <circle class="city-pin-hit" cx="${city.x}" cy="${city.y}" r="12"></circle>
-        <circle class="city-pin-dot" cx="${city.x}" cy="${city.y}" r="4.8"></circle>
-        <circle class="city-pin-core" cx="${city.x}" cy="${city.y}" r="2"></circle>
-        <text x="${city.x + 8}" y="${city.y - 8}">${escapeHtml(city.name.replace(/市$/, ""))}</text>
-      </g>
-    `;
-  }).join("");
-  const pulseMarkup = pulseTarget
-    ? `<circle class="map-answer-pulse ${assessment.correct ? "correct" : "review"}" cx="${pulseTarget.x}" cy="${pulseTarget.y}" r="${pulseTarget.r}"></circle>`
-    : "";
+  const toastMarkup = assessment ? buildMapQuizToastMarkup(assessment) : "";
+  const targetClass = current?.kind === "city" ? "city-mode" : "province-mode";
+  const fallback = getGaodeConfig().key
+    ? `<div class="gaode-map-loading">Loading Gaode map...</div>`
+    : buildGaodeMissingKeyMarkup();
 
   return `
-    <div class="china-map-wrap">
-      <svg
-        class="china-map"
-        id="chinaMapQuiz"
-        viewBox="0 0 800 700"
-        role="img"
-        aria-label="中国地图定位练习"
-      >
-        <defs>
-          <filter id="mapShadow" x="-8%" y="-8%" width="116%" height="116%">
-            <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#0f172a" flood-opacity="0.12"></feDropShadow>
-          </filter>
-        </defs>
-        <rect class="map-ocean" x="0" y="0" width="800" height="700" rx="24"></rect>
-        <g class="china-land" filter="url(#mapShadow)">
-          ${provinceMarkup}
-        </g>
-        <g class="map-province-labels" aria-hidden="true">${labelMarkup}</g>
-        <g class="map-city-pins">${cityMarkup}</g>
-        ${pulseMarkup}
-        <g class="south-sea-inset" aria-hidden="true">
-          <rect x="650" y="600" width="112" height="72" rx="10"></rect>
-          <text x="706" y="618">南海诸岛</text>
-          <circle cx="680" cy="642" r="3"></circle>
-          <circle cx="705" cy="652" r="2.5"></circle>
-          <circle cx="730" cy="636" r="2.5"></circle>
-        </g>
-      </svg>
+    <div class="china-map-wrap ${targetClass}">
+      ${toastMarkup}
+      <div class="gaode-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
+        ${fallback}
+      </div>
+      <div class="map-control-stack" aria-label="Map view controls">
+        <button class="icon-btn" type="button" data-map-view="reset" aria-label="Reset map view">
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M3 11l9-8 9 8"></path>
+            <path d="M5 10v10h14V10"></path>
+            <path d="M9 20v-6h6v6"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" type="button" data-map-view="zoom-in" aria-label="Zoom in">+</button>
+        <button class="icon-btn" type="button" data-map-view="zoom-out" aria-label="Zoom out">−</button>
+      </div>
       ${buildMapInfoBubbleMarkup()}
+      <div class="map-legend-row" aria-label="Map answer legend">
+        <span><i class="legend-dot correct"></i>Correct</span>
+        <span><i class="legend-dot incorrect"></i>Incorrect</span>
+        <span><i class="legend-dot pending"></i>Not answered</span>
+      </div>
+      <p class="map-tip">Tip: click a province area or a city pin to select your answer.</p>
+    </div>
+  `;
+}
+
+function buildGaodeMissingKeyMarkup() {
+  return `
+    <div class="gaode-map-fallback">
+      <strong>Gaode map key not configured</strong>
+      <span>Add a browser JS API key through GitHub Secrets or local config and rebuild to load the live China map.</span>
+    </div>
+  `;
+}
+
+function getGaodeConfig() {
+  const config = window.CHINESE_TRAINER_CONFIG || {};
+  return {
+    key: [
+      config.gaodeMapKey,
+      config.amapKey,
+      config.gaodeKey,
+      window.GAODE_MAP_KEY,
+      window.AMAP_KEY,
+    ].find(Boolean) || "",
+    securityJsCode: [
+      config.gaodeSecurityJsCode,
+      config.amapSecurityJsCode,
+      config.gaodeMapSecurityCode,
+      window.GAODE_SECURITY_JS_CODE,
+      window.AMAP_SECURITY_JS_CODE,
+    ].find(Boolean) || "",
+  };
+}
+
+function loadGaodeMapApi() {
+  if (window.AMap?.Map) {
+    return Promise.resolve(window.AMap);
+  }
+
+  if (gaodeMapLoadPromise) {
+    return gaodeMapLoadPromise;
+  }
+
+  const config = getGaodeConfig();
+  if (!config.key) {
+    return Promise.reject(new Error("Missing Gaode map key"));
+  }
+
+  if (config.securityJsCode) {
+    window._AMapSecurityConfig = {
+      securityJsCode: config.securityJsCode,
+    };
+  }
+
+  gaodeMapLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector("#gaodeMapApi");
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.AMap), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Gaode map API failed to load")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    const params = new URLSearchParams({
+      v: GAODE_JS_API_VERSION,
+      key: config.key,
+      plugin: GAODE_MAP_PLUGINS.join(","),
+    });
+    script.id = "gaodeMapApi";
+    script.src = `${GAODE_JS_API_URL}?${params.toString()}`;
+    script.async = true;
+    script.onload = () => resolve(window.AMap);
+    script.onerror = () => reject(new Error("Gaode map API failed to load"));
+    document.head.appendChild(script);
+  });
+
+  return gaodeMapLoadPromise;
+}
+
+async function mountGaodeMap(session, options = {}) {
+  const canvas = document.querySelector("#chinaMapQuiz");
+  if (!canvas || !getGaodeConfig().key) {
+    return;
+  }
+
+  const generation = ++gaodeMapGeneration;
+  canvas.classList.add("is-loading");
+
+  try {
+    const AMap = await loadGaodeMapApi();
+    if (generation !== gaodeMapGeneration || !canvas.isConnected) {
+      return;
+    }
+
+    canvas.innerHTML = "";
+    const map = new AMap.Map(canvas, {
+      center: GAODE_MAP_CENTER,
+      zoom: GAODE_MAP_ZOOM,
+      zooms: [3.2, 8],
+      viewMode: "2D",
+      resizeEnable: true,
+      mapStyle: "amap://styles/normal",
+      features: ["bg", "road", "point"],
+    });
+
+    gaodeMapInstance = map;
+    gaodeGeocoder = new AMap.Geocoder({ city: "全国", radius: 1200 });
+    gaodeDistrictSearch = new AMap.DistrictSearch({
+      level: "province",
+      subdistrict: 0,
+      extensions: "all",
+    });
+
+    map.addControl(new AMap.Scale());
+    mountGaodeCityMarkers(AMap, map, session, options);
+    mountGaodeDistrictHighlights(AMap, map, session);
+    bindGaodeMapClick(map, session, options);
+    canvas.classList.remove("is-loading");
+  } catch (error) {
+    canvas.classList.remove("is-loading");
+    canvas.innerHTML = `
+      <div class="gaode-map-fallback">
+        <strong>Gaode map could not load</strong>
+        <span>${escapeHtml(error.message || "Check the map key and domain restrictions.")}</span>
+      </div>
+    `;
+  }
+}
+
+function destroyGaodeMap() {
+  gaodeMapGeneration += 1;
+  if (gaodeMapInstance) {
+    gaodeMapInstance.destroy();
+  }
+  gaodeMapInstance = null;
+  gaodeGeocoder = null;
+  gaodeDistrictSearch = null;
+}
+
+function mountGaodeCityMarkers(AMap, map, session, options = {}) {
+  const assessment = session?.currentAssessment || null;
+  const current = session?.items?.[session.index] || null;
+  const selectedKey = assessment ? mapTargetKey(assessment.selectedKind, assessment.selectedId) : "";
+  const correctKey = assessment && current ? mapTargetKey(current.kind, current.id) : "";
+  const hintKey = session?.hintVisible && current ? mapTargetKey(current.kind, current.id) : "";
+
+  CHINA_CITIES.forEach((city) => {
+    const key = mapTargetKey("city", city.id);
+    const classes = [
+      "gaode-city-marker",
+      key === mapTargetKey(current?.kind, current?.id) ? "is-current" : "",
+      key === hintKey ? "is-hint" : "",
+      key === selectedKey && !assessment?.correct ? "is-wrong" : "",
+      key === correctKey && assessment ? "is-correct" : "",
+    ].filter(Boolean).join(" ");
+    const marker = new AMap.Marker({
+      position: [city.lng, city.lat],
+      anchor: "center",
+      title: `${city.name} · ${city.pinyin}`,
+      content: `
+        <span class="${classes}" aria-label="${escapeHtml(city.name)}">
+          <span class="gaode-city-marker-dot"></span>
+          <span class="gaode-city-marker-label">${escapeHtml(city.name.replace(/市$/, ""))}</span>
+        </span>
+      `,
+      zIndex: key === correctKey || key === hintKey ? 120 : 80,
+    });
+
+    if (!options.preview) {
+      marker.on("click", (event) => {
+        event.originEvent?.stopPropagation?.();
+        submitMapQuizSelection("city", city.id);
+      });
+    }
+
+    map.add(marker);
+  });
+}
+
+function mountGaodeDistrictHighlights(AMap, map, session) {
+  const assessment = session?.currentAssessment || null;
+  const current = session?.items?.[session.index] || null;
+  const targets = [];
+
+  if (assessment && current?.kind === "province") {
+    targets.push({ provinceId: current.id, status: assessment.correct ? "correct" : "correct-answer" });
+  }
+  if (assessment?.selectedKind === "province" && assessment.selectedId !== current?.id) {
+    targets.push({ provinceId: assessment.selectedId, status: "wrong" });
+  }
+  if (!assessment && session?.hintVisible && current?.kind === "province") {
+    targets.push({ provinceId: current.id, status: "hint" });
+  }
+
+  targets.forEach(({ provinceId, status }) => {
+    const province = CHINA_PROVINCES.find((item) => item.id === provinceId);
+    if (!province || !gaodeDistrictSearch) {
+      return;
+    }
+
+    gaodeDistrictSearch.search(province.name, (searchStatus, result) => {
+      const boundaries = result?.districtList?.[0]?.boundaries || [];
+      if (searchStatus !== "complete" || !boundaries.length || gaodeMapInstance !== map) {
+        return;
+      }
+
+      const polygon = new AMap.Polygon({
+        path: boundaries,
+        bubble: true,
+        strokeColor: status === "wrong" ? "#e14b64" : "#0d9488",
+        strokeOpacity: 0.94,
+        strokeWeight: status === "hint" ? 2 : 3,
+        strokeStyle: status === "hint" ? "dashed" : "solid",
+        fillColor: status === "wrong" ? "#f43f5e" : "#14b8a6",
+        fillOpacity: status === "wrong" ? 0.16 : 0.22,
+        zIndex: status === "wrong" ? 90 : 100,
+      });
+      map.add(polygon);
+    });
+  });
+}
+
+function bindGaodeMapClick(map, session, options = {}) {
+  if (options.preview) {
+    return;
+  }
+
+  map.on("click", (event) => {
+    const activeSession = state.session;
+    if (activeSession?.type !== "map" || activeSession.currentAssessment) {
+      return;
+    }
+
+    const current = activeSession.items[activeSession.index];
+    if (!current) {
+      return;
+    }
+
+    reverseGeocodeProvince(event.lnglat)
+      .then((province) => {
+        if (!province) {
+          showMapStatus("Could not identify that province-level region. Try another spot.");
+          return;
+        }
+        submitMapQuizSelection("province", province.id);
+      })
+      .catch(() => {
+        showMapStatus("Could not identify that map location. Try again.");
+      });
+  });
+}
+
+function reverseGeocodeProvince(lnglat) {
+  if (!gaodeGeocoder) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve, reject) => {
+    gaodeGeocoder.getAddress(lnglat, (status, result) => {
+      if (status !== "complete") {
+        reject(new Error("Reverse geocode failed"));
+        return;
+      }
+
+      resolve(findProvinceFromAddressComponent(result?.regeocode?.addressComponent));
+    });
+  });
+}
+
+function findProvinceFromAddressComponent(component = {}) {
+  const candidates = [
+    component.province,
+    component.city,
+    component.district,
+    component.township,
+  ].flat().filter(Boolean);
+
+  for (const candidate of candidates) {
+    const normalized = normalizeMapRegionName(String(candidate));
+    const province = CHINA_PROVINCES.find((item) => {
+      const names = [item.name, item.shortName].map(normalizeMapRegionName);
+      return names.includes(normalized) ||
+        names.some((name) => normalized.includes(name) || name.includes(normalized));
+    });
+    if (province) {
+      return province;
+    }
+  }
+
+  return null;
+}
+
+function normalizeMapRegionName(value) {
+  return value
+    .replace(/\s+/g, "")
+    .replace(/特别行政区|维吾尔自治区|壮族自治区|回族自治区|自治区|省|市/g, "");
+}
+
+function showMapStatus(message) {
+  const tip = document.querySelector(".map-tip");
+  if (!tip) {
+    return;
+  }
+
+  tip.textContent = message;
+  tip.classList.add("attention");
+  window.setTimeout(() => tip.classList.remove("attention"), 1200);
+}
+
+function bindMapViewControls() {
+  document.querySelectorAll("[data-map-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!gaodeMapInstance) {
+        return;
+      }
+
+      if (button.dataset.mapView === "zoom-in") {
+        gaodeMapInstance.zoomIn();
+        return;
+      }
+
+      if (button.dataset.mapView === "zoom-out") {
+        gaodeMapInstance.zoomOut();
+        return;
+      }
+
+      gaodeMapInstance.setZoomAndCenter(GAODE_MAP_ZOOM, GAODE_MAP_CENTER);
+    });
+  });
+}
+
+function buildMapQuizToastMarkup(assessment) {
+  const current = state.session?.items?.[state.session.index];
+  const correct = assessment.correct;
+  return `
+    <div class="map-answer-toast ${correct ? "good" : "review"}" role="status" aria-live="polite">
+      <span class="map-answer-toast-icon" aria-hidden="true">${correct ? "✓" : "!"}</span>
+      <strong>${correct ? "Correct!" : "Wrong location"}</strong>
+      <span>${escapeHtml(current?.name || "")}</span>
     </div>
   `;
 }
@@ -2069,53 +2419,14 @@ function buildMapInfoBubbleMarkup() {
       <div class="map-info-popover">
         <strong>官方地图来源</strong>
         <p>
-          参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
+          地图底图由高德地图加载；边界和名称规则参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
           和 <a href="${CHINA_MAP_RULES_URL}" target="_blank" rel="noopener">${CHINA_MAP_RULES_LABEL}</a>。
           本练习按省级行政区显示台湾省。
         </p>
-        <p>交互热区用于学习定位，不替代权威标准地图。</p>
+        <p>本工具用于学习定位，不替代权威标准地图。</p>
       </div>
     </details>
   `;
-}
-
-function buildProvinceLabelMarkup(province) {
-  const lines = Array.isArray(province.label) ? province.label : [province.shortName || province.name];
-  const tspanMarkup = lines.map((line, index) => `
-    <tspan x="${province.labelX}" dy="${index === 0 ? 0 : 15}">${escapeHtml(line)}</tspan>
-  `).join("");
-
-  return `<text x="${province.labelX}" y="${province.labelY}" text-anchor="middle">${tspanMarkup}</text>`;
-}
-
-function bindMapQuizTargetEvents() {
-  const map = document.querySelector("#chinaMapQuiz");
-  if (!map) {
-    return;
-  }
-
-  map.addEventListener("click", (event) => {
-    const target = event.target.closest?.("[data-map-target-kind][data-map-target-id]");
-    if (!target) {
-      return;
-    }
-
-    submitMapQuizSelection(target.dataset.mapTargetKind, target.dataset.mapTargetId);
-  });
-
-  map.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-
-    const target = event.target.closest?.("[data-map-target-kind][data-map-target-id]");
-    if (!target) {
-      return;
-    }
-
-    event.preventDefault();
-    submitMapQuizSelection(target.dataset.mapTargetKind, target.dataset.mapTargetId);
-  });
 }
 
 function submitMapQuizSelection(kind, id) {
@@ -3637,6 +3948,7 @@ function startMapQuizSession() {
     index: 0,
     answers: [],
     currentAssessment: null,
+    hintVisible: false,
     startedAt: Date.now(),
   };
 
@@ -3942,6 +4254,7 @@ function nextQuestion() {
 
     session.index += 1;
     session.currentAssessment = null;
+    session.hintVisible = false;
     render();
     return;
   }

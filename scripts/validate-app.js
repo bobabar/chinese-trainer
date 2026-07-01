@@ -225,8 +225,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Map Quiz|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Pronunciation, Map Quiz, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Province & City Quiz|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Pronunciation, Province & City Quiz, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -251,10 +251,12 @@ const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");
 assert(guangdongProvince, "map data should include 广东省");
 assert(guangzhouCity, "map data should include 广州市");
 const mapMarkup = buildChinaMapMarkup({ type: "map", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
-assert(mapMarkup.includes("china-map"), "map quiz should render an SVG map");
-assert(mapMarkup.includes('data-map-target-kind="province"'), "map quiz should render province region targets");
-assert(mapMarkup.includes('data-map-target-kind="city"'), "map quiz should render city pin targets");
-assert(mapMarkup.includes("南海诸岛"), "map quiz should include a South China Sea islands inset label");
+assert(mapMarkup.includes("gaode-map-canvas"), "map quiz should render a Gaode map canvas");
+assert(mapMarkup.includes("Gaode map key not configured"), "map quiz should show a clear fallback when no map key is configured");
+assert(
+  CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
+  "map quiz city targets should include longitude and latitude for Gaode markers",
+);
 assert(mapMarkup.includes("map-info-bubble"), "map quiz should include a discreet official-source info bubble");
 assert(mapMarkup.includes("自然资源部标准地图服务"), "map source bubble should link to the official standard map service");
 assert(mapMarkup.includes("按省级行政区显示台湾省"), "map source bubble should state Taiwan is shown as a province-level unit");

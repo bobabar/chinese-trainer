@@ -565,11 +565,19 @@ body[data-tool="vocabulary"] .options-body {
   }
 
   body[data-tool="map"] .tool-controls::before {
-    content: "Map Quiz";
+    content: "Province & City Quiz";
   }
 
   body[data-tool="history"] .tool-controls::before {
     content: "History";
+  }
+
+  body[data-tool="map"] .tool-controls {
+    display: none;
+  }
+
+  body[data-tool="map"] .workspace {
+    padding-top: 22px;
   }
 
   .workspace {
@@ -588,13 +596,19 @@ body[data-tool="vocabulary"] .options-body {
     grid-template-columns: 1fr;
   }
 
-  .map-home-grid,
-  .map-quiz-layout {
+  .map-game-shell {
     grid-template-columns: 1fr;
   }
 
   .map-question-panel {
-    position: static;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .map-stage-panel,
+  .china-map-wrap,
+  .gaode-map-canvas {
+    min-height: 580px;
   }
 }
 
@@ -1419,108 +1433,347 @@ select {
   color: var(--theme);
 }
 
-.map-home-grid {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
-  gap: 18px;
-  align-items: stretch;
+.map-quiz-workspace {
+  overflow: hidden;
+  padding: 0;
+  background: #ffffff;
 }
 
-.map-home-copy {
-  display: grid;
-  gap: 16px;
-  align-content: start;
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 78px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
 }
 
-.map-source-panel,
-.china-map-panel {
-  display: grid;
-  min-width: 0;
+.map-toolbar-tabs {
+  display: inline-flex;
+  gap: 8px;
 }
 
-.map-quiz-layout {
+.map-toolbar-tab,
+.map-toolbar-chip,
+.map-toolbar-status {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.map-toolbar-tab {
+  padding: 0 20px;
+}
+
+.map-toolbar-tab.active {
+  border-color: var(--theme);
+  background: linear-gradient(180deg, #16a39a, #0d8f84);
+  color: white;
+  box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2);
+}
+
+.map-toolbar-tab:disabled {
+  opacity: 0.68;
+}
+
+.map-toolbar-chip,
+.map-toolbar-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.map-toolbar-status {
+  margin-left: auto;
+  color: var(--theme);
+}
+
+.map-game-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: 290px minmax(0, 1fr);
+  min-height: min(720px, calc(100vh - 72px));
 }
 
 .map-question-panel {
-  position: sticky;
-  top: 18px;
   display: grid;
+  align-content: start;
   gap: 14px;
-  padding: 16px;
+  padding: 20px 16px;
+  border-right: 1px solid var(--line);
+  background: #ffffff;
+  box-shadow: 10px 0 30px rgba(16, 24, 40, 0.035);
+}
+
+.map-score-card,
+.map-prompt-card,
+.map-answer-card,
+.map-fact-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
-.map-question-panel p {
+.map-score-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.map-score-card > div:not(.map-progress-line) {
+  min-width: 0;
+}
+
+.map-score-card > div:not(.map-progress-line) + div:not(.map-progress-line) {
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+
+.map-score-card span,
+.map-prompt-card span,
+.map-answer-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.map-score-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.map-score-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.map-progress-line {
+  grid-column: 1 / -1;
+  height: 8px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef2f6;
+}
+
+.map-progress-line span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d9488, #14b8a6);
+}
+
+.map-question-count {
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.map-prompt-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.map-prompt-card p,
+.map-answer-card p,
+.map-hint-note,
+.map-tip {
   margin: 0;
   color: var(--muted-strong);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 680;
   line-height: 1.45;
 }
 
 .map-prompt {
   margin: 0;
-  font-size: 36px;
-  line-height: 1.1;
+  font-size: 38px;
+  line-height: 1.05;
   letter-spacing: 0;
 }
 
-.quiz-mini-stats {
+.map-hint-btn {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.map-hint-note {
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-soft);
+  color: var(--theme-hover);
+  font-weight: 800;
+}
+
+.map-answer-card {
   display: grid;
-  grid-template-columns: 0.7fr 1.3fr;
+  gap: 8px;
+  padding: 14px;
+}
+
+.map-answer-card.good {
+  border-color: #a7dcca;
+  background: linear-gradient(180deg, #f2fcf7, #ffffff);
+}
+
+.map-answer-card.review {
+  border-color: #f0b8bf;
+  background: linear-gradient(180deg, #fff5f6, #ffffff);
+}
+
+.map-answer-card strong {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.map-answer-card .map-result-name {
+  color: var(--ink);
+  font-family: var(--chinese-font);
+  font-size: 26px;
+  font-weight: 850;
+}
+
+.map-panel-actions {
+  display: grid;
   gap: 10px;
 }
 
-.quiz-mini-stats > div {
+.map-next-btn {
+  width: 100%;
+}
+
+.map-stage-panel {
   min-width: 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.quiz-mini-stats strong,
-.quiz-mini-stats span {
-  display: block;
-}
-
-.quiz-mini-stats strong {
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.quiz-mini-stats span {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
+  min-height: 560px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.96)),
+    #f8fafc;
 }
 
 .china-map-wrap {
   position: relative;
+  height: 100%;
+  min-height: 560px;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 70% 20%, rgba(13, 148, 136, 0.08), transparent 32%),
-    #f8fbfc;
+  background: #f8fafc;
 }
 
-.china-map {
-  display: block;
+.gaode-map-canvas {
   width: 100%;
-  height: auto;
-  min-height: 360px;
+  height: 100%;
+  min-height: 560px;
+}
+
+.gaode-map-loading,
+.gaode-map-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 60% 28%, rgba(20, 184, 166, 0.12), transparent 36%),
+    #f8fafc;
+  color: var(--muted-strong);
+  text-align: center;
+  font-weight: 760;
+}
+
+.gaode-map-fallback strong {
+  display: block;
+  max-width: min(420px, calc(100% - 48px));
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.gaode-map-fallback span {
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.gaode-city-marker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  color: #0f766e;
+}
+
+.gaode-city-marker-dot {
+  display: block;
+  width: 15px;
+  height: 15px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow:
+    0 0 0 2px rgba(13, 148, 136, 0.38),
+    0 8px 16px rgba(15, 23, 42, 0.18);
+}
+
+.gaode-city-marker-label {
+  opacity: 0;
+  padding: 3px 6px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #163c39;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.gaode-city-marker:hover .gaode-city-marker-label,
+.gaode-city-marker.is-current .gaode-city-marker-label,
+.gaode-city-marker.is-correct .gaode-city-marker-label,
+.gaode-city-marker.is-wrong .gaode-city-marker-label,
+.gaode-city-marker.is-hint .gaode-city-marker-label {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.gaode-city-marker.is-correct,
+.gaode-city-marker.is-hint {
+  color: #0d9488;
+}
+
+.gaode-city-marker.is-wrong {
+  color: #e14b64;
+}
+
+.gaode-city-marker.is-correct .gaode-city-marker-dot,
+.gaode-city-marker.is-hint .gaode-city-marker-dot {
+  animation: correct-pop 420ms ease;
 }
 
 .map-info-bubble {
@@ -1598,170 +1851,148 @@ select {
   text-decoration: underline;
 }
 
-.map-ocean {
-  fill: #eef8fa;
+.map-control-stack {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  transform: translateY(-50%);
 }
 
-.china-region {
-  cursor: pointer;
-  outline: none;
+.map-control-stack .icon-btn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--muted-strong);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
 }
 
-.china-region polygon,
-.china-region circle {
-  fill: #f8f4df;
-  stroke: #73bcb6;
-  stroke-width: 2;
-  transition:
-    fill 160ms ease,
-    stroke 160ms ease,
-    filter 160ms ease,
-    transform 160ms ease;
+.map-answer-toast {
+  position: absolute;
+  left: 50%;
+  top: 24px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+  transform: translateX(-50%);
+  animation: map-toast-in 220ms ease;
 }
 
-.china-region:hover polygon,
-.china-region:hover circle,
-.china-region:focus-visible polygon,
-.china-region:focus-visible circle {
-  fill: #e4f7ee;
-  stroke: var(--theme);
-  filter: drop-shadow(0 6px 8px rgba(13, 148, 136, 0.18));
+.map-answer-toast.good {
+  border-bottom: 3px solid #16a34a;
 }
 
-.china-region.correct-target polygon,
-.china-region.correct-target circle {
-  fill: #dff8ea;
-  stroke: #15803d;
+.map-answer-toast.review {
+  border-bottom: 3px solid #e14b64;
 }
 
-.china-region.wrong-selection polygon,
-.china-region.wrong-selection circle {
-  fill: #fff1f2;
-  stroke: #b42318;
+.map-answer-toast-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: white;
+  font-weight: 900;
 }
 
-.map-province-labels {
-  pointer-events: none;
+.map-answer-toast.review .map-answer-toast-icon {
+  background: #e14b64;
 }
 
-.map-province-labels text {
-  fill: #31514e;
-  font-family: inherit;
-  font-size: 12px;
+.map-answer-toast strong {
+  font-size: 16px;
   font-weight: 850;
-  paint-order: stroke;
-  stroke: rgba(255, 255, 255, 0.88);
-  stroke-width: 4px;
-  stroke-linejoin: round;
 }
 
-.map-city-pin {
-  cursor: pointer;
-  outline: none;
+.map-answer-toast span:last-child {
+  font-family: var(--chinese-font);
+  font-size: 16px;
+  font-weight: 760;
 }
 
-.city-pin-hit {
-  fill: transparent;
-  stroke: transparent;
+.map-legend-row {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 5;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(228, 231, 236, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
-.city-pin-dot {
-  fill: #0f766e;
-  stroke: #ffffff;
-  stroke-width: 2.5;
-  transition:
-    fill 160ms ease,
-    stroke 160ms ease,
-    r 160ms ease,
-    filter 160ms ease;
+.map-legend-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
-.city-pin-core {
-  fill: #ffffff;
-  pointer-events: none;
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #98a2b3;
 }
 
-.map-city-pin text {
-  opacity: 0;
-  pointer-events: none;
-  fill: #12312e;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 900;
-  paint-order: stroke;
-  stroke: #ffffff;
-  stroke-width: 4px;
-  stroke-linejoin: round;
-  transition: opacity 160ms ease;
+.legend-dot.correct {
+  background: #0d9488;
 }
 
-.map-city-pin:hover .city-pin-dot,
-.map-city-pin:focus-visible .city-pin-dot {
-  r: 7;
-  fill: #115e59;
-  filter: drop-shadow(0 0 8px rgba(13, 148, 136, 0.35));
+.legend-dot.incorrect {
+  background: #e14b64;
 }
 
-.map-city-pin:hover text,
-.map-city-pin:focus-visible text,
-.map-city-pin.correct-target text,
-.map-city-pin.wrong-selection text {
-  opacity: 1;
+.map-tip {
+  position: absolute;
+  right: 18px;
+  bottom: 20px;
+  z-index: 5;
+  max-width: min(360px, calc(100% - 36px));
+  padding: 9px 11px;
+  border: 1px solid rgba(228, 231, 236, 0.88);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
-.map-city-pin.correct-target .city-pin-dot {
-  fill: #15803d;
-  stroke: #dcfce7;
+.map-tip.attention {
+  border-color: var(--theme-border);
+  color: var(--theme-hover);
+  animation: correct-pop 260ms ease;
 }
 
-.map-city-pin.wrong-selection .city-pin-dot {
-  fill: #b42318;
-  stroke: #ffe4e6;
-}
-
-.map-answer-pulse {
-  pointer-events: none;
-  fill: none;
-  stroke-width: 4;
-  transform-origin: center;
-  animation: map-pulse 720ms ease-out;
-}
-
-.map-answer-pulse.correct {
-  stroke: #22c55e;
-}
-
-.map-answer-pulse.review {
-  stroke: #f97316;
-}
-
-@keyframes map-pulse {
-  0% {
-    opacity: 0.88;
-    r: 6;
-  }
-
-  100% {
+@keyframes map-toast-in {
+  from {
     opacity: 0;
-    r: 46;
+    transform: translate(-50%, -8px);
   }
-}
 
-.south-sea-inset rect {
-  fill: rgba(255, 255, 255, 0.72);
-  stroke: #9ccbc6;
-}
-
-.south-sea-inset text {
-  fill: #31514e;
-  font-size: 11px;
-  font-weight: 900;
-  text-anchor: middle;
-}
-
-.south-sea-inset circle {
-  fill: var(--theme);
-  opacity: 0.72;
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .map-feedback {
@@ -2365,6 +2596,17 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.pronunciation-start-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 24px 0 8px;
+}
+
+.pronunciation-start-row .primary-btn {
+  max-width: 100%;
+}
+
 
 .results-header {
   display: grid;
@@ -2703,9 +2945,7 @@ td.status-review {
   .answer-pair,
   .stat-grid,
   .pronunciation-breakdown-grid,
-  .map-home-grid,
-  .map-quiz-layout,
-  .quiz-mini-stats {
+  .map-game-shell {
     grid-template-columns: 1fr;
   }
 
@@ -2773,16 +3013,64 @@ td.status-review {
     font-size: 34px;
   }
 
-  .china-map {
-    min-height: 320px;
+  .map-toolbar {
+    padding: 12px;
   }
 
-  .map-province-labels text {
-    font-size: 10px;
+  .map-toolbar-tabs,
+  .map-toolbar-tab,
+  .map-toolbar-chip,
+  .map-toolbar-status {
+    width: 100%;
   }
 
-  .map-city-pin text {
-    display: none;
+  .map-toolbar-chip {
+    justify-content: center;
+    min-height: 46px;
+    height: auto;
+    padding: 8px 12px;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .map-toolbar-status {
+    margin-left: 0;
+  }
+
+  .map-question-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .map-stage-panel,
+  .china-map-wrap,
+  .gaode-map-canvas {
+    min-height: 430px;
+  }
+
+  .map-answer-toast {
+    top: 12px;
+    width: calc(100% - 24px);
+    justify-content: center;
+  }
+
+  .map-control-stack {
+    right: 12px;
+  }
+
+  .map-legend-row {
+    left: 12px;
+    right: 12px;
+    bottom: 58px;
+    justify-content: center;
+  }
+
+  .map-tip {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    text-align: center;
   }
 
   .mobile-current-word strong {
@@ -2816,6 +3104,10 @@ td.status-review {
 
   .shortcut-btn {
     gap: 8px;
+  }
+
+  .pronunciation-start-row .shortcut-hint {
+    display: none;
   }
 
   .shortcut-hint kbd {

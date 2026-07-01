@@ -31,6 +31,13 @@ jobs:
         run: npm run check
 
       - name: Build static site
+        env:
+          GAODE_MAP_KEY: ${{ secrets.GAODE_MAP_KEY }}
+          GAODE_MAP_WEB_SECRET_KEY: ${{ secrets.GAODE_MAP_WEB_SECRET_KEY }}
+          GAODE_SECURITY_JS_CODE: ${{ secrets.GAODE_SECURITY_JS_CODE }}
+          GAODE_MAP_SECURITY_CODE: ${{ secrets.GAODE_MAP_WEB_SECRET_KEY }}
+          AMAP_KEY: ${{ secrets.AMAP_KEY }}
+          AMAP_SECURITY_JS_CODE: ${{ secrets.AMAP_SECURITY_JS_CODE }}
         run: npm run build
 
       - name: Upload GitHub Pages artifact

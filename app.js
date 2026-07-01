@@ -129,11 +129,27 @@ const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
 const MAP_QUIZ_SESSION_LENGTH = 20;
 const CHINA_MAP_AUDIT_NUMBER = "GS(2023)2767号";
-const GAODE_JS_API_URL = "https://webapi.amap.com/maps";
-const GAODE_JS_API_VERSION = "2.0";
-const GAODE_MAP_CENTER = [104.1954, 35.8617];
-const GAODE_MAP_ZOOM = 4.25;
-const GAODE_MAP_PLUGINS = ["AMap.Geocoder", "AMap.DistrictSearch", "AMap.Scale"];
+const CHINA_MAP_VIEWBOX = { width: 980, height: 660 };
+const CHINA_MAINLAND_FRAME = {
+  x: 28,
+  y: 18,
+  width: 924,
+  height: 606,
+  minLng: 73.2,
+  maxLng: 135.2,
+  minLat: 17.2,
+  maxLat: 53.9,
+};
+const SOUTH_CHINA_SEA_INSET = {
+  x: 802,
+  y: 498,
+  width: 132,
+  height: 112,
+  minLng: 108,
+  maxLng: 124,
+  minLat: 3,
+  maxLat: 24,
+};
 const CHINA_MAP_SOURCE_URL = "http://bzdt.ch.mnr.gov.cn/index.html";
 const CHINA_MAP_SOURCE_LABEL = "自然资源部标准地图服务";
 const CHINA_MAP_RULES_URL = "https://www.mfa.gov.cn/web/wjb_673085/zzjg_673183/bjhysws_674671/bhflfg/dtdmxgfl/202303/P020230313585504979937.pdf";
@@ -223,11 +239,6 @@ let vocabularyTimerId = 0;
 let speechRequestId = 0;
 let pronunciationRecognition = null;
 let pronunciationRecognitionRequestId = 0;
-let gaodeMapLoadPromise = null;
-let gaodeMapInstance = null;
-let gaodeGeocoder = null;
-let gaodeDistrictSearch = null;
-let gaodeMapGeneration = 0;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
@@ -873,10 +884,6 @@ function isSimplifiedMandarinVoice(voice) {
 function render() {
   updateNavigationState();
 
-  if (state.tool !== "map" && gaodeMapInstance) {
-    destroyGaodeMap();
-  }
-
   if (state.result) {
     stopVocabularyTimer();
     if (state.result.type === "vocabulary") {
@@ -1086,7 +1093,6 @@ function renderPronunciationHome() {
 }
 
 function renderMapQuizHome() {
-  destroyGaodeMap();
   app.innerHTML = `
     <section class="workspace-panel map-quiz-workspace map-home">
       ${buildMapToolbarMarkup({ isHome: true })}
@@ -1113,9 +1119,9 @@ function renderMapQuizHome() {
           </div>
 
           <div class="map-answer-card map-source-note">
-            <strong>Official map base</strong>
+            <strong>Local official-name map</strong>
             <span>审图号 ${CHINA_MAP_AUDIT_NUMBER}</span>
-            <p>Gaode map tiles power the interactive quiz surface with official Chinese map labeling.</p>
+            <p>The quiz uses a committed boundary layer and does not call a map API while you play.</p>
           </div>
 
           <button class="primary-btn shortcut-btn map-next-btn" type="button" id="startMapQuizSession">
@@ -1133,7 +1139,7 @@ function renderMapQuizHome() {
 
   document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
   bindMapViewControls();
-  mountGaodeMap({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true });
+  bindChinaMapInteractions({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true });
 }
 
 function renderVocabularyHome() {
@@ -1679,7 +1685,6 @@ function renderMapQuizSession() {
     ? `<p class="map-hint-note">Hint: ${escapeHtml(current.pinyin)}</p>`
     : "";
 
-  destroyGaodeMap();
   app.innerHTML = `
     <section class="workspace-panel session-shell map-quiz-workspace map-quiz-session">
       ${buildMapToolbarMarkup({ isSession: true })}
@@ -1750,7 +1755,7 @@ function renderMapQuizSession() {
   document.querySelector("#showMapHint")?.addEventListener("click", showMapHint);
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
-  mountGaodeMap(session);
+  bindChinaMapInteractions(session);
 }
 
 function buildMapToolbarMarkup({ isHome = false, isSession = false } = {}) {
@@ -2036,26 +2041,12 @@ function buildChinaMapMarkup(session, options = {}) {
   const assessment = session?.currentAssessment || null;
   const toastMarkup = assessment ? buildMapQuizToastMarkup(assessment) : "";
   const targetClass = current?.kind === "city" ? "city-mode" : "province-mode";
-  const fallback = getGaodeConfig().key
-    ? `<div class="gaode-map-loading">Loading Gaode map...</div>`
-    : buildGaodeMissingKeyMarkup();
 
   return `
     <div class="china-map-wrap ${targetClass}">
       ${toastMarkup}
-      <div class="gaode-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
-        ${fallback}
-      </div>
-      <div class="map-control-stack" aria-label="Map view controls">
-        <button class="icon-btn" type="button" data-map-view="reset" aria-label="Reset map view">
-          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M3 11l9-8 9 8"></path>
-            <path d="M5 10v10h14V10"></path>
-            <path d="M9 20v-6h6v6"></path>
-          </svg>
-        </button>
-        <button class="icon-btn" type="button" data-map-view="zoom-in" aria-label="Zoom in">+</button>
-        <button class="icon-btn" type="button" data-map-view="zoom-out" aria-label="Zoom out">−</button>
+      <div class="china-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
+        ${buildChinaMapSvgMarkup(session, options)}
       </div>
       ${buildMapInfoBubbleMarkup()}
       <div class="map-legend-row" aria-label="Map answer legend">
@@ -2068,291 +2059,200 @@ function buildChinaMapMarkup(session, options = {}) {
   `;
 }
 
-function buildGaodeMissingKeyMarkup() {
-  return `
-    <div class="gaode-map-fallback">
-      <strong>Gaode map key not configured</strong>
-      <span>Add a browser JS API key through GitHub Secrets or local config and rebuild to load the live China map.</span>
-    </div>
-  `;
-}
+function buildChinaMapSvgMarkup(session, options = {}) {
+  const mapData = getChinaMapData();
 
-function getGaodeConfig() {
-  const config = window.CHINESE_TRAINER_CONFIG || {};
-  return {
-    key: [
-      config.gaodeMapKey,
-      config.amapKey,
-      config.gaodeKey,
-      window.GAODE_MAP_KEY,
-      window.AMAP_KEY,
-    ].find(Boolean) || "",
-    securityJsCode: [
-      config.gaodeSecurityJsCode,
-      config.amapSecurityJsCode,
-      config.gaodeMapSecurityCode,
-      window.GAODE_SECURITY_JS_CODE,
-      window.AMAP_SECURITY_JS_CODE,
-    ].find(Boolean) || "",
-  };
-}
-
-function loadGaodeMapApi() {
-  if (window.AMap?.Map) {
-    return Promise.resolve(window.AMap);
-  }
-
-  if (gaodeMapLoadPromise) {
-    return gaodeMapLoadPromise;
-  }
-
-  const config = getGaodeConfig();
-  if (!config.key) {
-    return Promise.reject(new Error("Missing Gaode map key"));
-  }
-
-  if (config.securityJsCode) {
-    window._AMapSecurityConfig = {
-      securityJsCode: config.securityJsCode,
-    };
-  }
-
-  gaodeMapLoadPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector("#gaodeMapApi");
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.AMap), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Gaode map API failed to load")), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    const params = new URLSearchParams({
-      v: GAODE_JS_API_VERSION,
-      key: config.key,
-      plugin: GAODE_MAP_PLUGINS.join(","),
-    });
-    script.id = "gaodeMapApi";
-    script.src = `${GAODE_JS_API_URL}?${params.toString()}`;
-    script.async = true;
-    script.onload = () => resolve(window.AMap);
-    script.onerror = () => reject(new Error("Gaode map API failed to load"));
-    document.head.appendChild(script);
-  });
-
-  return gaodeMapLoadPromise;
-}
-
-async function mountGaodeMap(session, options = {}) {
-  const canvas = document.querySelector("#chinaMapQuiz");
-  if (!canvas || !getGaodeConfig().key) {
-    return;
-  }
-
-  const generation = ++gaodeMapGeneration;
-  canvas.classList.add("is-loading");
-
-  try {
-    const AMap = await loadGaodeMapApi();
-    if (generation !== gaodeMapGeneration || !canvas.isConnected) {
-      return;
-    }
-
-    canvas.innerHTML = "";
-    const map = new AMap.Map(canvas, {
-      center: GAODE_MAP_CENTER,
-      zoom: GAODE_MAP_ZOOM,
-      zooms: [3.2, 8],
-      viewMode: "2D",
-      resizeEnable: true,
-      mapStyle: "amap://styles/normal",
-      features: ["bg", "road", "point"],
-    });
-
-    gaodeMapInstance = map;
-    gaodeGeocoder = new AMap.Geocoder({ city: "全国", radius: 1200 });
-    gaodeDistrictSearch = new AMap.DistrictSearch({
-      level: "province",
-      subdistrict: 0,
-      extensions: "all",
-    });
-
-    map.addControl(new AMap.Scale());
-    mountGaodeCityMarkers(AMap, map, session, options);
-    mountGaodeDistrictHighlights(AMap, map, session);
-    bindGaodeMapClick(map, session, options);
-    canvas.classList.remove("is-loading");
-  } catch (error) {
-    canvas.classList.remove("is-loading");
-    canvas.innerHTML = `
-      <div class="gaode-map-fallback">
-        <strong>Gaode map could not load</strong>
-        <span>${escapeHtml(error.message || "Check the map key and domain restrictions.")}</span>
+  if (!mapData?.features?.length) {
+    return `
+      <div class="china-map-fallback">
+        <strong>China map data did not load</strong>
+        <span>Reload the page or check that china-map-data.js is included in the static site.</span>
       </div>
     `;
   }
+
+  return `
+    <svg class="china-map-svg" viewBox="0 0 ${CHINA_MAP_VIEWBOX.width} ${CHINA_MAP_VIEWBOX.height}" preserveAspectRatio="xMidYMid meet" aria-label="Interactive blank China map" focusable="false">
+      <defs>
+        <filter id="mapProvinceLift" x="-8%" y="-8%" width="116%" height="116%">
+          <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.08"></feDropShadow>
+        </filter>
+        <clipPath id="southChinaSeaInsetClip">
+          <rect x="${SOUTH_CHINA_SEA_INSET.x}" y="${SOUTH_CHINA_SEA_INSET.y}" width="${SOUTH_CHINA_SEA_INSET.width}" height="${SOUTH_CHINA_SEA_INSET.height}" rx="10"></rect>
+        </clipPath>
+      </defs>
+      <rect class="china-map-water" x="0" y="0" width="${CHINA_MAP_VIEWBOX.width}" height="${CHINA_MAP_VIEWBOX.height}" rx="18"></rect>
+      <g class="china-map-provinces" filter="url(#mapProvinceLift)">
+        ${buildChinaMapProvincePaths(mapData.features, session)}
+      </g>
+      <g class="china-city-pins">
+        ${buildChinaMapCityPins(session)}
+      </g>
+      ${buildSouthChinaSeaInsetMarkup(mapData.features)}
+    </svg>
+  `;
 }
 
-function destroyGaodeMap() {
-  gaodeMapGeneration += 1;
-  if (gaodeMapInstance) {
-    gaodeMapInstance.destroy();
-  }
-  gaodeMapInstance = null;
-  gaodeGeocoder = null;
-  gaodeDistrictSearch = null;
+function getChinaMapData() {
+  return window.CHINESE_TRAINER_CHINA_MAP || null;
 }
 
-function mountGaodeCityMarkers(AMap, map, session, options = {}) {
-  const assessment = session?.currentAssessment || null;
-  const current = session?.items?.[session.index] || null;
-  const selectedKey = assessment ? mapTargetKey(assessment.selectedKind, assessment.selectedId) : "";
-  const correctKey = assessment && current ? mapTargetKey(current.kind, current.id) : "";
-  const hintKey = session?.hintVisible && current ? mapTargetKey(current.kind, current.id) : "";
+function buildChinaMapProvincePaths(features, session) {
+  return features
+    .map((feature) => {
+      const province = getProvinceForMapFeature(feature);
+      if (!province) {
+        return "";
+      }
 
-  CHINA_CITIES.forEach((city) => {
-    const key = mapTargetKey("city", city.id);
+      const status = getMapTargetStatus("province", province.id, session);
+      const classes = [
+        "china-province-shape",
+        status ? `is-${status}` : "",
+      ].filter(Boolean).join(" ");
+
+      return `
+        <path
+          class="${classes}"
+          data-map-province-id="${escapeHtml(province.id)}"
+          d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
+          role="button"
+          tabindex="0"
+          aria-label="Province-level region"
+        ></path>
+      `;
+    })
+    .join("");
+}
+
+function buildChinaMapCityPins(session) {
+  return CHINA_CITIES.map((city) => {
+    const status = getMapTargetStatus("city", city.id, session);
+    const point = projectMapCoordinate(city.lng, city.lat, CHINA_MAINLAND_FRAME);
+    const label = status ? escapeHtml(city.name.replace(/市$/, "")) : "";
     const classes = [
-      "gaode-city-marker",
-      key === mapTargetKey(current?.kind, current?.id) ? "is-current" : "",
-      key === hintKey ? "is-hint" : "",
-      key === selectedKey && !assessment?.correct ? "is-wrong" : "",
-      key === correctKey && assessment ? "is-correct" : "",
+      "china-city-pin",
+      status ? `is-${status}` : "",
     ].filter(Boolean).join(" ");
-    const marker = new AMap.Marker({
-      position: [city.lng, city.lat],
-      anchor: "center",
-      title: `${city.name} · ${city.pinyin}`,
-      content: `
-        <span class="${classes}" aria-label="${escapeHtml(city.name)}">
-          <span class="gaode-city-marker-dot"></span>
-          <span class="gaode-city-marker-label">${escapeHtml(city.name.replace(/市$/, ""))}</span>
-        </span>
-      `,
-      zIndex: key === correctKey || key === hintKey ? 120 : 80,
-    });
 
-    if (!options.preview) {
-      marker.on("click", (event) => {
-        event.originEvent?.stopPropagation?.();
-        submitMapQuizSelection("city", city.id);
-      });
-    }
-
-    map.add(marker);
-  });
+    return `
+      <g
+        class="${classes}"
+        data-map-city-id="${escapeHtml(city.id)}"
+        role="button"
+        tabindex="0"
+        aria-label="City pin"
+        transform="translate(${formatMapNumber(point.x)} ${formatMapNumber(point.y)})"
+      >
+        <circle class="china-city-pin-hit" r="13"></circle>
+        <circle class="china-city-pin-ring" r="7"></circle>
+        <circle class="china-city-pin-dot" r="4"></circle>
+        ${label ? `<text class="china-city-pin-label" x="11" y="4">${label}</text>` : ""}
+      </g>
+    `;
+  }).join("");
 }
 
-function mountGaodeDistrictHighlights(AMap, map, session) {
-  const assessment = session?.currentAssessment || null;
+function buildSouthChinaSeaInsetMarkup(features) {
+  const insetPaths = features
+    .map((feature) => `
+      <path
+        class="china-map-inset-shape"
+        d="${geoGeometryToPath(feature.geometry, SOUTH_CHINA_SEA_INSET)}"
+      ></path>
+    `)
+    .join("");
+
+  return `
+    <g class="south-china-sea-inset" aria-hidden="true">
+      <rect class="south-china-sea-inset-frame" x="${SOUTH_CHINA_SEA_INSET.x}" y="${SOUTH_CHINA_SEA_INSET.y}" width="${SOUTH_CHINA_SEA_INSET.width}" height="${SOUTH_CHINA_SEA_INSET.height}" rx="10"></rect>
+      <g clip-path="url(#southChinaSeaInsetClip)">
+        ${insetPaths}
+      </g>
+      <text class="south-china-sea-inset-label" x="${SOUTH_CHINA_SEA_INSET.x + SOUTH_CHINA_SEA_INSET.width / 2}" y="${SOUTH_CHINA_SEA_INSET.y + SOUTH_CHINA_SEA_INSET.height - 12}">南海诸岛</text>
+    </g>
+  `;
+}
+
+function getProvinceForMapFeature(feature) {
+  const name = feature?.properties?.name || "";
+  if (!name) {
+    return null;
+  }
+
+  const normalized = normalizeMapRegionName(name);
+  return CHINA_PROVINCES.find((province) => {
+    const provinceNames = [province.name, province.shortName].map(normalizeMapRegionName);
+    return provinceNames.includes(normalized);
+  }) || null;
+}
+
+function getMapTargetStatus(kind, id, session) {
   const current = session?.items?.[session.index] || null;
-  const targets = [];
+  const assessment = session?.currentAssessment || null;
+  const key = mapTargetKey(kind, id);
+  const currentKey = mapTargetKey(current?.kind, current?.id);
+  const selectedKey = assessment ? mapTargetKey(assessment.selectedKind, assessment.selectedId) : "";
 
-  if (assessment && current?.kind === "province") {
-    targets.push({ provinceId: current.id, status: assessment.correct ? "correct" : "correct-answer" });
-  }
-  if (assessment?.selectedKind === "province" && assessment.selectedId !== current?.id) {
-    targets.push({ provinceId: assessment.selectedId, status: "wrong" });
-  }
-  if (!assessment && session?.hintVisible && current?.kind === "province") {
-    targets.push({ provinceId: current.id, status: "hint" });
+  if (!assessment && session?.hintVisible && key === currentKey) {
+    return "hint";
   }
 
-  targets.forEach(({ provinceId, status }) => {
-    const province = CHINA_PROVINCES.find((item) => item.id === provinceId);
-    if (!province || !gaodeDistrictSearch) {
-      return;
-    }
+  if (assessment && key === currentKey) {
+    return "correct";
+  }
 
-    gaodeDistrictSearch.search(province.name, (searchStatus, result) => {
-      const boundaries = result?.districtList?.[0]?.boundaries || [];
-      if (searchStatus !== "complete" || !boundaries.length || gaodeMapInstance !== map) {
-        return;
-      }
+  if (assessment && key === selectedKey && key !== currentKey) {
+    return "wrong";
+  }
 
-      const polygon = new AMap.Polygon({
-        path: boundaries,
-        bubble: true,
-        strokeColor: status === "wrong" ? "#e14b64" : "#0d9488",
-        strokeOpacity: 0.94,
-        strokeWeight: status === "hint" ? 2 : 3,
-        strokeStyle: status === "hint" ? "dashed" : "solid",
-        fillColor: status === "wrong" ? "#f43f5e" : "#14b8a6",
-        fillOpacity: status === "wrong" ? 0.16 : 0.22,
-        zIndex: status === "wrong" ? 90 : 100,
-      });
-      map.add(polygon);
-    });
-  });
+  return "";
 }
 
-function bindGaodeMapClick(map, session, options = {}) {
-  if (options.preview) {
-    return;
+function geoGeometryToPath(geometry, frame) {
+  if (!geometry) {
+    return "";
   }
 
-  map.on("click", (event) => {
-    const activeSession = state.session;
-    if (activeSession?.type !== "map" || activeSession.currentAssessment) {
-      return;
-    }
+  const polygons = geometry.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry.type === "MultiPolygon"
+      ? geometry.coordinates
+      : [];
 
-    const current = activeSession.items[activeSession.index];
-    if (!current) {
-      return;
-    }
-
-    reverseGeocodeProvince(event.lnglat)
-      .then((province) => {
-        if (!province) {
-          showMapStatus("Could not identify that province-level region. Try another spot.");
-          return;
-        }
-        submitMapQuizSelection("province", province.id);
-      })
-      .catch(() => {
-        showMapStatus("Could not identify that map location. Try again.");
-      });
-  });
+  return polygons.map((polygon) => polygonToPath(polygon, frame)).join(" ");
 }
 
-function reverseGeocodeProvince(lnglat) {
-  if (!gaodeGeocoder) {
-    return Promise.resolve(null);
-  }
-
-  return new Promise((resolve, reject) => {
-    gaodeGeocoder.getAddress(lnglat, (status, result) => {
-      if (status !== "complete") {
-        reject(new Error("Reverse geocode failed"));
-        return;
-      }
-
-      resolve(findProvinceFromAddressComponent(result?.regeocode?.addressComponent));
-    });
-  });
+function polygonToPath(polygon, frame) {
+  return polygon.map((ring) => ringToPath(ring, frame)).join(" ");
 }
 
-function findProvinceFromAddressComponent(component = {}) {
-  const candidates = [
-    component.province,
-    component.city,
-    component.district,
-    component.township,
-  ].flat().filter(Boolean);
+function ringToPath(ring, frame) {
+  return ring.map(([lng, lat], index) => {
+    const point = projectMapCoordinate(lng, lat, frame);
+    return `${index === 0 ? "M" : "L"}${formatMapNumber(point.x)} ${formatMapNumber(point.y)}`;
+  }).join(" ") + "Z";
+}
 
-  for (const candidate of candidates) {
-    const normalized = normalizeMapRegionName(String(candidate));
-    const province = CHINA_PROVINCES.find((item) => {
-      const names = [item.name, item.shortName].map(normalizeMapRegionName);
-      return names.includes(normalized) ||
-        names.some((name) => normalized.includes(name) || name.includes(normalized));
-    });
-    if (province) {
-      return province;
-    }
-  }
+function projectMapCoordinate(lng, lat, frame) {
+  const minY = mercatorY(frame.minLat);
+  const maxY = mercatorY(frame.maxLat);
+  const y = mercatorY(lat);
 
-  return null;
+  return {
+    x: frame.x + ((lng - frame.minLng) / (frame.maxLng - frame.minLng)) * frame.width,
+    y: frame.y + ((maxY - y) / (maxY - minY)) * frame.height,
+  };
+}
+
+function mercatorY(lat) {
+  const clamped = Math.max(-85, Math.min(85, lat));
+  const radians = clamped * Math.PI / 180;
+  return Math.log(Math.tan(Math.PI / 4 + radians / 2));
+}
+
+function formatMapNumber(value) {
+  return Number(value).toFixed(1).replace(/\.0$/, "");
 }
 
 function normalizeMapRegionName(value) {
@@ -2372,24 +2272,57 @@ function showMapStatus(message) {
   window.setTimeout(() => tip.classList.remove("attention"), 1200);
 }
 
+function bindChinaMapInteractions(session, options = {}) {
+  const map = document.querySelector("#chinaMapQuiz");
+  if (!map || options.preview) {
+    return;
+  }
+
+  map.querySelectorAll("[data-map-province-id]").forEach((provincePath) => {
+    const submitProvince = (event) => {
+      event.stopPropagation();
+      submitMapQuizSelection("province", provincePath.dataset.mapProvinceId);
+    };
+
+    provincePath.addEventListener("click", submitProvince);
+    provincePath.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      submitProvince(event);
+    });
+  });
+
+  map.querySelectorAll("[data-map-city-id]").forEach((cityPin) => {
+    const submitCity = (event) => {
+      event.stopPropagation();
+      submitMapQuizSelection("city", cityPin.dataset.mapCityId);
+    };
+
+    cityPin.addEventListener("click", submitCity);
+    cityPin.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      submitCity(event);
+    });
+  });
+
+  map.addEventListener("click", () => {
+    const activeSession = state.session;
+    if (activeSession?.type !== "map" || activeSession.currentAssessment) {
+      return;
+    }
+    showMapStatus("Click a province shape or a city pin to answer.");
+  });
+}
+
 function bindMapViewControls() {
   document.querySelectorAll("[data-map-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (!gaodeMapInstance) {
-        return;
-      }
-
-      if (button.dataset.mapView === "zoom-in") {
-        gaodeMapInstance.zoomIn();
-        return;
-      }
-
-      if (button.dataset.mapView === "zoom-out") {
-        gaodeMapInstance.zoomOut();
-        return;
-      }
-
-      gaodeMapInstance.setZoomAndCenter(GAODE_MAP_ZOOM, GAODE_MAP_CENTER);
+      document.querySelector("#chinaMapQuiz")?.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
   });
 }
@@ -2419,7 +2352,7 @@ function buildMapInfoBubbleMarkup() {
       <div class="map-info-popover">
         <strong>官方地图来源</strong>
         <p>
-          地图底图由高德地图加载；边界和名称规则参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
+          本页使用本地边界数据渲染互动练习；名称和边界表达参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
           和 <a href="${CHINA_MAP_RULES_URL}" target="_blank" rel="noopener">${CHINA_MAP_RULES_LABEL}</a>。
           本练习按省级行政区显示台湾省。
         </p>

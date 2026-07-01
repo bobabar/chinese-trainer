@@ -6,6 +6,7 @@ const ROOT = path.resolve(__dirname, "..");
 const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
+const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const queuedTimers = [];
 const speechCalls = {
@@ -89,6 +90,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
+vm.runInContext(chinaMapData, context, { filename: "china-map-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
   CHINA_CITIES,
@@ -251,11 +253,14 @@ const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");
 assert(guangdongProvince, "map data should include 广东省");
 assert(guangzhouCity, "map data should include 广州市");
 const mapMarkup = buildChinaMapMarkup({ type: "map", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
-assert(mapMarkup.includes("gaode-map-canvas"), "map quiz should render a Gaode map canvas");
-assert(mapMarkup.includes("Gaode map key not configured"), "map quiz should show a clear fallback when no map key is configured");
+assert(indexSource.includes("china-map-data.js"), "map quiz should load committed China map data before app startup");
+assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
+assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
+assert(!indexSource.includes("amap-config.js"), "map quiz should not load map API config at runtime");
+assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gaode JavaScript API at runtime");
 assert(
   CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
-  "map quiz city targets should include longitude and latitude for Gaode markers",
+  "map quiz city targets should include longitude and latitude for local pins",
 );
 assert(mapMarkup.includes("map-info-bubble"), "map quiz should include a discreet official-source info bubble");
 assert(mapMarkup.includes("自然资源部标准地图服务"), "map source bubble should link to the official standard map service");

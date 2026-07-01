@@ -596,20 +596,16 @@ body[data-tool="vocabulary"] .options-body {
     grid-template-columns: 1fr;
   }
 
-  .map-game-shell {
-    grid-template-columns: 1fr;
+  .map-quiz-workspace {
+    height: auto;
+    overflow: visible;
   }
 
-  .map-question-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+  body[data-tool="map"] .workspace {
+    padding-right: 18px;
+    padding-left: 18px;
   }
 
-  .map-stage-panel,
-  .china-map-wrap,
-  .gaode-map-canvas {
-    min-height: 580px;
-  }
 }
 
 select {
@@ -1434,6 +1430,9 @@ select {
 }
 
 .map-quiz-workspace {
+  display: flex;
+  flex-direction: column;
+  height: min(820px, calc(100vh - 54px));
   overflow: hidden;
   padding: 0;
   background: #ffffff;
@@ -1497,7 +1496,8 @@ select {
 .map-game-shell {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
-  min-height: min(720px, calc(100vh - 72px));
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .map-question-panel {
@@ -1664,7 +1664,7 @@ select {
 
 .map-stage-panel {
   min-width: 0;
-  min-height: 560px;
+  min-height: 0;
   background:
     linear-gradient(180deg, rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.96)),
     #f8fafc;
@@ -1673,19 +1673,24 @@ select {
 .china-map-wrap {
   position: relative;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
   overflow: hidden;
-  background: #f8fafc;
+  background: #eff8f8;
 }
 
-.gaode-map-canvas {
+.china-map-canvas {
+  display: grid;
+  place-items: center;
   width: 100%;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 68% 28%, rgba(13, 148, 136, 0.08), transparent 32%),
+    linear-gradient(180deg, #f5fbfb, #edf7f8);
 }
 
-.gaode-map-loading,
-.gaode-map-fallback {
+.china-map-fallback {
   position: absolute;
   inset: 0;
   display: flex;
@@ -1702,7 +1707,7 @@ select {
   font-weight: 760;
 }
 
-.gaode-map-fallback strong {
+.china-map-fallback strong {
   display: block;
   max-width: min(420px, calc(100% - 48px));
   color: var(--ink);
@@ -1711,69 +1716,135 @@ select {
   text-wrap: balance;
 }
 
-.gaode-map-fallback span {
+.china-map-fallback span {
   max-width: 420px;
   font-size: 14px;
   line-height: 1.45;
 }
 
-.gaode-city-marker {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transform: translate(-50%, -50%);
+.china-map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+.china-map-water {
+  fill: #edf8f8;
+}
+
+.china-province-shape {
+  fill: #fff8e8;
+  stroke: #78c8c3;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
   cursor: pointer;
+  transition: fill 160ms ease, stroke 160ms ease, filter 160ms ease;
+}
+
+.china-province-shape:hover,
+.china-province-shape:focus-visible {
+  fill: #f5fbf4;
+  stroke: #0d9488;
+  outline: none;
+}
+
+.china-province-shape.is-hint {
+  fill: #e7fbf5;
+  stroke: #0d9488;
+  stroke-dasharray: 5 4;
+  stroke-width: 1.8;
+}
+
+.china-province-shape.is-correct {
+  fill: #c9f6eb;
+  stroke: #0d9488;
+  stroke-width: 2;
+  animation: correct-pop 420ms ease;
+}
+
+.china-province-shape.is-wrong {
+  fill: #ffe8ec;
+  stroke: #e14b64;
+  stroke-width: 2;
+}
+
+.china-city-pin {
+  color: #0d9488;
+  cursor: pointer;
+  outline: none;
+}
+
+.china-city-pin-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.china-city-pin-ring {
+  fill: #ffffff;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 5px 8px rgba(15, 23, 42, 0.2));
+}
+
+.china-city-pin-dot {
+  fill: currentColor;
+}
+
+.china-city-pin:hover,
+.china-city-pin:focus-visible {
   color: #0f766e;
 }
 
-.gaode-city-marker-dot {
-  display: block;
-  width: 15px;
-  height: 15px;
-  border: 3px solid #ffffff;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow:
-    0 0 0 2px rgba(13, 148, 136, 0.38),
-    0 8px 16px rgba(15, 23, 42, 0.18);
+.china-city-pin:hover .china-city-pin-ring,
+.china-city-pin:focus-visible .china-city-pin-ring {
+  stroke-width: 3;
 }
 
-.gaode-city-marker-label {
-  opacity: 0;
-  padding: 3px 6px;
-  border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #163c39;
-  font-size: 12px;
-  font-weight: 850;
-  white-space: nowrap;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
-  transition: opacity 140ms ease, transform 140ms ease;
-}
-
-.gaode-city-marker:hover .gaode-city-marker-label,
-.gaode-city-marker.is-current .gaode-city-marker-label,
-.gaode-city-marker.is-correct .gaode-city-marker-label,
-.gaode-city-marker.is-wrong .gaode-city-marker-label,
-.gaode-city-marker.is-hint .gaode-city-marker-label {
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-.gaode-city-marker.is-correct,
-.gaode-city-marker.is-hint {
+.china-city-pin.is-correct,
+.china-city-pin.is-hint {
   color: #0d9488;
 }
 
-.gaode-city-marker.is-wrong {
+.china-city-pin.is-wrong {
   color: #e14b64;
 }
 
-.gaode-city-marker.is-correct .gaode-city-marker-dot,
-.gaode-city-marker.is-hint .gaode-city-marker-dot {
+.china-city-pin.is-correct .china-city-pin-ring,
+.china-city-pin.is-hint .china-city-pin-ring {
   animation: correct-pop 420ms ease;
+}
+
+.china-city-pin-label {
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 4;
+  fill: #163c39;
+  font-family: var(--chinese-font);
+  font-size: 12px;
+  font-weight: 850;
+  pointer-events: none;
+}
+
+.south-china-sea-inset-frame {
+  fill: rgba(255, 255, 255, 0.82);
+  stroke: rgba(115, 188, 182, 0.74);
+  stroke-width: 1.2;
+}
+
+.china-map-inset-shape {
+  fill: #fff8e8;
+  stroke: #78c8c3;
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.south-china-sea-inset-label {
+  fill: #55726f;
+  font-family: var(--chinese-font);
+  font-size: 10px;
+  font-weight: 850;
+  text-anchor: middle;
 }
 
 .map-info-bubble {
@@ -1849,26 +1920,6 @@ select {
 
 .map-info-popover a:hover {
   text-decoration: underline;
-}
-
-.map-control-stack {
-  position: absolute;
-  right: 18px;
-  top: 50%;
-  z-index: 5;
-  display: grid;
-  gap: 8px;
-  transform: translateY(-50%);
-}
-
-.map-control-stack .icon-btn {
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--muted-strong);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
 }
 
 .map-answer-toast {
@@ -1981,6 +2032,21 @@ select {
   border-color: var(--theme-border);
   color: var(--theme-hover);
   animation: correct-pop 260ms ease;
+}
+
+@media (min-width: 981px) and (max-width: 1180px) {
+  .map-tip {
+    right: 18px;
+    bottom: 66px;
+    left: 18px;
+    max-width: none;
+    text-align: center;
+  }
+
+  .map-legend-row {
+    max-width: calc(100% - 36px);
+    gap: 12px;
+  }
 }
 
 @keyframes map-toast-in {
@@ -3045,7 +3111,7 @@ td.status-review {
 
   .map-stage-panel,
   .china-map-wrap,
-  .gaode-map-canvas {
+  .china-map-canvas {
     min-height: 430px;
   }
 
@@ -3053,10 +3119,6 @@ td.status-review {
     top: 12px;
     width: calc(100% - 24px);
     justify-content: center;
-  }
-
-  .map-control-stack {
-    right: 12px;
   }
 
   .map-legend-row {

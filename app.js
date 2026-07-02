@@ -2115,7 +2115,6 @@ function buildChinaMapMarkup(session, options = {}) {
   const mapMode = getMapQuizModeForSession(session);
   const toastMarkup = assessment ? buildMapQuizToastMarkup(assessment) : "";
   const targetClass = mapMode === "city" ? "city-mode" : "province-mode";
-  const modeConfig = getSelectedMapQuizMode(mapMode);
 
   return `
     <div class="china-map-wrap ${targetClass}">
@@ -2123,12 +2122,6 @@ function buildChinaMapMarkup(session, options = {}) {
       <div class="china-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
         ${buildChinaMapSvgMarkup(session, options)}
       </div>
-      <div class="map-legend-row" aria-label="Map answer legend">
-        <span><i class="legend-dot correct"></i>Correct</span>
-        <span><i class="legend-dot incorrect"></i>Incorrect</span>
-        <span><i class="legend-dot pending"></i>Not answered</span>
-      </div>
-      <p class="map-tip">${escapeHtml(modeConfig.tip)}</p>
     </div>
   `;
 }

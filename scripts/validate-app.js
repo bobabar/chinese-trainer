@@ -282,6 +282,8 @@ assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local o
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
 assert(mapMarkup.includes("china-province-outline"), "province map mode should render a top outline layer for complete highlighted borders");
 assert(!mapMarkup.includes("mapProvinceLift"), "map quiz should not use the province shadow filter that can render black selection artifacts");
+assert(!mapMarkup.includes("map-legend-row"), "map quiz should not render the bottom legend");
+assert(!mapMarkup.includes("map-tip"), "map quiz should not render the bottom tip");
 assert(!indexSource.includes("amap-config.js"), "map quiz should not load map API config at runtime");
 assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gaode JavaScript API at runtime");
 assert(!appSource.includes("List Quiz"), "map quiz should not render the removed List Quiz chip");

@@ -292,6 +292,10 @@ assert(appSource.includes("Test your knowledge of China's geography"), "map quiz
 assert(!appSource.includes("Practice provincial-level regions without city pins covering small municipalities."), "map quiz should not use the old region practice description");
 assert(!appSource.includes("Practice city locations using pins without region answer highlights."), "map quiz should not use the old city practice description");
 assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
+assert(
+  !/map-quiz-session">\s*\$\{buildMapModeHeaderMarkup/.test(appSource),
+  "active map quiz sessions should not render the mode header above the game shell",
+);
 assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
 assert(
   !appSource.includes("shuffle(getMapQuizPool(mapQuizMode)).slice"),

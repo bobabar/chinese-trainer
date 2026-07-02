@@ -1764,8 +1764,6 @@ function renderMapQuizSession() {
 
   app.innerHTML = `
     <section class="workspace-panel session-shell map-quiz-workspace map-quiz-session">
-      ${buildMapModeHeaderMarkup({ interactive: false })}
-
       <div class="map-game-shell">
         <aside class="map-question-panel">
           <div class="map-score-card">

@@ -1780,7 +1780,7 @@ select {
 .china-province-shape {
   fill: #fff8e8;
   stroke: #78c8c3;
-  stroke-width: 1.1;
+  stroke-width: 0.85;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
   transition: fill 160ms ease, stroke 160ms ease, filter 160ms ease;
@@ -1820,7 +1820,7 @@ select {
   stroke: transparent;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3;
+  stroke-width: 2.1;
   vector-effect: non-scaling-stroke;
   transition: stroke 160ms ease, stroke-width 160ms ease;
 }
@@ -1828,7 +1828,7 @@ select {
 .china-province-outline.is-hovered,
 .china-province-outline.is-hint {
   stroke: #0d9488;
-  stroke-width: 3.2;
+  stroke-width: 2.3;
 }
 
 .china-province-outline.is-hint {
@@ -1837,13 +1837,13 @@ select {
 
 .china-province-outline.is-correct {
   stroke: #0d9488;
-  stroke-width: 3.4;
+  stroke-width: 2.5;
   animation: correct-pop 420ms ease;
 }
 
 .china-province-outline.is-wrong {
   stroke: #e14b64;
-  stroke-width: 3.4;
+  stroke-width: 2.5;
 }
 
 .china-city-pin {

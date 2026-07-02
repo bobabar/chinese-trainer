@@ -280,8 +280,13 @@ const cityProvinceAssessmentMarkup = buildChinaMapMarkup({
 assert(indexSource.includes("china-map-data.js"), "map quiz should load committed China map data before app startup");
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
+assert(mapMarkup.includes("china-province-outline"), "province map mode should render a top outline layer for complete highlighted borders");
+assert(!mapMarkup.includes("mapProvinceLift"), "map quiz should not use the province shadow filter that can render black selection artifacts");
 assert(!indexSource.includes("amap-config.js"), "map quiz should not load map API config at runtime");
 assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gaode JavaScript API at runtime");
+assert(!appSource.includes("List Quiz"), "map quiz should not render the removed List Quiz chip");
+assert(!appSource.includes("Mode: China Map"), "map quiz should not render the removed Mode chip");
+assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
 assert(
   CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
   "map quiz city targets should include longitude and latitude for local pins",
@@ -289,6 +294,7 @@ assert(
 assert(!mapMarkup.includes("data-map-city-id"), "province map mode should not render city pins");
 assert(cityMapMarkup.includes("data-map-city-id"), "city map mode should render city pins");
 assert(!cityMapMarkup.includes("data-map-province-id"), "city map mode should not make province shapes selectable");
+assert(!cityMapMarkup.includes("china-province-outline"), "city map mode should not render province highlight outlines");
 assert(
   !/china-province-shape[^"]*is-(hint|correct|wrong)/.test(cityProvinceAssessmentMarkup),
   "city map mode should not apply answer highlights to province shapes",

@@ -1126,7 +1126,7 @@ function renderMapQuizHome() {
 
   app.innerHTML = `
     <section class="workspace-panel map-quiz-workspace map-home">
-      ${buildMapToolbarMarkup({ isHome: true })}
+      ${buildMapModeHeaderMarkup({ interactive: true })}
 
       <div class="map-game-shell map-home-shell">
         <aside class="map-question-panel map-home-panel">
@@ -1149,8 +1149,6 @@ function renderMapQuizHome() {
             <p>${escapeHtml(mapMode.homeDescription)}</p>
           </div>
 
-          ${buildMapModePickerMarkup()}
-
           <button class="primary-btn shortcut-btn map-next-btn" type="button" id="startMapQuizSession">
             <span>${escapeHtml(mapMode.startLabel)}</span>
             ${shortcutHint("Enter")}
@@ -1170,15 +1168,31 @@ function renderMapQuizHome() {
   bindChinaMapInteractions({ type: "map", mapQuizMode: state.mapQuizMode, items: [], index: 0, currentAssessment: null }, { preview: true });
 }
 
-function buildMapModePickerMarkup() {
+function buildMapModeHeaderMarkup({ interactive = true } = {}) {
+  const activeModeId = state.session?.type === "map" ? state.session.mapQuizMode : state.mapQuizMode;
+  const activeMode = getSelectedMapQuizMode(activeModeId);
+
+  return `
+    <div class="map-mode-header" aria-label="Map quiz mode controls">
+      <div class="map-mode-heading">
+        <span>Quiz mode</span>
+        <strong>${escapeHtml(activeMode.label)}</strong>
+      </div>
+      ${buildMapModePickerMarkup({ activeModeId, disabled: !interactive })}
+    </div>
+  `;
+}
+
+function buildMapModePickerMarkup({ activeModeId = state.mapQuizMode, disabled = false } = {}) {
   return `
     <div class="map-mode-picker" role="group" aria-label="Map quiz mode">
       ${Object.entries(MAP_QUIZ_MODES).map(([modeId, mode]) => `
         <button
-          class="map-mode-option ${state.mapQuizMode === modeId ? "active" : ""}"
+          class="map-mode-option ${activeModeId === modeId ? "active" : ""}"
           type="button"
           data-map-quiz-mode="${modeId}"
-          aria-pressed="${state.mapQuizMode === modeId ? "true" : "false"}"
+          aria-pressed="${activeModeId === modeId ? "true" : "false"}"
+          ${disabled ? "disabled" : ""}
         >
           <strong>${escapeHtml(mode.pickerLabel)}</strong>
           <span>${escapeHtml(mode.pickerDetail)}</span>
@@ -1191,6 +1205,9 @@ function buildMapModePickerMarkup() {
 function bindMapModePicker() {
   document.querySelectorAll("[data-map-quiz-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.disabled) {
+        return;
+      }
       const nextMode = button.dataset.mapQuizMode;
       if (!MAP_QUIZ_MODES[nextMode] || nextMode === state.mapQuizMode) {
         return;
@@ -1748,7 +1765,7 @@ function renderMapQuizSession() {
 
   app.innerHTML = `
     <section class="workspace-panel session-shell map-quiz-workspace map-quiz-session">
-      ${buildMapToolbarMarkup({ isSession: true })}
+      ${buildMapModeHeaderMarkup({ interactive: false })}
 
       <div class="map-game-shell">
         <aside class="map-question-panel">
@@ -1817,21 +1834,6 @@ function renderMapQuizSession() {
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
   bindChinaMapInteractions(session);
-}
-
-function buildMapToolbarMarkup({ isHome = false, isSession = false } = {}) {
-  const activeMode = getSelectedMapQuizMode(state.session?.mapQuizMode || state.mapQuizMode);
-  return `
-    <div class="map-toolbar" aria-label="Map quiz controls">
-      <div class="map-toolbar-tabs" aria-label="Quiz view">
-        <button class="map-toolbar-tab active" type="button">Map Quiz</button>
-        <button class="map-toolbar-tab" type="button" disabled>List Quiz</button>
-      </div>
-      <span class="map-toolbar-chip">Target: ${escapeHtml(activeMode.shortLabel)}</span>
-      <span class="map-toolbar-chip">Mode: China Map</span>
-      <span class="map-toolbar-chip">Options</span>
-    </div>
-  `;
 }
 
 function getSelectedMapQuizMode(mode = state.mapQuizMode) {
@@ -2146,17 +2148,19 @@ function buildChinaMapSvgMarkup(session, options = {}) {
   return `
     <svg class="china-map-svg" viewBox="0 0 ${CHINA_MAP_VIEWBOX.width} ${CHINA_MAP_VIEWBOX.height}" preserveAspectRatio="xMidYMid meet" aria-label="Interactive blank China map" focusable="false">
       <defs>
-        <filter id="mapProvinceLift" x="-8%" y="-8%" width="116%" height="116%">
-          <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.08"></feDropShadow>
-        </filter>
         <clipPath id="southChinaSeaInsetClip">
           <rect x="${SOUTH_CHINA_SEA_INSET.x}" y="${SOUTH_CHINA_SEA_INSET.y}" width="${SOUTH_CHINA_SEA_INSET.width}" height="${SOUTH_CHINA_SEA_INSET.height}" rx="10"></rect>
         </clipPath>
       </defs>
       <rect class="china-map-water" x="0" y="0" width="${CHINA_MAP_VIEWBOX.width}" height="${CHINA_MAP_VIEWBOX.height}" rx="18"></rect>
-      <g class="china-map-provinces" filter="url(#mapProvinceLift)">
+      <g class="china-map-provinces">
         ${buildChinaMapProvincePaths(mapData.features, session)}
       </g>
+      ${shouldEnableMapProvinceSelection(session) ? `
+        <g class="china-map-province-outlines" aria-hidden="true">
+          ${buildChinaMapProvinceOutlinePaths(mapData.features, session)}
+        </g>
+      ` : ""}
       ${shouldShowMapCityPins(session) ? `
         <g class="china-city-pins">
           ${buildChinaMapCityPins(session)}
@@ -2194,6 +2198,31 @@ function buildChinaMapProvincePaths(features, session) {
           d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
           ${provinceSelectionEnabled ? `role="button" tabindex="0"` : ""}
           aria-label="${provinceSelectionEnabled ? "Province-level region" : "Map region outline"}"
+        ></path>
+      `;
+    })
+    .join("");
+}
+
+function buildChinaMapProvinceOutlinePaths(features, session) {
+  return features
+    .map((feature) => {
+      const province = getProvinceForMapFeature(feature);
+      if (!province) {
+        return "";
+      }
+
+      const status = getMapTargetStatus("province", province.id, session);
+      const classes = [
+        "china-province-outline",
+        status ? `is-${status}` : "",
+      ].filter(Boolean).join(" ");
+
+      return `
+        <path
+          class="${classes}"
+          data-map-province-outline-id="${escapeHtml(province.id)}"
+          d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
         ></path>
       `;
     })
@@ -2372,12 +2401,20 @@ function bindChinaMapInteractions(session, options = {}) {
   }
 
   map.querySelectorAll("[data-map-province-id]").forEach((provincePath) => {
+    const outline = map.querySelector(`[data-map-province-outline-id="${provincePath.dataset.mapProvinceId}"]`);
+    const setHover = (isHovered) => {
+      outline?.classList.toggle("is-hovered", isHovered);
+    };
     const submitProvince = (event) => {
       event.stopPropagation();
       submitMapQuizSelection("province", provincePath.dataset.mapProvinceId);
     };
 
     provincePath.addEventListener("click", submitProvince);
+    provincePath.addEventListener("mouseenter", () => setHover(true));
+    provincePath.addEventListener("mouseleave", () => setHover(false));
+    provincePath.addEventListener("focus", () => setHover(true));
+    provincePath.addEventListener("blur", () => setHover(false));
     provincePath.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") {
         return;

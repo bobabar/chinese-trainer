@@ -1438,59 +1438,40 @@ select {
   background: #ffffff;
 }
 
-.map-toolbar {
+.map-mode-header {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
   min-height: 78px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
 }
 
-.map-toolbar-tabs {
-  display: inline-flex;
-  gap: 8px;
+.map-mode-heading {
+  display: grid;
+  gap: 3px;
+  min-width: 136px;
 }
 
-.map-toolbar-tab,
-.map-toolbar-chip,
-.map-toolbar-status {
-  min-height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
+.map-mode-heading span {
   color: var(--muted-strong);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-.map-toolbar-tab {
-  padding: 0 20px;
+.map-mode-heading strong {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.15;
 }
 
-.map-toolbar-tab.active {
-  border-color: var(--theme);
-  background: linear-gradient(180deg, #16a39a, #0d8f84);
-  color: white;
-  box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2);
-}
-
-.map-toolbar-tab:disabled {
-  opacity: 0.68;
-}
-
-.map-toolbar-chip,
-.map-toolbar-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 14px;
-}
-
-.map-toolbar-status {
-  margin-left: auto;
-  color: var(--theme);
+.map-mode-header .map-mode-picker {
+  width: min(430px, 100%);
 }
 
 .map-game-shell {
@@ -1649,6 +1630,20 @@ select {
   transform: none;
 }
 
+.map-mode-option:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.map-mode-option:disabled:not(.active) {
+  opacity: 0.54;
+}
+
+.map-mode-option:disabled:hover {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
 .map-mode-option.active {
   border-color: rgba(13, 148, 136, 0.54);
   background: linear-gradient(180deg, #ecfdf9, #ffffff);
@@ -1774,6 +1769,10 @@ select {
   touch-action: manipulation;
 }
 
+.china-map-svg *:focus {
+  outline: none;
+}
+
 .china-map-water {
   fill: #edf8f8;
 }
@@ -1788,9 +1787,9 @@ select {
 }
 
 .china-province-shape:hover,
+.china-province-shape:focus,
 .china-province-shape:focus-visible {
   fill: #f5fbf4;
-  stroke: #0d9488;
   outline: none;
 }
 
@@ -1805,22 +1804,46 @@ select {
 
 .china-province-shape.is-hint {
   fill: #e7fbf5;
-  stroke: #0d9488;
-  stroke-dasharray: 5 4;
-  stroke-width: 1.8;
 }
 
 .china-province-shape.is-correct {
   fill: #c9f6eb;
-  stroke: #0d9488;
-  stroke-width: 2;
-  animation: correct-pop 420ms ease;
 }
 
 .china-province-shape.is-wrong {
   fill: #ffe8ec;
+}
+
+.china-province-outline {
+  fill: none;
+  pointer-events: none;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 160ms ease, stroke-width 160ms ease;
+}
+
+.china-province-outline.is-hovered,
+.china-province-outline.is-hint {
+  stroke: #0d9488;
+  stroke-width: 3.2;
+}
+
+.china-province-outline.is-hint {
+  stroke-dasharray: 5 4;
+}
+
+.china-province-outline.is-correct {
+  stroke: #0d9488;
+  stroke-width: 3.4;
+  animation: correct-pop 420ms ease;
+}
+
+.china-province-outline.is-wrong {
   stroke: #e14b64;
-  stroke-width: 2;
+  stroke-width: 3.4;
 }
 
 .china-city-pin {
@@ -3062,29 +3085,24 @@ td.status-review {
     grid-template-columns: 1fr;
   }
 
-  .map-toolbar {
+  .map-mode-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
     padding: 12px;
   }
 
-  .map-toolbar-tabs,
-  .map-toolbar-tab,
-  .map-toolbar-chip,
-  .map-toolbar-status {
+  .map-mode-heading {
+    min-width: 0;
+  }
+
+  .map-mode-header .map-mode-picker {
     width: 100%;
   }
 
-  .map-toolbar-chip {
-    justify-content: center;
-    min-height: 46px;
-    height: auto;
-    padding: 8px 12px;
-    text-align: center;
-    white-space: normal;
-    line-height: 1.2;
-  }
-
-  .map-toolbar-status {
-    margin-left: 0;
+  .map-mode-header .map-mode-option {
+    min-height: 56px;
   }
 
   .map-question-panel {

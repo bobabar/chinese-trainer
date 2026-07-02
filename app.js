@@ -150,10 +150,6 @@ const SOUTH_CHINA_SEA_INSET = {
   minLat: 3,
   maxLat: 24,
 };
-const CHINA_MAP_SOURCE_URL = "http://bzdt.ch.mnr.gov.cn/index.html";
-const CHINA_MAP_SOURCE_LABEL = "自然资源部标准地图服务";
-const CHINA_MAP_RULES_URL = "https://www.mfa.gov.cn/web/wjb_673085/zzjg_673183/bjhysws_674671/bhflfg/dtdmxgfl/202303/P020230313585504979937.pdf";
-const CHINA_MAP_RULES_LABEL = "《公开地图内容表示规范》";
 const CHINA_PROVINCES = [
   { id: "xinjiang", name: "新疆维吾尔自治区", shortName: "新疆", pinyin: "Xīnjiāng Wéiwú'ěr Zìzhìqū", label: ["新疆维吾尔", "自治区"], labelX: 190, labelY: 255, points: "70,210 135,135 245,145 315,200 320,285 270,355 180,370 90,315 48,255" },
   { id: "xizang", name: "西藏自治区", shortName: "西藏", pinyin: "Xīzàng Zìzhìqū", label: ["西藏", "自治区"], labelX: 220, labelY: 455, points: "120,385 265,355 365,395 355,485 290,540 170,520 80,455" },
@@ -2048,7 +2044,6 @@ function buildChinaMapMarkup(session, options = {}) {
       <div class="china-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
         ${buildChinaMapSvgMarkup(session, options)}
       </div>
-      ${buildMapInfoBubbleMarkup()}
       <div class="map-legend-row" aria-label="Map answer legend">
         <span><i class="legend-dot correct"></i>Correct</span>
         <span><i class="legend-dot incorrect"></i>Incorrect</span>
@@ -2336,29 +2331,6 @@ function buildMapQuizToastMarkup(assessment) {
       <strong>${correct ? "Correct!" : "Wrong location"}</strong>
       <span>${escapeHtml(current?.name || "")}</span>
     </div>
-  `;
-}
-
-function buildMapInfoBubbleMarkup() {
-  return `
-    <details class="map-info-bubble">
-      <summary aria-label="Map source information">
-        <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 17v-5"></path>
-          <path d="M12 8h.01"></path>
-          <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
-        </svg>
-      </summary>
-      <div class="map-info-popover">
-        <strong>官方地图来源</strong>
-        <p>
-          本页使用本地边界数据渲染互动练习；名称和边界表达参考 <a href="${CHINA_MAP_SOURCE_URL}" target="_blank" rel="noopener">${CHINA_MAP_SOURCE_LABEL}</a>
-          和 <a href="${CHINA_MAP_RULES_URL}" target="_blank" rel="noopener">${CHINA_MAP_RULES_LABEL}</a>。
-          本练习按省级行政区显示台湾省。
-        </p>
-        <p>本工具用于学习定位，不替代权威标准地图。</p>
-      </div>
-    </details>
   `;
 }
 

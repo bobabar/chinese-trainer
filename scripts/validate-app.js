@@ -262,9 +262,7 @@ assert(
   CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
   "map quiz city targets should include longitude and latitude for local pins",
 );
-assert(mapMarkup.includes("map-info-bubble"), "map quiz should include a discreet official-source info bubble");
-assert(mapMarkup.includes("自然资源部标准地图服务"), "map source bubble should link to the official standard map service");
-assert(mapMarkup.includes("按省级行政区显示台湾省"), "map source bubble should state Taiwan is shown as a province-level unit");
+assert(!mapMarkup.includes("map-info-bubble"), "map quiz should not render a map source info bubble");
 assert(
   assessMapQuizSelection("province", guangdongProvince.id, { ...guangdongProvince, kind: "province" }).correct,
   "province questions should be correct when the matching province is selected",

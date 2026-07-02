@@ -288,6 +288,9 @@ assert(!indexSource.includes("amap-config.js"), "map quiz should not load map AP
 assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gaode JavaScript API at runtime");
 assert(!appSource.includes("List Quiz"), "map quiz should not render the removed List Quiz chip");
 assert(!appSource.includes("Mode: China Map"), "map quiz should not render the removed Mode chip");
+assert(appSource.includes("Test your knowledge of China's geography"), "map quiz home should use the concise geography description");
+assert(!appSource.includes("Practice provincial-level regions without city pins covering small municipalities."), "map quiz should not use the old region practice description");
+assert(!appSource.includes("Practice city locations using pins without region answer highlights."), "map quiz should not use the old city practice description");
 assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
 assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
 assert(

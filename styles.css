@@ -1519,7 +1519,6 @@ select {
 }
 
 .map-score-card span,
-.map-prompt-card span,
 .map-answer-card span {
   display: block;
   color: var(--muted);
@@ -3148,6 +3147,58 @@ td.status-review {
 
   .map-prompt {
     font-size: 34px;
+  }
+
+  .map-question-panel {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .map-score-card {
+    padding: 12px;
+  }
+
+  .map-score-card > div:not(.map-progress-line) + div:not(.map-progress-line) {
+    padding-left: 12px;
+  }
+
+  .map-score-card span,
+  .map-score-card small {
+    font-size: 11px;
+  }
+
+  .map-score-card strong {
+    margin-top: 4px;
+    font-size: 21px;
+  }
+
+  .map-score-card small {
+    margin-top: 5px;
+  }
+
+  .map-progress-line {
+    height: 6px;
+    margin-top: 10px;
+  }
+
+  .map-question-count {
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .map-prompt-card {
+    gap: 7px;
+    padding: 12px;
+  }
+
+  .map-prompt-card p,
+  .map-hint-note {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .map-quiz-session .map-prompt {
+    font-size: 30px;
   }
 
   .map-quiz-workspace {

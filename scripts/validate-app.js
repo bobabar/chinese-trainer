@@ -297,6 +297,10 @@ assert(!appSource.includes("Mode: China Map"), "map quiz should not render the r
 assert(appSource.includes("Test your knowledge of China's geography"), "map quiz home should use the concise geography description");
 assert(!appSource.includes("Practice provincial-level regions without city pins covering small municipalities."), "map quiz should not use the old region practice description");
 assert(!appSource.includes("Practice city locations using pins without region answer highlights."), "map quiz should not use the old city practice description");
+assert(!appSource.includes("<span>China Map</span>"), "map prompt cards should not render a redundant China Map label above the prompt");
+assert(!appSource.includes("<span>${promptType}</span>"), "active map prompts should not render a redundant prompt-type label above the Chinese text");
+assert(!appSource.includes("Provincial-level region questions use the region shape."), "map review feedback should not repeat province interaction guidance");
+assert(!appSource.includes("City questions use the pin."), "map review feedback should not repeat city interaction guidance");
 assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
 assert(
   !/map-quiz-session">\s*\$\{buildMapModeHeaderMarkup/.test(appSource),
@@ -306,6 +310,7 @@ assert(appSource.includes("scrollMapSessionIntoView(\"session\")"), "mobile map 
 assert(appSource.includes("scrollMapSessionIntoView(\"feedback\")"), "mobile map quiz should scroll answer feedback into view");
 assert(stylesSource.includes(".map-quiz-session .china-map-svg"), "mobile map quiz should have session-specific SVG framing");
 assert(stylesSource.includes("aspect-ratio: 980 / 660"), "mobile map SVG should preserve the China map aspect ratio without a tall blank frame");
+assert(stylesSource.includes(".map-quiz-session .map-prompt"), "mobile map quiz should compact the prompt text to leave more map space");
 assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
 assert(
   !appSource.includes("shuffle(getMapQuizPool(mapQuizMode)).slice"),

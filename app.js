@@ -1146,7 +1146,6 @@ function renderMapQuizHome() {
           </div>
 
           <div class="map-prompt-card">
-            <span>China Map</span>
             <h2 class="map-prompt chinese-text" lang="zh-CN">中国地图</h2>
             <p>${escapeHtml(mapMode.homeDescription)}</p>
           </div>
@@ -1758,7 +1757,6 @@ function renderMapQuizSession() {
   const answeredCount = session.answers.length;
   const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const streak = getMapQuizStreak(session.answers);
-  const promptType = mapMode.promptType;
   const instruction = mapMode.instruction;
   const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
   const hintMarkup = !submitted && session.hintVisible
@@ -1788,7 +1786,6 @@ function renderMapQuizSession() {
           <p class="map-question-count">Question ${session.index + 1} of ${sessionLength}</p>
 
           <div class="map-prompt-card">
-            <span>${promptType}</span>
             <h2 class="map-prompt chinese-text" lang="zh-CN">${escapeHtml(current.name)}</h2>
             <p>${instruction}</p>
           </div>
@@ -2772,9 +2769,6 @@ function buildMapQuizFeedbackMarkup(assessment) {
   const current = state.session.items[state.session.index];
   const status = assessment.correct ? "good correct-celebration" : "review";
   const title = assessment.correct ? "Correct" : "Wrong location";
-  const guidance = current.kind === "province"
-    ? "Provincial-level region questions use the region shape."
-    : "City questions use the pin.";
 
   return `
     <section class="map-feedback ${status}" role="status" aria-live="polite">
@@ -2785,7 +2779,7 @@ function buildMapQuizFeedbackMarkup(assessment) {
       ${
         assessment.correct
           ? ""
-          : `<p>You selected ${escapeHtml(assessment.selectedName)}. ${guidance}</p>`
+          : `<p>You selected ${escapeHtml(assessment.selectedName)}.</p>`
       }
     </section>
   `;

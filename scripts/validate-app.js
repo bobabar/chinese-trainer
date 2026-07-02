@@ -126,6 +126,7 @@ window.__tests = {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getMapQuizPool,
   getPronunciationWeaknessStats,
   formatTimer,
   getSelectedVocabularySet,
@@ -182,6 +183,7 @@ const {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getMapQuizPool,
   getPronunciationWeaknessStats,
   formatTimer,
   getSelectedVocabularySet,
@@ -242,6 +244,16 @@ assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 province-level
 assert(CHINA_CITIES.length >= 30, "map quiz should include city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");
 assert(
+  getMapQuizPool("province").length === CHINA_PROVINCES.length &&
+    getMapQuizPool("province").every((item) => item.kind === "province"),
+  "province map mode should only draw province-level quiz targets",
+);
+assert(
+  getMapQuizPool("city").length === CHINA_CITIES.length &&
+    getMapQuizPool("city").every((item) => item.kind === "city"),
+  "city map mode should only draw city quiz targets",
+);
+assert(
   CHINA_PROVINCES.some((item) => item.name === "新疆维吾尔自治区") &&
     CHINA_PROVINCES.some((item) => item.name === "台湾省") &&
     CHINA_PROVINCES.some((item) => item.name === "香港特别行政区") &&
@@ -252,7 +264,19 @@ const guangdongProvince = CHINA_PROVINCES.find((item) => item.name === "广东�
 const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");
 assert(guangdongProvince, "map data should include 广东省");
 assert(guangzhouCity, "map data should include 广州市");
-const mapMarkup = buildChinaMapMarkup({ type: "map", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
+const mapMarkup = buildChinaMapMarkup({ type: "map", mapQuizMode: "province", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
+const cityMapMarkup = buildChinaMapMarkup({ type: "map", mapQuizMode: "city", items: [{ ...guangzhouCity, kind: "city" }], index: 0, currentAssessment: null });
+const cityProvinceAssessmentMarkup = buildChinaMapMarkup({
+  type: "map",
+  mapQuizMode: "city",
+  items: [{ ...guangzhouCity, kind: "city" }],
+  index: 0,
+  currentAssessment: {
+    selectedKind: "province",
+    selectedId: guangdongProvince.id,
+    correct: false,
+  },
+});
 assert(indexSource.includes("china-map-data.js"), "map quiz should load committed China map data before app startup");
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
@@ -261,6 +285,13 @@ assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gao
 assert(
   CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
   "map quiz city targets should include longitude and latitude for local pins",
+);
+assert(!mapMarkup.includes("data-map-city-id"), "province map mode should not render city pins");
+assert(cityMapMarkup.includes("data-map-city-id"), "city map mode should render city pins");
+assert(!cityMapMarkup.includes("data-map-province-id"), "city map mode should not make province shapes selectable");
+assert(
+  !/china-province-shape[^"]*is-(hint|correct|wrong)/.test(cityProvinceAssessmentMarkup),
+  "city map mode should not apply answer highlights to province shapes",
 );
 assert(!mapMarkup.includes("map-info-bubble"), "map quiz should not render a map source info bubble");
 assert(
@@ -620,11 +651,12 @@ assert(pronunciationRecord.answers[0].missedWords.length === 2, "pronunciation h
 assert(pronunciationRecord.weaknesses.tones.length > 0, "pronunciation history should store weakness summaries");
 const mapRecord = buildHistoryRecord({
   type: "map",
+  mapQuizMode: "city",
   answers: [
     {
-      item: { ...guangdongProvince, kind: "province" },
-      selectedName: "广东省",
-      selectedKind: "province",
+      item: { ...guangzhouCity, kind: "city" },
+      selectedName: "广州市",
+      selectedKind: "city",
       correct: true,
       score: 1,
     },
@@ -639,6 +671,7 @@ const mapRecord = buildHistoryRecord({
   elapsedSeconds: 25,
 });
 assert(mapRecord.type === "map", "map quiz history should store map records");
+assert(mapRecord.mapQuizMode === "city", "map quiz history should store the map mode");
 assert(mapRecord.correct === 1 && mapRecord.total === 2, "map quiz history should store score totals");
 assert(mapRecord.answers[1].pinyin === guangzhouCity.pinyin, "map quiz history should store pinyin");
 

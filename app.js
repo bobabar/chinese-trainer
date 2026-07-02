@@ -128,7 +128,6 @@ const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
 const MAP_QUIZ_SESSION_LENGTH = 20;
-const CHINA_MAP_AUDIT_NUMBER = "GS(2023)2767号";
 const CHINA_MAP_VIEWBOX = { width: 980, height: 660 };
 const CHINA_MAINLAND_FRAME = {
   x: 28,
@@ -226,6 +225,33 @@ const CHINA_MAP_ITEMS = [
   ...CHINA_PROVINCES.map((item) => ({ ...item, kind: "province" })),
   ...CHINA_CITIES.map((item) => ({ ...item, kind: "city" })),
 ];
+const MAP_QUIZ_MODES = {
+  province: {
+    label: "Province mode",
+    shortLabel: "Provinces",
+    pickerLabel: "Provinces",
+    pickerDetail: "Region shapes",
+    startLabel: "Start province quiz",
+    promptType: "省级行政区",
+    targetMetric: "Province-level targets",
+    homeDescription: "Practice province-level regions without city pins covering small municipalities.",
+    instruction: "Select the correct region on the map.",
+    tip: "Tip: click the province-level region to select your answer.",
+  },
+  city: {
+    label: "City mode",
+    shortLabel: "Cities",
+    pickerLabel: "Cities",
+    pickerDetail: "City pins",
+    startLabel: "Start city quiz",
+    promptType: "城市",
+    targetMetric: "City pins",
+    homeDescription: "Practice city locations using pins without province answer highlights.",
+    instruction: "Select the correct city pin on the map.",
+    tip: "Tip: click the city pin to select your answer.",
+  },
+};
+const DEFAULT_MAP_QUIZ_MODE = "province";
 const loadedScripts = new Map();
 let sentenceDataPromise = null;
 let sentenceDataLoaded = false;
@@ -277,6 +303,7 @@ const state = {
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
   vocabularyHideTranslations: false,
+  mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
   pronunciationShowPinyin: true,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
@@ -337,6 +364,9 @@ function loadSettings() {
     if (typeof saved.vocabularyHideTranslations === "boolean") {
       state.vocabularyHideTranslations = saved.vocabularyHideTranslations;
     }
+    if (saved.mapQuizMode && MAP_QUIZ_MODES[saved.mapQuizMode]) {
+      state.mapQuizMode = saved.mapQuizMode;
+    }
     if (typeof saved.pronunciationShowPinyin === "boolean") {
       state.pronunciationShowPinyin = saved.pronunciationShowPinyin;
     }
@@ -378,6 +408,7 @@ function saveSettings() {
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
+        mapQuizMode: state.mapQuizMode,
         pronunciationShowPinyin: state.pronunciationShowPinyin,
         selectedLevels: [...state.selectedLevels],
         voiceSpeed: state.voiceSpeed,
@@ -1089,6 +1120,10 @@ function renderPronunciationHome() {
 }
 
 function renderMapQuizHome() {
+  const mapMode = getSelectedMapQuizMode();
+  const targetCount = getMapQuizPool().length;
+  const sessionLength = Math.min(MAP_QUIZ_SESSION_LENGTH, targetCount);
+
   app.innerHTML = `
     <section class="workspace-panel map-quiz-workspace map-home">
       ${buildMapToolbarMarkup({ isHome: true })}
@@ -1098,44 +1133,75 @@ function renderMapQuizHome() {
           <div class="map-score-card">
             <div>
               <span>Practice Set</span>
-              <strong>${MAP_QUIZ_SESSION_LENGTH}</strong>
+              <strong>${sessionLength}</strong>
               <small>Questions</small>
             </div>
             <div>
               <span>Targets</span>
-              <strong>${CHINA_PROVINCES.length + CHINA_CITIES.length}</strong>
-              <small>Regions + pins</small>
+              <strong>${targetCount}</strong>
+              <small>${escapeHtml(mapMode.targetMetric)}</small>
             </div>
           </div>
 
           <div class="map-prompt-card">
             <span>China Map</span>
             <h2 class="map-prompt chinese-text" lang="zh-CN">中国地图</h2>
-            <p>Locate province-level regions and city pins using official Chinese names.</p>
+            <p>${escapeHtml(mapMode.homeDescription)}</p>
           </div>
 
-          <div class="map-answer-card map-source-note">
-            <strong>Local official-name map</strong>
-            <span>审图号 ${CHINA_MAP_AUDIT_NUMBER}</span>
-            <p>The quiz uses a committed boundary layer and does not call a map API while you play.</p>
-          </div>
+          ${buildMapModePickerMarkup()}
 
           <button class="primary-btn shortcut-btn map-next-btn" type="button" id="startMapQuizSession">
-            <span>Start map quiz</span>
+            <span>${escapeHtml(mapMode.startLabel)}</span>
             ${shortcutHint("Enter")}
           </button>
         </aside>
 
         <div class="map-stage-panel">
-          ${buildChinaMapMarkup({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true })}
+          ${buildChinaMapMarkup({ type: "map", mapQuizMode: state.mapQuizMode, items: [], index: 0, currentAssessment: null }, { preview: true })}
         </div>
       </div>
     </section>
   `;
 
+  bindMapModePicker();
   document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
   bindMapViewControls();
-  bindChinaMapInteractions({ type: "map", items: [], index: 0, currentAssessment: null }, { preview: true });
+  bindChinaMapInteractions({ type: "map", mapQuizMode: state.mapQuizMode, items: [], index: 0, currentAssessment: null }, { preview: true });
+}
+
+function buildMapModePickerMarkup() {
+  return `
+    <div class="map-mode-picker" role="group" aria-label="Map quiz mode">
+      ${Object.entries(MAP_QUIZ_MODES).map(([modeId, mode]) => `
+        <button
+          class="map-mode-option ${state.mapQuizMode === modeId ? "active" : ""}"
+          type="button"
+          data-map-quiz-mode="${modeId}"
+          aria-pressed="${state.mapQuizMode === modeId ? "true" : "false"}"
+        >
+          <strong>${escapeHtml(mode.pickerLabel)}</strong>
+          <span>${escapeHtml(mode.pickerDetail)}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindMapModePicker() {
+  document.querySelectorAll("[data-map-quiz-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextMode = button.dataset.mapQuizMode;
+      if (!MAP_QUIZ_MODES[nextMode] || nextMode === state.mapQuizMode) {
+        return;
+      }
+
+      state.mapQuizMode = nextMode;
+      state.result = null;
+      saveSettings();
+      renderMapQuizHome();
+    });
+  });
 }
 
 function renderVocabularyHome() {
@@ -1456,7 +1522,7 @@ function buildHistoryRowMarkup(record) {
     : record.type === "pronunciation"
       ? selectedLevelLabels(record.levels)
       : record.type === "map"
-        ? "Province and city locations"
+        ? `${getSelectedMapQuizMode(record.mapQuizMode).label} locations`
       : MODES[record.mode]?.label || record.mode;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
@@ -1665,6 +1731,7 @@ function renderPronunciationSession() {
 
 function renderMapQuizSession() {
   const session = state.session;
+  const mapMode = getSelectedMapQuizMode(session.mapQuizMode);
   const current = session.items[session.index];
   const submitted = Boolean(session.currentAssessment);
   const sessionLength = session.items.length;
@@ -1672,10 +1739,8 @@ function renderMapQuizSession() {
   const answeredCount = session.answers.length;
   const progressPercent = Math.round((answeredCount / sessionLength) * 100);
   const streak = getMapQuizStreak(session.answers);
-  const promptType = current.kind === "province" ? "省级行政区" : "城市";
-  const instruction = current.kind === "province"
-    ? "Select the correct region on the map."
-    : "Select the correct city pin on the map.";
+  const promptType = mapMode.promptType;
+  const instruction = mapMode.instruction;
   const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
   const hintMarkup = !submitted && session.hintVisible
     ? `<p class="map-hint-note">Hint: ${escapeHtml(current.pinyin)}</p>`
@@ -1755,17 +1820,28 @@ function renderMapQuizSession() {
 }
 
 function buildMapToolbarMarkup({ isHome = false, isSession = false } = {}) {
+  const activeMode = getSelectedMapQuizMode(state.session?.mapQuizMode || state.mapQuizMode);
   return `
     <div class="map-toolbar" aria-label="Map quiz controls">
       <div class="map-toolbar-tabs" aria-label="Quiz view">
         <button class="map-toolbar-tab active" type="button">Map Quiz</button>
         <button class="map-toolbar-tab" type="button" disabled>List Quiz</button>
       </div>
-      <span class="map-toolbar-chip">Level: Provinces & Cities</span>
+      <span class="map-toolbar-chip">Target: ${escapeHtml(activeMode.shortLabel)}</span>
       <span class="map-toolbar-chip">Mode: China Map</span>
       <span class="map-toolbar-chip">Options</span>
     </div>
   `;
+}
+
+function getSelectedMapQuizMode(mode = state.mapQuizMode) {
+  return MAP_QUIZ_MODES[mode] || MAP_QUIZ_MODES[DEFAULT_MAP_QUIZ_MODE];
+}
+
+function getMapQuizPool(mode = state.mapQuizMode) {
+  return mode === "city"
+    ? CHINA_CITIES.map((item) => ({ ...item, kind: "city" }))
+    : CHINA_PROVINCES.map((item) => ({ ...item, kind: "province" }));
 }
 
 function getMapQuizStreak(answers) {
@@ -2033,10 +2109,11 @@ function submitPronunciationTranscript(transcript) {
 }
 
 function buildChinaMapMarkup(session, options = {}) {
-  const current = session?.items?.[session.index] || null;
   const assessment = session?.currentAssessment || null;
+  const mapMode = getMapQuizModeForSession(session);
   const toastMarkup = assessment ? buildMapQuizToastMarkup(assessment) : "";
-  const targetClass = current?.kind === "city" ? "city-mode" : "province-mode";
+  const targetClass = mapMode === "city" ? "city-mode" : "province-mode";
+  const modeConfig = getSelectedMapQuizMode(mapMode);
 
   return `
     <div class="china-map-wrap ${targetClass}">
@@ -2049,7 +2126,7 @@ function buildChinaMapMarkup(session, options = {}) {
         <span><i class="legend-dot incorrect"></i>Incorrect</span>
         <span><i class="legend-dot pending"></i>Not answered</span>
       </div>
-      <p class="map-tip">Tip: click a province area or a city pin to select your answer.</p>
+      <p class="map-tip">${escapeHtml(modeConfig.tip)}</p>
     </div>
   `;
 }
@@ -2080,9 +2157,11 @@ function buildChinaMapSvgMarkup(session, options = {}) {
       <g class="china-map-provinces" filter="url(#mapProvinceLift)">
         ${buildChinaMapProvincePaths(mapData.features, session)}
       </g>
-      <g class="china-city-pins">
-        ${buildChinaMapCityPins(session)}
-      </g>
+      ${shouldShowMapCityPins(session) ? `
+        <g class="china-city-pins">
+          ${buildChinaMapCityPins(session)}
+        </g>
+      ` : ""}
       ${buildSouthChinaSeaInsetMarkup(mapData.features)}
     </svg>
   `;
@@ -2093,6 +2172,8 @@ function getChinaMapData() {
 }
 
 function buildChinaMapProvincePaths(features, session) {
+  const provinceSelectionEnabled = shouldEnableMapProvinceSelection(session);
+
   return features
     .map((feature) => {
       const province = getProvinceForMapFeature(feature);
@@ -2109,11 +2190,10 @@ function buildChinaMapProvincePaths(features, session) {
       return `
         <path
           class="${classes}"
-          data-map-province-id="${escapeHtml(province.id)}"
+          ${provinceSelectionEnabled ? `data-map-province-id="${escapeHtml(province.id)}"` : ""}
           d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
-          role="button"
-          tabindex="0"
-          aria-label="Province-level region"
+          ${provinceSelectionEnabled ? `role="button" tabindex="0"` : ""}
+          aria-label="${provinceSelectionEnabled ? "Province-level region" : "Map region outline"}"
         ></path>
       `;
     })
@@ -2183,6 +2263,11 @@ function getProvinceForMapFeature(feature) {
 }
 
 function getMapTargetStatus(kind, id, session) {
+  const mapMode = getMapQuizModeForSession(session);
+  if ((mapMode === "province" && kind === "city") || (mapMode === "city" && kind === "province")) {
+    return "";
+  }
+
   const current = session?.items?.[session.index] || null;
   const assessment = session?.currentAssessment || null;
   const key = mapTargetKey(kind, id);
@@ -2202,6 +2287,19 @@ function getMapTargetStatus(kind, id, session) {
   }
 
   return "";
+}
+
+function getMapQuizModeForSession(session) {
+  const mode = session?.mapQuizMode || state.mapQuizMode;
+  return MAP_QUIZ_MODES[mode] ? mode : DEFAULT_MAP_QUIZ_MODE;
+}
+
+function shouldShowMapCityPins(session) {
+  return getMapQuizModeForSession(session) === "city";
+}
+
+function shouldEnableMapProvinceSelection(session) {
+  return getMapQuizModeForSession(session) === "province";
 }
 
 function geoGeometryToPath(geometry, frame) {
@@ -2310,7 +2408,7 @@ function bindChinaMapInteractions(session, options = {}) {
     if (activeSession?.type !== "map" || activeSession.currentAssessment) {
       return;
     }
-    showMapStatus("Click a province shape or a city pin to answer.");
+    showMapStatus(getSelectedMapQuizMode(activeSession.mapQuizMode).tip);
   });
 }
 
@@ -2337,6 +2435,12 @@ function buildMapQuizToastMarkup(assessment) {
 function submitMapQuizSelection(kind, id) {
   const session = state.session;
   if (session?.type !== "map" || session.currentAssessment) {
+    return;
+  }
+
+  const mapMode = getMapQuizModeForSession(session);
+  if ((mapMode === "province" && kind !== "province") || (mapMode === "city" && kind !== "city")) {
+    showMapStatus(getSelectedMapQuizMode(mapMode).tip);
     return;
   }
 
@@ -3320,10 +3424,10 @@ function renderMapQuizResults() {
   const correct = result.answers.filter((answer) => answer.correct).length;
   const total = result.answers.length;
   const percent = total ? Math.round((correct / total) * 100) : 0;
-  const provinceCorrect = countMapAnswersByKind(result.answers, "province", true);
-  const provinceTotal = countMapAnswersByKind(result.answers, "province");
-  const cityCorrect = countMapAnswersByKind(result.answers, "city", true);
-  const cityTotal = countMapAnswersByKind(result.answers, "city");
+  const resultMode = result.mapQuizMode || DEFAULT_MAP_QUIZ_MODE;
+  const mapMode = getSelectedMapQuizMode(resultMode);
+  const modeCorrect = countMapAnswersByKind(result.answers, resultMode, true);
+  const modeTotal = countMapAnswersByKind(result.answers, resultMode);
   const rows = result.answers.map((answer, index) => `
     <tr>
       <td>${index + 1}</td>
@@ -3340,7 +3444,7 @@ function renderMapQuizResults() {
       <div class="results-header">
         <div>
           <h2>Map Quiz Results</h2>
-          <p>${correct} correct out of ${total}; ${percent}% location accuracy.</p>
+          <p>${escapeHtml(mapMode.label)}: ${correct} correct out of ${total}; ${percent}% location accuracy.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
@@ -3357,12 +3461,12 @@ function renderMapQuizResults() {
           <span>Correct</span>
         </div>
         <div class="stat">
-          <strong>${provinceCorrect}/${provinceTotal}</strong>
-          <span>Province targets</span>
+          <strong>${modeCorrect}/${modeTotal}</strong>
+          <span>${escapeHtml(mapMode.shortLabel)}</span>
         </div>
         <div class="stat">
-          <strong>${cityCorrect}/${cityTotal}</strong>
-          <span>City pins</span>
+          <strong>${percent}%</strong>
+          <span>Accuracy</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.elapsedSeconds || 0)}</strong>
@@ -3388,7 +3492,10 @@ function renderMapQuizResults() {
     </section>
   `;
 
-  document.querySelector("#restartSession").addEventListener("click", startMapQuizSession);
+  document.querySelector("#restartSession").addEventListener("click", () => {
+    state.mapQuizMode = result.mapQuizMode || DEFAULT_MAP_QUIZ_MODE;
+    startMapQuizSession();
+  });
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
@@ -3844,11 +3951,13 @@ async function startPronunciationSession() {
 function startMapQuizSession() {
   stopPronunciationRecognition();
   stopSpeech();
-  const items = shuffle(CHINA_MAP_ITEMS).slice(0, MAP_QUIZ_SESSION_LENGTH);
+  const mapQuizMode = MAP_QUIZ_MODES[state.mapQuizMode] ? state.mapQuizMode : DEFAULT_MAP_QUIZ_MODE;
+  const items = shuffle(getMapQuizPool(mapQuizMode)).slice(0, MAP_QUIZ_SESSION_LENGTH);
 
   state.result = null;
   state.session = {
     type: "map",
+    mapQuizMode,
     items,
     index: 0,
     answers: [],
@@ -4271,6 +4380,7 @@ function buildSessionResult(session) {
     const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
     return {
       type: "map",
+      mapQuizMode: session.mapQuizMode || DEFAULT_MAP_QUIZ_MODE,
       items: session.items,
       answers: session.answers,
       elapsedSeconds,
@@ -4393,6 +4503,7 @@ function buildHistoryRecord(result) {
       id,
       type: "map",
       completedAt,
+      mapQuizMode: result.mapQuizMode || DEFAULT_MAP_QUIZ_MODE,
       total: result.answers.length,
       correct,
       elapsedSeconds: result.elapsedSeconds || 0,

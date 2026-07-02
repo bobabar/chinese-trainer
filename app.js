@@ -128,6 +128,9 @@ const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
 const CHINA_MAP_VIEWBOX = { width: 980, height: 660 };
+const CHINA_MAP_ZOOM_MIN = 1;
+const CHINA_MAP_ZOOM_MAX = 3;
+const CHINA_MAP_ZOOM_STEP = 0.5;
 const CHINA_MAINLAND_FRAME = {
   x: 28,
   y: 18,
@@ -1855,6 +1858,10 @@ function getMapQuizStreak(answers) {
   return streak;
 }
 
+function createDefaultChinaMapView() {
+  return { scale: CHINA_MAP_ZOOM_MIN, x: 0, y: 0 };
+}
+
 function showMapHint() {
   if (state.session?.type !== "map" || state.session.currentAssessment) {
     return;
@@ -2131,6 +2138,17 @@ function buildChinaMapMarkup(session, options = {}) {
       <div class="china-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
         ${buildChinaMapSvgMarkup(session, options)}
       </div>
+      ${buildChinaMapZoomControlsMarkup()}
+    </div>
+  `;
+}
+
+function buildChinaMapZoomControlsMarkup() {
+  return `
+    <div class="map-zoom-controls" aria-label="Map zoom controls">
+      <button class="map-zoom-btn" type="button" data-map-zoom="out" aria-label="Zoom out">-</button>
+      <button class="map-zoom-btn map-zoom-reset" type="button" data-map-zoom="reset" aria-label="Reset map zoom">1x</button>
+      <button class="map-zoom-btn" type="button" data-map-zoom="in" aria-label="Zoom in">+</button>
     </div>
   `;
 }
@@ -2155,19 +2173,21 @@ function buildChinaMapSvgMarkup(session, options = {}) {
         </clipPath>
       </defs>
       <rect class="china-map-water" x="0" y="0" width="${CHINA_MAP_VIEWBOX.width}" height="${CHINA_MAP_VIEWBOX.height}" rx="18"></rect>
-      <g class="china-map-provinces">
-        ${buildChinaMapProvincePaths(mapData.features, session)}
+      <g class="china-map-zoom-layer" data-map-transform-layer>
+        <g class="china-map-provinces">
+          ${buildChinaMapProvincePaths(mapData.features, session)}
+        </g>
+        ${shouldEnableMapProvinceSelection(session) ? `
+          <g class="china-map-province-outlines" aria-hidden="true">
+            ${buildChinaMapProvinceOutlinePaths(mapData.features, session)}
+          </g>
+        ` : ""}
+        ${shouldShowMapCityPins(session) ? `
+          <g class="china-city-pins">
+            ${buildChinaMapCityPins(session)}
+          </g>
+        ` : ""}
       </g>
-      ${shouldEnableMapProvinceSelection(session) ? `
-        <g class="china-map-province-outlines" aria-hidden="true">
-          ${buildChinaMapProvinceOutlinePaths(mapData.features, session)}
-        </g>
-      ` : ""}
-      ${shouldShowMapCityPins(session) ? `
-        <g class="china-city-pins">
-          ${buildChinaMapCityPins(session)}
-        </g>
-      ` : ""}
       ${buildSouthChinaSeaInsetMarkup(mapData.features)}
     </svg>
   `;
@@ -2398,7 +2418,13 @@ function showMapStatus(message) {
 
 function bindChinaMapInteractions(session, options = {}) {
   const map = document.querySelector("#chinaMapQuiz");
-  if (!map || options.preview) {
+  if (!map) {
+    return;
+  }
+
+  bindChinaMapZoomControls(map, session);
+
+  if (options.preview) {
     return;
   }
 
@@ -2449,6 +2475,237 @@ function bindChinaMapInteractions(session, options = {}) {
     }
     showMapStatus(getSelectedMapQuizMode(activeSession.mapQuizMode).tip);
   });
+}
+
+function bindChinaMapZoomControls(map, session) {
+  const svg = map.querySelector(".china-map-svg");
+  const layer = map.querySelector("[data-map-transform-layer]");
+  const wrap = map.closest(".china-map-wrap");
+  const controls = wrap?.querySelectorAll("[data-map-zoom]") || [];
+  if (!svg || !layer || !controls.length) {
+    return;
+  }
+
+  const activeSession = session?.type === "map" && state.session === session ? session : null;
+  const savedView = activeSession?.mapView || createDefaultChinaMapView();
+  const view = {
+    scale: clamp(Number(savedView.scale) || CHINA_MAP_ZOOM_MIN, CHINA_MAP_ZOOM_MIN, CHINA_MAP_ZOOM_MAX),
+    x: Number(savedView.x) || 0,
+    y: Number(savedView.y) || 0,
+  };
+  const pointers = new Map();
+  let dragStart = null;
+  let pinchStart = null;
+  let suppressClick = false;
+
+  const clearSuppressedClickSoon = () => {
+    window.setTimeout(() => {
+      suppressClick = false;
+    }, 120);
+  };
+
+  const saveView = () => {
+    if (activeSession) {
+      activeSession.mapView = { ...view };
+    }
+  };
+
+  const clampView = () => {
+    if (view.scale <= CHINA_MAP_ZOOM_MIN) {
+      view.scale = CHINA_MAP_ZOOM_MIN;
+      view.x = 0;
+      view.y = 0;
+      return;
+    }
+
+    view.x = clamp(view.x, CHINA_MAP_VIEWBOX.width - (CHINA_MAP_VIEWBOX.width * view.scale), 0);
+    view.y = clamp(view.y, CHINA_MAP_VIEWBOX.height - (CHINA_MAP_VIEWBOX.height * view.scale), 0);
+  };
+
+  const updateControls = () => {
+    controls.forEach((button) => {
+      if (button.dataset.mapZoom === "in") {
+        button.disabled = view.scale >= CHINA_MAP_ZOOM_MAX;
+      } else {
+        button.disabled = view.scale <= CHINA_MAP_ZOOM_MIN;
+      }
+
+      if (button.dataset.mapZoom === "reset") {
+        button.textContent = `${Number(view.scale.toFixed(1))}x`;
+      }
+    });
+  };
+
+  const applyView = () => {
+    clampView();
+    layer.setAttribute("transform", `matrix(${view.scale} 0 0 ${view.scale} ${view.x} ${view.y})`);
+    map.classList.toggle("is-zoomed", view.scale > CHINA_MAP_ZOOM_MIN);
+    updateControls();
+    saveView();
+  };
+
+  const getSvgPoint = (event) => {
+    const matrix = svg.getScreenCTM();
+    if (!matrix) {
+      return {
+        x: CHINA_MAP_VIEWBOX.width / 2,
+        y: CHINA_MAP_VIEWBOX.height / 2,
+      };
+    }
+
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    return point.matrixTransform(matrix.inverse());
+  };
+
+  const getPointerDistance = (first, second) => Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+
+  const getPointerMidpoint = (first, second) => ({
+    clientX: (first.clientX + second.clientX) / 2,
+    clientY: (first.clientY + second.clientY) / 2,
+  });
+
+  const zoomAt = (nextScale, anchor) => {
+    const scale = clamp(nextScale, CHINA_MAP_ZOOM_MIN, CHINA_MAP_ZOOM_MAX);
+    const point = anchor || {
+      x: CHINA_MAP_VIEWBOX.width / 2,
+      y: CHINA_MAP_VIEWBOX.height / 2,
+    };
+    const contentX = (point.x - view.x) / view.scale;
+    const contentY = (point.y - view.y) / view.scale;
+
+    view.scale = scale;
+    view.x = point.x - (contentX * scale);
+    view.y = point.y - (contentY * scale);
+    applyView();
+  };
+
+  controls.forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.mapZoom;
+      if (action === "in") {
+        zoomAt(view.scale + CHINA_MAP_ZOOM_STEP);
+      } else if (action === "out") {
+        zoomAt(view.scale - CHINA_MAP_ZOOM_STEP);
+      } else {
+        view.scale = CHINA_MAP_ZOOM_MIN;
+        view.x = 0;
+        view.y = 0;
+        applyView();
+      }
+    });
+  });
+
+  svg.addEventListener("click", (event) => {
+    if (!suppressClick) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClick = false;
+  }, true);
+
+  svg.addEventListener("pointerdown", (event) => {
+    pointers.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+
+    if (pointers.size === 2) {
+      const [first, second] = [...pointers.values()];
+      const midpoint = getPointerMidpoint(first, second);
+      const center = getSvgPoint(midpoint);
+      pinchStart = {
+        distance: getPointerDistance(first, second),
+        contentX: (center.x - view.x) / view.scale,
+        contentY: (center.y - view.y) / view.scale,
+        scale: view.scale,
+      };
+      suppressClick = true;
+      event.preventDefault();
+      return;
+    }
+
+    if (view.scale <= CHINA_MAP_ZOOM_MIN) {
+      return;
+    }
+
+    dragStart = {
+      pointerId: event.pointerId,
+      point: getSvgPoint(event),
+      x: view.x,
+      y: view.y,
+      moved: false,
+    };
+  });
+
+  svg.addEventListener("pointermove", (event) => {
+    if (!pointers.has(event.pointerId)) {
+      return;
+    }
+
+    pointers.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+
+    if (pointers.size === 2 && pinchStart) {
+      const [first, second] = [...pointers.values()];
+      const nextDistance = getPointerDistance(first, second);
+      if (pinchStart.distance > 0) {
+        const midpoint = getPointerMidpoint(first, second);
+        const center = getSvgPoint(midpoint);
+        view.scale = clamp(pinchStart.scale * (nextDistance / pinchStart.distance), CHINA_MAP_ZOOM_MIN, CHINA_MAP_ZOOM_MAX);
+        view.x = center.x - (pinchStart.contentX * view.scale);
+        view.y = center.y - (pinchStart.contentY * view.scale);
+        applyView();
+      }
+      suppressClick = true;
+      event.preventDefault();
+      return;
+    }
+
+    if (!dragStart || dragStart.pointerId !== event.pointerId || view.scale <= CHINA_MAP_ZOOM_MIN) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+    const deltaX = point.x - dragStart.point.x;
+    const deltaY = point.y - dragStart.point.y;
+    if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+      dragStart.moved = true;
+      suppressClick = true;
+      svg.setPointerCapture?.(event.pointerId);
+    }
+
+    view.x = dragStart.x + deltaX;
+    view.y = dragStart.y + deltaY;
+    applyView();
+    event.preventDefault();
+  });
+
+  const endPointer = (event) => {
+    pointers.delete(event.pointerId);
+    if (dragStart?.pointerId === event.pointerId) {
+      suppressClick = suppressClick || dragStart.moved;
+      dragStart = null;
+    }
+    if (pointers.size < 2) {
+      pinchStart = null;
+    }
+    if (suppressClick) {
+      clearSuppressedClickSoon();
+    }
+    svg.releasePointerCapture?.(event.pointerId);
+  };
+
+  svg.addEventListener("pointerup", endPointer);
+  svg.addEventListener("pointercancel", endPointer);
+  svg.addEventListener("pointerleave", endPointer);
+
+  applyView();
 }
 
 function bindMapViewControls() {
@@ -4003,6 +4260,7 @@ function startMapQuizSession() {
     answers: [],
     currentAssessment: null,
     hintVisible: false,
+    mapView: createDefaultChinaMapView(),
     startedAt: Date.now(),
   };
 
@@ -4310,6 +4568,7 @@ function nextQuestion() {
     session.index += 1;
     session.currentAssessment = null;
     session.hintVisible = false;
+    session.mapView = createDefaultChinaMapView();
     render();
     scrollMapSessionIntoView("session");
     return;

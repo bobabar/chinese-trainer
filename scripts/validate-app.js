@@ -282,6 +282,11 @@ assert(indexSource.includes("china-map-data.js"), "map quiz should load committe
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
 assert(mapMarkup.includes("china-province-outline"), "province map mode should render a top outline layer for complete highlighted borders");
+assert(mapMarkup.includes("map-zoom-controls"), "map quiz should render zoom controls");
+assert(mapMarkup.includes("data-map-transform-layer"), "map quiz should render a transform layer for zooming and panning");
+assert(appSource.includes("bindChinaMapZoomControls"), "map quiz should bind zoom and pan controls");
+assert(stylesSource.includes(".map-zoom-controls"), "map quiz should style the zoom controls");
+assert(stylesSource.includes("touch-action: none"), "map quiz should disable native touch gestures inside the map for custom zooming");
 assert(!mapMarkup.includes("mapProvinceLift"), "map quiz should not use the province shadow filter that can render black selection artifacts");
 assert(!mapMarkup.includes("map-legend-row"), "map quiz should not render the bottom legend");
 assert(!mapMarkup.includes("map-tip"), "map quiz should not render the bottom tip");

@@ -565,7 +565,7 @@ body[data-tool="vocabulary"] .options-body {
   }
 
   body[data-tool="map"] .tool-controls::before {
-    content: "Regions & Cities Quiz";
+    content: "Geography of China Quiz";
   }
 
   body[data-tool="history"] .tool-controls::before {

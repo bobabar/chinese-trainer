@@ -52,7 +52,7 @@ const TOOLS = {
     label: "Pronunciation",
   },
   map: {
-    label: "Regions & Cities Quiz",
+    label: "Geography of China Quiz",
   },
   drill: {
     label: "Sentence Drills",

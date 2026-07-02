@@ -229,8 +229,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Geography of China Quiz|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Pronunciation, Geography of China Quiz, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Pronunciation, Geography of China, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),

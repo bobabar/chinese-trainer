@@ -3081,6 +3081,12 @@ td.status-review {
     font-size: 34px;
   }
 
+  .map-quiz-workspace {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
   .map-mode-picker {
     grid-template-columns: 1fr;
   }
@@ -3110,10 +3116,27 @@ td.status-review {
     border-bottom: 1px solid var(--line);
   }
 
-  .map-stage-panel,
-  .china-map-wrap,
-  .china-map-canvas {
-    min-height: 430px;
+  .map-home .map-stage-panel,
+  .map-home .china-map-wrap,
+  .map-home .china-map-canvas {
+    min-height: 380px;
+  }
+
+  .map-quiz-session .map-stage-panel,
+  .map-quiz-session .china-map-wrap,
+  .map-quiz-session .china-map-canvas {
+    min-height: 0;
+    height: auto;
+  }
+
+  .map-quiz-session .china-map-canvas {
+    padding: 10px;
+  }
+
+  .map-quiz-session .china-map-svg {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 980 / 660;
   }
 
   .map-answer-toast {

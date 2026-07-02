@@ -8,6 +8,7 @@ const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
 const queuedTimers = [];
 const speechCalls = {
   cancel: 0,
@@ -296,6 +297,10 @@ assert(
   !/map-quiz-session">\s*\$\{buildMapModeHeaderMarkup/.test(appSource),
   "active map quiz sessions should not render the mode header above the game shell",
 );
+assert(appSource.includes("scrollMapSessionIntoView(\"session\")"), "mobile map quiz should scroll the active session into view");
+assert(appSource.includes("scrollMapSessionIntoView(\"feedback\")"), "mobile map quiz should scroll answer feedback into view");
+assert(stylesSource.includes(".map-quiz-session .china-map-svg"), "mobile map quiz should have session-specific SVG framing");
+assert(stylesSource.includes("aspect-ratio: 980 / 660"), "mobile map SVG should preserve the China map aspect ratio without a tall blank frame");
 assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
 assert(
   !appSource.includes("shuffle(getMapQuizPool(mapQuizMode)).slice"),

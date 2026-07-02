@@ -1864,6 +1864,18 @@ function showMapHint() {
   render();
 }
 
+function scrollMapSessionIntoView(target = "session") {
+  if (!window.matchMedia?.("(max-width: 720px)").matches) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    const selector = target === "feedback" ? ".map-feedback" : ".map-quiz-session";
+    const element = document.querySelector(selector) || document.querySelector(".map-quiz-session");
+    element?.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+  });
+}
+
 function buildPronunciationSentenceMarkup(item, assessment) {
   const tokens = assessment?.tokens || getPronunciationTokens(item.zh);
   const showPinyin = state.session?.showPinyin ?? state.pronunciationShowPinyin;
@@ -2480,6 +2492,7 @@ function submitMapQuizSelection(kind, id) {
     itemIndex: session.index,
   });
   render();
+  scrollMapSessionIntoView("feedback");
 }
 
 function assessMapQuizSelection(kind, id, item) {
@@ -3995,6 +4008,7 @@ function startMapQuizSession() {
 
   saveSettings();
   render();
+  scrollMapSessionIntoView("session");
 }
 
 function startVocabularySession() {
@@ -4297,6 +4311,7 @@ function nextQuestion() {
     session.currentAssessment = null;
     session.hintVisible = false;
     render();
+    scrollMapSessionIntoView("session");
     return;
   }
 

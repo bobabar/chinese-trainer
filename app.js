@@ -52,7 +52,7 @@ const TOOLS = {
     label: "Pronunciation",
   },
   map: {
-    label: "Province & City Quiz",
+    label: "Regions & Cities Quiz",
   },
   drill: {
     label: "Sentence Drills",
@@ -226,16 +226,16 @@ const CHINA_MAP_ITEMS = [
 ];
 const MAP_QUIZ_MODES = {
   province: {
-    label: "Province mode",
-    shortLabel: "Provinces",
-    pickerLabel: "Provinces",
-    pickerDetail: "Region shapes",
-    startLabel: "Start province quiz",
+    label: "Region mode",
+    shortLabel: "Regions",
+    pickerLabel: "Regions",
+    pickerDetail: "Provincial-level",
+    startLabel: "Start region quiz",
     promptType: "省级行政区",
-    targetMetric: "Province-level targets",
-    homeDescription: "Practice province-level regions without city pins covering small municipalities.",
+    targetMetric: "Provincial-level regions",
+    homeDescription: "Practice provincial-level regions without city pins covering small municipalities.",
     instruction: "Select the correct region on the map.",
-    tip: "Tip: click the province-level region to select your answer.",
+    tip: "Tip: click the provincial-level region to select your answer.",
   },
   city: {
     label: "City mode",
@@ -245,7 +245,7 @@ const MAP_QUIZ_MODES = {
     startLabel: "Start city quiz",
     promptType: "城市",
     targetMetric: "City pins",
-    homeDescription: "Practice city locations using pins without province answer highlights.",
+    homeDescription: "Practice city locations using pins without region answer highlights.",
     instruction: "Select the correct city pin on the map.",
     tip: "Tip: click the city pin to select your answer.",
   },
@@ -2189,7 +2189,7 @@ function buildChinaMapProvincePaths(features, session) {
           ${provinceSelectionEnabled ? `data-map-province-id="${escapeHtml(province.id)}"` : ""}
           d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
           ${provinceSelectionEnabled ? `role="button" tabindex="0"` : ""}
-          aria-label="${provinceSelectionEnabled ? "Province-level region" : "Map region outline"}"
+          aria-label="${provinceSelectionEnabled ? "Provincial-level region" : "Map region outline"}"
         ></path>
       `;
     })
@@ -2505,7 +2505,7 @@ function buildMapQuizFeedbackMarkup(assessment) {
   const status = assessment.correct ? "good correct-celebration" : "review";
   const title = assessment.correct ? "Correct" : "Wrong location";
   const guidance = current.kind === "province"
-    ? "Province questions use the region shape."
+    ? "Provincial-level region questions use the region shape."
     : "City questions use the pin.";
 
   return `

@@ -229,8 +229,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Province & City Quiz|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Pronunciation, Province & City Quiz, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Regions & Cities Quiz|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Pronunciation, Regions & Cities Quiz, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -240,13 +240,13 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
-assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 province-level targets");
+assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");
 assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");
 assert(
   getMapQuizPool("province").length === CHINA_PROVINCES.length &&
     getMapQuizPool("province").every((item) => item.kind === "province"),
-  "province map mode should only draw province-level quiz targets",
+  "region map mode should only draw provincial-level quiz targets",
 );
 assert(
   getMapQuizPool("city").length === CHINA_CITIES.length &&
@@ -258,7 +258,7 @@ assert(
     CHINA_PROVINCES.some((item) => item.name === "台湾省") &&
     CHINA_PROVINCES.some((item) => item.name === "香港特别行政区") &&
     CHINA_PROVINCES.some((item) => item.name === "澳门特别行政区"),
-  "map quiz should use official Chinese province-level names",
+  "map quiz should use official Chinese provincial-level region names",
 );
 const guangdongProvince = CHINA_PROVINCES.find((item) => item.name === "广东省");
 const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");

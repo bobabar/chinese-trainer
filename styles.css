@@ -3246,17 +3246,16 @@ td.status-review {
   .map-quiz-session .china-map-wrap,
   .map-quiz-session .china-map-canvas {
     min-height: 0;
-    height: auto;
+    height: clamp(320px, 48vh, 380px);
   }
 
   .map-quiz-session .china-map-canvas {
-    padding: 10px;
+    padding: 0;
   }
 
   .map-quiz-session .china-map-svg {
     width: 100%;
-    height: auto;
-    aspect-ratio: 980 / 660;
+    height: 100%;
   }
 
   .map-answer-toast {

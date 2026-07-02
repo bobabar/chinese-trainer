@@ -309,7 +309,8 @@ assert(
 assert(appSource.includes("scrollMapSessionIntoView(\"session\")"), "mobile map quiz should scroll the active session into view");
 assert(appSource.includes("scrollMapSessionIntoView(\"feedback\")"), "mobile map quiz should scroll answer feedback into view");
 assert(stylesSource.includes(".map-quiz-session .china-map-svg"), "mobile map quiz should have session-specific SVG framing");
-assert(stylesSource.includes("aspect-ratio: 980 / 660"), "mobile map SVG should preserve the China map aspect ratio without a tall blank frame");
+assert(stylesSource.includes("height: clamp(320px, 48vh, 380px)"), "active mobile map should keep a stable frame instead of shrinking after quiz start");
+assert(stylesSource.includes(".map-quiz-session .china-map-canvas {\n    padding: 0;"), "active mobile map should not shrink from extra canvas padding");
 assert(stylesSource.includes(".map-quiz-session .map-prompt"), "mobile map quiz should compact the prompt text to leave more map space");
 assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
 assert(

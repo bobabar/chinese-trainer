@@ -127,7 +127,6 @@ const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
-const MAP_QUIZ_SESSION_LENGTH = 20;
 const CHINA_MAP_VIEWBOX = { width: 980, height: 660 };
 const CHINA_MAINLAND_FRAME = {
   x: 28,
@@ -1122,7 +1121,7 @@ function renderPronunciationHome() {
 function renderMapQuizHome() {
   const mapMode = getSelectedMapQuizMode();
   const targetCount = getMapQuizPool().length;
-  const sessionLength = Math.min(MAP_QUIZ_SESSION_LENGTH, targetCount);
+  const sessionLength = targetCount;
 
   app.innerHTML = `
     <section class="workspace-panel map-quiz-workspace map-home">
@@ -3982,7 +3981,7 @@ function startMapQuizSession() {
   stopPronunciationRecognition();
   stopSpeech();
   const mapQuizMode = MAP_QUIZ_MODES[state.mapQuizMode] ? state.mapQuizMode : DEFAULT_MAP_QUIZ_MODE;
-  const items = shuffle(getMapQuizPool(mapQuizMode)).slice(0, MAP_QUIZ_SESSION_LENGTH);
+  const items = shuffle(getMapQuizPool(mapQuizMode));
 
   state.result = null;
   state.session = {

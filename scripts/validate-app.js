@@ -241,7 +241,7 @@ assert(
   "sentence drill modes should show Reading, Writing, then Listening",
 );
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 province-level targets");
-assert(CHINA_CITIES.length >= 30, "map quiz should include city pin targets");
+assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");
 assert(
   getMapQuizPool("province").length === CHINA_PROVINCES.length &&
@@ -289,6 +289,11 @@ assert(!appSource.includes("webapi.amap.com"), "map quiz should not call the Gao
 assert(!appSource.includes("List Quiz"), "map quiz should not render the removed List Quiz chip");
 assert(!appSource.includes("Mode: China Map"), "map quiz should not render the removed Mode chip");
 assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
+assert(!appSource.includes("MAP_QUIZ_SESSION_LENGTH"), "map quiz should use the full target pool instead of a fixed 20-question cap");
+assert(
+  !appSource.includes("shuffle(getMapQuizPool(mapQuizMode)).slice"),
+  "map quiz should not slice the shuffled target pool before starting a session",
+);
 assert(
   CHINA_CITIES.every((item) => Number.isFinite(item.lng) && Number.isFinite(item.lat)),
   "map quiz city targets should include longitude and latitude for local pins",

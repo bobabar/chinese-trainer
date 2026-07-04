@@ -1366,6 +1366,20 @@ select {
   gap: 10px;
 }
 
+.recording-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .pronunciation-feedback {
   margin-top: 0;
 }

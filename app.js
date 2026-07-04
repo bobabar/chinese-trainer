@@ -1688,7 +1688,7 @@ function renderPronunciationSession() {
   const promptMarkup = buildPronunciationSentenceMarkup(current, session.currentAssessment, { showPinyin });
   const recognized = session.currentAssessment?.transcript || "";
   const score = session.currentAssessment ? Math.round(session.currentAssessment.score * 100) : 0;
-  const recordLabel = session.isListening ? "Listening..." : "Record sentence";
+  const recordLabel = session.isListening ? "Show feedback" : "Record sentence";
 
   app.innerHTML = `
     <section class="workspace-panel session-shell pronunciation-session">
@@ -1713,15 +1713,18 @@ function renderPronunciationSession() {
       ${session.recognitionError ? `<p class="empty-note error-note">${escapeHtml(session.recognitionError)}</p>` : ""}
 
       <div class="pronunciation-actions">
-        <button class="primary-btn shortcut-btn" type="button" id="recordPronunciation" ${submitted ? "disabled" : ""}>
-          <span>${recordLabel}</span>
-          ${session.isListening ? `<span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>` : shortcutHint("Enter")}
-        </button>
         ${
           session.isListening
-            ? `<button class="secondary-btn" type="button" id="stopPronunciation">Stop recording</button>`
+            ? `<span class="recording-status" aria-live="polite">
+                <span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span>Listening</span>
+              </span>`
             : ""
         }
+        <button class="primary-btn shortcut-btn" type="button" id="recordPronunciation" ${submitted ? "disabled" : ""}>
+          <span>${recordLabel}</span>
+          ${shortcutHint("Enter")}
+        </button>
         ${
           submitted
             ? `<button class="secondary-btn shortcut-btn" type="button" id="nextQuestion">
@@ -1760,9 +1763,6 @@ function renderPronunciationSession() {
     startPronunciationRecording();
   });
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
-  document.querySelector("#stopPronunciation")?.addEventListener("click", () => {
-    requestPronunciationManualStop();
-  });
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
 }
 

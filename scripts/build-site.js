@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -24,8 +25,27 @@ FILES.forEach((file) => {
 });
 
 copyDirectory(path.join(ROOT, "assets"), path.join(OUT_DIR, "assets"));
+cacheBustIndexAssets();
 
 console.log(`Built static site in ${path.relative(ROOT, OUT_DIR)}/`);
+
+function cacheBustIndexAssets() {
+  const indexPath = path.join(OUT_DIR, "index.html");
+  let html = fs.readFileSync(indexPath, "utf8");
+  ["styles.css", "vocab-data.js", "china-map-data.js", "app.js"].forEach((file) => {
+    const hash = hashFile(path.join(OUT_DIR, file));
+    html = html.replaceAll(`./${file}`, `./${file}?v=${hash}`);
+  });
+  fs.writeFileSync(indexPath, html);
+}
+
+function hashFile(filePath) {
+  return crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(filePath))
+    .digest("hex")
+    .slice(0, 10);
+}
 
 function copyDirectory(from, to) {
   fs.mkdirSync(to, { recursive: true });

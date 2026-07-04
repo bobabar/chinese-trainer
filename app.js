@@ -3895,8 +3895,7 @@ function renderVocabularyResults() {
     .map((item, index) => {
       const id = vocabularyItemId(item, index);
       const found = foundIds.has(id);
-      const givenUp = missedIds.has(id);
-      const statusText = found ? "Found" : givenUp ? "Revealed" : "Missed";
+      const statusText = found ? "Correct" : "Wrong";
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
@@ -3914,7 +3913,7 @@ function renderVocabularyResults() {
       <div class="results-header">
         <div>
           <h2>Vocabulary Results</h2>
-          <p>${resultLabel}: ${correct} of ${total} words found in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
+          <p>${resultLabel}: ${correct} of ${total} correct in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
@@ -3930,7 +3929,7 @@ function renderVocabularyResults() {
       <div class="stat-grid">
         <div class="stat">
           <strong>${correct}/${total}</strong>
-          <span>Found</span>
+          <span>Correct</span>
         </div>
         <div class="stat">
           <strong>${formatTimer(result.elapsedSeconds)}</strong>
@@ -5845,10 +5844,10 @@ function formatVocabularyPinyinProgressText(session) {
   const left = Math.max(0, session.items.length - getVocabularyPinyinAnsweredCount(session));
 
   if (!missed) {
-    return `${found} found, ${left} left`;
+    return `${found} correct, ${left} left`;
   }
 
-  return `${found} found, ${missed} revealed, ${left} left`;
+  return `${found} correct, ${missed} wrong, ${left} left`;
 }
 
 function cssEscape(value) {

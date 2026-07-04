@@ -403,6 +403,12 @@ assert(sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "meaning" }), "aud
 assert(!sessionUsesAudioPrompt({ type: "vocabulary", quizMode: "pinyin" }), "pinyin vocabulary mode should not use audio replay shortcuts");
 assert(formatTimer(determineVocabularyTimeLimit(125)) === "15:00", "125-word vocabulary quiz should use a 15-minute timer");
 assert(normalizePinyinForCompare("bù yīhuǐr5") === "bu4 yihuir5", "mixed tone-mark and numeric pinyin should normalize");
+assert(!appSource.includes('words found in'), "pinyin vocabulary results should not describe correct answers as found words");
+assert(!appSource.includes('>Found</span>'), "pinyin vocabulary result stats should label score as Correct instead of Found");
+assert(!appSource.includes('found, ${left} left'), "pinyin vocabulary progress should label score as correct instead of found");
+assert(!appSource.includes('revealed, ${left} left'), "pinyin vocabulary progress should label misses as wrong instead of revealed");
+assert(appSource.includes('const statusText = found ? "Correct" : "Wrong";'), "pinyin vocabulary result row status should use Correct/Wrong labels");
+assert(appSource.includes('return `${found} correct, ${missed} wrong, ${left} left`;'), "pinyin vocabulary progress should use correct/wrong wording");
 
 const matchSession = {
   type: "vocabulary",

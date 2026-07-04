@@ -1307,16 +1307,17 @@ select {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px 4px;
   margin: 0;
 }
 
 .pronunciation-hanzi-line {
+  gap: 4px 1px;
   font-size: 34px;
   line-height: 1.45;
 }
 
 .pronunciation-pinyin-line {
+  gap: 6px 4px;
   color: var(--muted-strong);
   font-size: 15px;
   font-weight: 780;
@@ -1329,7 +1330,12 @@ select {
 }
 
 .pronunciation-token {
-  padding: 0 4px;
+  padding: 0 2px;
+}
+
+.pronunciation-token.pending {
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .pronunciation-pinyin-token {
@@ -1346,10 +1352,6 @@ select {
 .pronunciation-pinyin-token.missed {
   background: #fff1f2;
   color: #b42318;
-}
-
-.pronunciation-token.pending {
-  background: transparent;
 }
 
 .pronunciation-punctuation,

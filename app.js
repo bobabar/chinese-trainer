@@ -503,6 +503,9 @@ function bindTopLevelControls() {
 
   pronunciationShowPinyin.addEventListener("change", () => {
     state.pronunciationShowPinyin = pronunciationShowPinyin.checked;
+    if (state.session?.type === "pronunciation") {
+      state.session.showPinyin = state.pronunciationShowPinyin;
+    }
     saveSettings();
     render();
   });
@@ -1671,7 +1674,8 @@ function renderPronunciationSession() {
   const submitted = Boolean(session.currentAssessment);
   const sessionLength = session.items.length;
   const progressPercent = Math.round((session.index / sessionLength) * 100);
-  const promptMarkup = buildPronunciationSentenceMarkup(current, session.currentAssessment);
+  const showPinyin = Boolean(session.showPinyin);
+  const promptMarkup = buildPronunciationSentenceMarkup(current, session.currentAssessment, { showPinyin });
   const recognized = session.currentAssessment?.transcript || "";
   const score = session.currentAssessment ? Math.round(session.currentAssessment.score * 100) : 0;
   const recordLabel = session.isListening ? "Listening..." : "Record sentence";
@@ -1727,8 +1731,8 @@ function renderPronunciationSession() {
                 <span>${session.currentAssessment.goodCount}/${session.currentAssessment.tokenCount} words recognized</span>
               </div>
               <div class="answer-pair">
-                ${buildAnswerBox("Recognized", recognized || "No Chinese speech recognized")}
-                ${buildAnswerBox("Expected", current.zh)}
+                ${buildAnswerBox("Recognized", recognized || "No Chinese speech recognized", { annotateChinese: showPinyin })}
+                ${buildAnswerBox("Expected", current.zh, { annotateChinese: showPinyin })}
               </div>
             </section>`
           : ""
@@ -1880,9 +1884,9 @@ function scrollMapSessionIntoView(target = "session") {
   });
 }
 
-function buildPronunciationSentenceMarkup(item, assessment) {
+function buildPronunciationSentenceMarkup(item, assessment, options = {}) {
   const tokens = assessment?.tokens || getPronunciationTokens(item.zh);
-  const showPinyin = state.session?.showPinyin ?? state.pronunciationShowPinyin;
+  const showPinyin = options.showPinyin ?? state.session?.showPinyin ?? state.pronunciationShowPinyin;
   const hanziMarkup = tokens.map(buildPronunciationHanziTokenMarkup).join("");
   const pinyinMarkup = tokens.map(buildPronunciationPinyinTokenMarkup).join("");
 
@@ -3390,11 +3394,12 @@ function buildPlainAnswerText(value) {
   return `<p${className}${lang}>${escapeHtml(value)}</p>`;
 }
 
-function buildAnswerBox(label, value) {
+function buildAnswerBox(label, value, options = {}) {
+  const annotateChinese = options.annotateChinese !== false;
   return `
     <div class="answer-box">
       <span class="answer-box-label">${label}</span>
-      ${buildAnswerBoxText(value)}
+      ${annotateChinese ? buildAnswerBoxText(value) : buildPlainAnswerText(value)}
     </div>
   `;
 }

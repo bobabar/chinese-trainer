@@ -102,6 +102,7 @@ window.__tests = {
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
@@ -159,6 +160,7 @@ const {
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
@@ -665,6 +667,13 @@ const pronunciationMarkup = buildPronunciationSentenceMarkup(pronunciationItem, 
 assert(pronunciationMarkup.includes("pronunciation-token good"), "recognized pronunciation words should render green");
 assert(pronunciationMarkup.includes("pronunciation-token missed"), "missed pronunciation words should render red");
 assert(pronunciationMarkup.includes("pronunciation-pinyin-line"), "pronunciation prompts should optionally include pinyin");
+const pronunciationNoPinyinMarkup = buildPronunciationSentenceMarkup(pronunciationItem, partialPronunciation, { showPinyin: false });
+assert(!pronunciationNoPinyinMarkup.includes("pronunciation-pinyin-line"), "pronunciation prompts should hide pinyin when the option is disabled");
+const plainPronunciationExpectedMarkup = buildAnswerBox("Expected", pronunciationItem.zh, { annotateChinese: false });
+assert(!plainPronunciationExpectedMarkup.includes("annotated-pinyin-line"), "pronunciation feedback should hide annotated pinyin when the option is disabled");
+assert(plainPronunciationExpectedMarkup.includes("answer-text chinese-text"), "plain pronunciation feedback should still render Chinese text cleanly");
+assert(appSource.includes("state.session.showPinyin = state.pronunciationShowPinyin;"), "active pronunciation sessions should follow show-pinyin option changes");
+assert(stylesSource.includes(".pronunciation-token.pending"), "pending pronunciation characters should use compact spacing");
 const pronunciationWeaknesses = getPronunciationWeaknessStats([partialPronunciation]);
 assert(
   pronunciationWeaknesses.tones.some((item) => item.label === "Tone 4"),

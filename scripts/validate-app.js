@@ -332,6 +332,10 @@ assert(
   "city map mode should not apply answer highlights to province shapes",
 );
 assert(!mapMarkup.includes("map-info-bubble"), "map quiz should not render a map source info bubble");
+assert(appSource.includes("Reveal: ${escapeHtml(current.pinyin)}"), "map quiz should label the pinyin reveal as Reveal");
+assert(appSource.includes('session.hintVisible ? "Revealed" : "Reveal"'), "map quiz reveal button should use reveal wording");
+assert(!appSource.includes('"Show hint"'), "map quiz should not call the pinyin reveal a hint");
+assert(!appSource.includes('"Hint shown"'), "map quiz should not label the revealed state as a hint");
 assert(
   assessMapQuizSelection("province", guangdongProvince.id, { ...guangdongProvince, kind: "province" }).correct,
   "province questions should be correct when the matching province is selected",

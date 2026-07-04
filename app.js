@@ -1779,7 +1779,7 @@ function renderMapQuizSession() {
   const instruction = mapMode.instruction;
   const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
   const hintMarkup = !submitted && session.hintVisible
-    ? `<p class="map-hint-note">Hint: ${escapeHtml(current.pinyin)}</p>`
+    ? `<p class="map-hint-note">Reveal: ${escapeHtml(current.pinyin)}</p>`
     : "";
 
   app.innerHTML = `
@@ -1818,7 +1818,7 @@ function renderMapQuizSession() {
                     <path d="M10 22h4"></path>
                     <path d="M8.5 14.5a6 6 0 1 1 7 0c-.8.6-1.5 1.4-1.5 2.5h-4c0-1.1-.7-1.9-1.5-2.5z"></path>
                   </svg>
-                  <span>${session.hintVisible ? "Hint shown" : "Show hint"}</span>
+                  <span>${session.hintVisible ? "Revealed" : "Reveal"}</span>
                 </button>`
           }
           ${hintMarkup}

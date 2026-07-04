@@ -110,6 +110,8 @@ window.__tests = {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildPronunciationSentenceMarkup,
+  buildToneColoredHanziMarkup,
+  buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -117,6 +119,7 @@ window.__tests = {
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
+  extractPinyinTones,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
@@ -168,6 +171,8 @@ const {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildPronunciationSentenceMarkup,
+  buildToneColoredHanziMarkup,
+  buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -175,6 +180,7 @@ const {
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
+  extractPinyinTones,
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
@@ -406,6 +412,11 @@ assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should
 assert(buildVocabularyPromptMarkup(loveEntry, "meaning").includes("Play word"), "audio vocabulary mode should render a word replay button");
 assert(!buildVocabularyPromptMarkup(loveEntry, "meaning").includes("爱"), "audio vocabulary mode should hide the character before answering");
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
+assert(extractPinyinTones("ài").join("") === "4", "tone extraction should read marked fourth tone pinyin");
+assert(extractPinyinTones("bù yīhuǐr5", 4).join("") === "4135", "tone extraction should read mixed marked and numeric pinyin");
+assert(buildToneColoredHanziMarkup(loveEntry).includes("tone-four"), "vocabulary Hanzi answers should use Pleco fourth-tone purple");
+assert(buildToneColoredHanziMarkup(womanEntry).includes("tone-three"), "vocabulary Hanzi answers should use Pleco third-tone blue");
+assert(buildToneColoredPinyinMarkup("ài").includes("tone-four"), "vocabulary pinyin answers should use Pleco tone color spans");
 assert(scorePinyin("ai4", loveEntry) >= 0.99, "numeric pinyin should be accepted");
 assert(scorePinyin("ài", loveEntry) >= 0.99, "tone-mark pinyin should be accepted");
 assert(scorePinyin("ai", loveEntry) >= 0.7, "tone-free pinyin should receive partial credit");
@@ -503,11 +514,19 @@ assert(
   buildVocabularyQuizRows(highlightedRowSession).includes('class="pending current selectable"'),
   "current vocabulary row should render with a highlight class",
 );
+assert(
+  !buildVocabularyQuizRows(highlightedRowSession).includes("tone-character"),
+  "unanswered pinyin vocabulary rows should not leak tone colors",
+);
 highlightedRowSession.foundIds.add(vocabularyItemId(loveEntry, 0));
 highlightedRowSession.lastCorrectItemIndex = 0;
 assert(
   buildVocabularyQuizRows(highlightedRowSession).includes("correct-celebration"),
   "recently correct pinyin vocabulary rows should animate",
+);
+assert(
+  buildVocabularyQuizRows(highlightedRowSession).includes("tone-character tone-four"),
+  "answered pinyin vocabulary rows should reveal Pleco tone-colored characters",
 );
 assert(
   getCurrentVocabularyRowId(highlightedRowSession) === vocabularyItemId(hobbyEntry, 1),
@@ -581,13 +600,14 @@ const audioRowSession = {
 const audioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
 assert(audioRows.includes("Hidden"), "audio row table should hide translations during the quiz");
 assert(!audioRows.includes("to love"), "audio row table should not expose the English meaning");
-assert(audioRows.includes('<td class="muted-slot">Hidden</td>'), "audio row table should hide unanswered characters");
+assert(audioRows.includes('<td class="vocab-character-cell muted-slot">Hidden</td>'), "audio row table should hide unanswered characters");
 assert(!audioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should not visibly expose unanswered characters");
 assert(!audioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should not visibly expose unanswered pinyin");
 audioRowSession.answers.push({ item: loveEntry, itemIndex: 0, answer: "love", score: 1, correct: true });
 const answeredAudioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
-assert(answeredAudioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should reveal answered characters");
-assert(answeredAudioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should reveal answered pinyin");
+assert(answeredAudioRows.includes("tone-colored-hanzi"), "audio row table should reveal answered characters with tone colors");
+assert(answeredAudioRows.includes("tone-character tone-four"), "audio row table should apply Pleco tone color to answered characters");
+assert(answeredAudioRows.includes("tone-pinyin tone-four"), "audio row table should reveal answered pinyin with tone colors");
 
 const audioChoiceSession = {
   type: "vocabulary",

@@ -302,6 +302,13 @@ const PINYIN_TONE_MARKS = {
   ǹ: ["n", "4"],
   ḿ: ["m", "2"],
 };
+const PLECO_TONE_CLASS_BY_TONE = {
+  1: "tone-one",
+  2: "tone-two",
+  3: "tone-three",
+  4: "tone-four",
+  5: "tone-neutral",
+};
 
 const state = {
   tool: "drill",
@@ -3337,7 +3344,7 @@ function buildAudioRevealedWordMarkup(item, assessment) {
     return "";
   }
 
-  return `<p class="sentence-text zh quiz-word audio-revealed-word chinese-text" lang="zh-CN" aria-live="polite">${escapeHtml(item.zh)}</p>`;
+  return `<p class="sentence-text zh quiz-word audio-revealed-word chinese-text tone-colored-hanzi" lang="zh-CN" aria-live="polite">${buildToneColoredHanziMarkup(item)}</p>`;
 }
 
 function buildAudioAnswerStatusMarkup(assessment) {
@@ -4198,8 +4205,8 @@ function renderVocabularyResults() {
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text">${escapeHtml(item.zh)}</td>
-          <td>${escapeHtml(item.pinyin)}</td>
+          <td class="chinese-text tone-colored-hanzi">${buildToneColoredHanziMarkup(item)}</td>
+          <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
           <td class="${found ? "status-good" : "status-review"}">${statusText}</td>
         </tr>
@@ -4291,8 +4298,8 @@ function renderVocabularyMeaningResults() {
       return `
         <tr class="${answer?.correct ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text">${escapeHtml(item.zh)}</td>
-          <td>${escapeHtml(item.pinyin)}</td>
+          <td class="chinese-text tone-colored-hanzi">${buildToneColoredHanziMarkup(item)}</td>
+          <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(answer?.answer || "No answer entered")}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
           <td>${answer ? `${Math.round(answer.score * 100)}%` : "0%"}</td>
@@ -5348,6 +5355,77 @@ function formatVocabularyMeanings(item) {
   return meanings.length ? meanings.join("; ") : "No meaning listed";
 }
 
+function buildToneColoredHanziMarkup(item) {
+  const characters = Array.from(item?.zh || "");
+  const tones = extractPinyinTones(item?.pinyin || "", characters.filter((character) => HAN_CHARACTER_PATTERN.test(character)).length);
+  let toneIndex = 0;
+
+  return characters.map((character) => {
+    if (!HAN_CHARACTER_PATTERN.test(character)) {
+      return escapeHtml(character);
+    }
+
+    const toneClass = getPlecoToneClass(tones[toneIndex] || "5");
+    toneIndex += 1;
+    return `<span class="tone-character ${toneClass}">${escapeHtml(character)}</span>`;
+  }).join("");
+}
+
+function buildToneColoredPinyinMarkup(pinyin) {
+  return String(pinyin || "")
+    .normalize("NFC")
+    .split(/(\s+)/)
+    .map((part) => {
+      if (!part || /^\s+$/.test(part)) {
+        return escapeHtml(part);
+      }
+
+      const toneClass = getPlecoToneClass(extractPinyinTones(part)[0] || "5");
+      return `<span class="tone-pinyin ${toneClass}">${escapeHtml(part)}</span>`;
+    })
+    .join("");
+}
+
+function extractPinyinTones(pinyin, expectedToneCount = 0) {
+  const tones = [];
+
+  String(pinyin || "")
+    .normalize("NFC")
+    .replace(/[’'`]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .forEach((token) => {
+      const startingLength = tones.length;
+      Array.from(token).forEach((character) => {
+        const toneMark = PINYIN_TONE_MARKS[character]?.[1];
+        if (toneMark) {
+          tones.push(toneMark);
+          return;
+        }
+
+        if (/[1-5]/.test(character)) {
+          tones.push(character);
+        }
+      });
+
+      if (tones.length === startingLength) {
+        const normalized = convertPinyinSyllable(token);
+        const tone = normalized.match(/([1-5])$/)?.[1] || "5";
+        tones.push(tone);
+      }
+    });
+
+  while (expectedToneCount > 0 && tones.length < expectedToneCount) {
+    tones.push("5");
+  }
+
+  return expectedToneCount > 0 ? tones.slice(0, expectedToneCount) : tones;
+}
+
+function getPlecoToneClass(tone) {
+  return PLECO_TONE_CLASS_BY_TONE[String(tone)] || PLECO_TONE_CLASS_BY_TONE[5];
+}
+
 function normalizePinyinForCompare(value) {
   return String(value)
     .normalize("NFC")
@@ -5747,12 +5825,18 @@ function buildVocabularyQuizRows(session, options = {}) {
     const characterText = hiddenCharacter && !answered
       ? HIDDEN_TRANSLATION_LABEL
       : item.zh;
-    const characterClass = hiddenCharacter && !answered
-      ? "muted-slot"
-      : "chinese-text";
+    const characterClass = [
+      "vocab-character-cell",
+      hiddenCharacter && !answered ? "muted-slot" : "chinese-text",
+      answered && !(hiddenCharacter && !answered) ? "tone-colored-hanzi" : "",
+    ].filter(Boolean).join(" ");
+    const characterMarkup = answered && !(hiddenCharacter && !answered)
+      ? buildToneColoredHanziMarkup(item)
+      : escapeHtml(characterText);
     const pinyinText = answered
       ? item.pinyin
       : "";
+    const pinyinMarkup = answered ? buildToneColoredPinyinMarkup(pinyinText) : "";
 
     return `
       <tr
@@ -5762,8 +5846,8 @@ function buildVocabularyQuizRows(session, options = {}) {
         ${selectable ? `tabindex="0"` : ""}
         ${current ? `aria-current="true" aria-selected="true"` : `aria-selected="false"`}
       >
-        <td class="${characterClass}">${escapeHtml(characterText)}</td>
-        <td class="pinyin-slot">${escapeHtml(pinyinText)}</td>
+        <td class="${characterClass}">${characterMarkup}</td>
+        <td class="pinyin-slot">${pinyinMarkup}</td>
         <td class="translation-cell ${translationHidden ? "translation-hidden" : ""}">${escapeHtml(translationText)}</td>
       </tr>
     `;
@@ -6088,9 +6172,17 @@ function updateVocabularySessionMetrics(session) {
       row.setAttribute("tabindex", "0");
     }
 
+    const characterCell = row.querySelector(".vocab-character-cell");
+    if (characterCell) {
+      characterCell.classList.toggle("tone-colored-hanzi", isAnswered);
+      characterCell.innerHTML = isAnswered
+        ? buildToneColoredHanziMarkup(item)
+        : escapeHtml(item.zh);
+    }
+
     const pinyinCell = row.querySelector(".pinyin-slot");
     if (pinyinCell) {
-      pinyinCell.textContent = isAnswered ? item.pinyin : "";
+      pinyinCell.innerHTML = isAnswered ? buildToneColoredPinyinMarkup(item.pinyin) : "";
     }
 
     const translationCell = row.querySelector(".translation-cell");

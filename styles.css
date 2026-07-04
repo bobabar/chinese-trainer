@@ -1196,6 +1196,43 @@ select {
   color: var(--theme);
 }
 
+.tone-colored-hanzi {
+  word-break: keep-all;
+}
+
+.tone-character,
+.tone-pinyin {
+  color: var(--tone-color, currentColor);
+}
+
+.tone-character {
+  font-weight: inherit;
+}
+
+.tone-pinyin {
+  font-weight: 850;
+}
+
+.tone-one {
+  --tone-color: #d43d3d;
+}
+
+.tone-two {
+  --tone-color: #16833d;
+}
+
+.tone-three {
+  --tone-color: #2563d8;
+}
+
+.tone-four {
+  --tone-color: #7c3aed;
+}
+
+.tone-neutral {
+  --tone-color: #667085;
+}
+
 .pinyin-slot:empty::before {
   content: "";
   display: block;

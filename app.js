@@ -311,6 +311,7 @@ const state = {
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
   vocabularyHideTranslations: false,
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
+  mapShowPinyinNames: false,
   pronunciationShowPinyin: true,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
@@ -374,6 +375,9 @@ function loadSettings() {
     if (saved.mapQuizMode && MAP_QUIZ_MODES[saved.mapQuizMode]) {
       state.mapQuizMode = saved.mapQuizMode;
     }
+    if (typeof saved.mapShowPinyinNames === "boolean") {
+      state.mapShowPinyinNames = saved.mapShowPinyinNames;
+    }
     if (typeof saved.pronunciationShowPinyin === "boolean") {
       state.pronunciationShowPinyin = saved.pronunciationShowPinyin;
     }
@@ -416,6 +420,7 @@ function saveSettings() {
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
         mapQuizMode: state.mapQuizMode,
+        mapShowPinyinNames: state.mapShowPinyinNames,
         pronunciationShowPinyin: state.pronunciationShowPinyin,
         selectedLevels: [...state.selectedLevels],
         voiceSpeed: state.voiceSpeed,
@@ -1177,6 +1182,7 @@ function renderMapQuizHome() {
   `;
 
   bindMapModePicker();
+  bindMapNameTextToggle();
   document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
   bindMapViewControls();
   bindChinaMapInteractions({ type: "map", mapQuizMode: state.mapQuizMode, items: [], index: 0, currentAssessment: null }, { preview: true });
@@ -1193,7 +1199,17 @@ function buildMapModeHeaderMarkup({ interactive = true } = {}) {
         <strong>${escapeHtml(activeMode.label)}</strong>
       </div>
       ${buildMapModePickerMarkup({ activeModeId, disabled: !interactive })}
+      ${buildMapNameTextToggleMarkup()}
     </div>
+  `;
+}
+
+function buildMapNameTextToggleMarkup({ compact = false } = {}) {
+  return `
+    <label class="map-name-toggle ${compact ? "compact" : ""}">
+      <input type="checkbox" data-map-pinyin-toggle ${state.mapShowPinyinNames ? "checked" : ""}>
+      <span>Show pinyin names</span>
+    </label>
   `;
 }
 
@@ -1231,6 +1247,19 @@ function bindMapModePicker() {
       state.result = null;
       saveSettings();
       renderMapQuizHome();
+    });
+  });
+}
+
+function bindMapNameTextToggle() {
+  document.querySelectorAll("[data-map-pinyin-toggle]").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.mapShowPinyinNames = input.checked;
+      if (state.session?.type === "map") {
+        state.session.showPinyinNames = state.mapShowPinyinNames;
+      }
+      saveSettings();
+      render();
     });
   });
 }
@@ -1778,6 +1807,9 @@ function renderMapQuizSession() {
   const streak = getMapQuizStreak(session.answers);
   const instruction = mapMode.instruction;
   const feedback = submitted ? buildMapQuizFeedbackMarkup(session.currentAssessment) : "";
+  const pinyinNameMarkup = session.showPinyinNames
+    ? `<p class="map-prompt-pinyin">${escapeHtml(current.pinyin)}</p>`
+    : "";
   const hintMarkup = !submitted && session.hintVisible
     ? `<p class="map-hint-note">Reveal: ${escapeHtml(current.pinyin)}</p>`
     : "";
@@ -1802,10 +1834,14 @@ function renderMapQuizSession() {
             </div>
           </div>
 
-          <p class="map-question-count">Question ${session.index + 1} of ${sessionLength}</p>
+          <div class="map-question-meta">
+            <p class="map-question-count">Question ${session.index + 1} of ${sessionLength}</p>
+            ${buildMapNameTextToggleMarkup({ compact: true })}
+          </div>
 
           <div class="map-prompt-card">
             <h2 class="map-prompt chinese-text" lang="zh-CN">${escapeHtml(current.name)}</h2>
+            ${pinyinNameMarkup}
             <p>${instruction}</p>
           </div>
 
@@ -1846,6 +1882,7 @@ function renderMapQuizSession() {
   `;
 
   bindMapViewControls();
+  bindMapNameTextToggle();
   document.querySelector("#showMapHint")?.addEventListener("click", showMapHint);
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
@@ -4510,6 +4547,7 @@ function startMapQuizSession() {
   state.session = {
     type: "map",
     mapQuizMode,
+    showPinyinNames: state.mapShowPinyinNames,
     items,
     index: 0,
     answers: [],

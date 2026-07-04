@@ -1490,6 +1490,44 @@ select {
   width: min(430px, 100%);
 }
 
+.map-name-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 830;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.map-name-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--theme);
+}
+
+.map-name-toggle.compact {
+  min-height: 32px;
+  padding: 0 9px;
+  box-shadow: none;
+}
+
+.map-question-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
 .map-game-shell {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
@@ -1604,6 +1642,13 @@ select {
   font-size: 38px;
   line-height: 1.05;
   letter-spacing: 0;
+}
+
+.map-prompt-pinyin {
+  margin-top: -3px;
+  color: var(--theme-hover);
+  font-size: 15px;
+  font-weight: 820;
 }
 
 .map-hint-btn {
@@ -3213,6 +3258,10 @@ td.status-review {
     line-height: 1.35;
   }
 
+  .map-prompt-pinyin {
+    font-size: 13px;
+  }
+
   .map-quiz-session .map-prompt {
     font-size: 30px;
   }
@@ -3241,6 +3290,19 @@ td.status-review {
 
   .map-mode-header .map-mode-picker {
     width: 100%;
+  }
+
+  .map-name-toggle {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .map-name-toggle.compact {
+    width: auto;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
   }
 
   .map-mode-header .map-mode-option {

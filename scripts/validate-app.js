@@ -304,6 +304,13 @@ assert(!appSource.includes("<span>${promptType}</span>"), "active map prompts sh
 assert(!appSource.includes("Provincial-level region questions use the region shape."), "map review feedback should not repeat province interaction guidance");
 assert(!appSource.includes("City questions use the pin."), "map review feedback should not repeat city interaction guidance");
 assert(appSource.includes("map-mode-header"), "map quiz should render province/city mode selection at the top");
+assert(appSource.includes("mapShowPinyinNames"), "map pinyin name preference should be wired into app state");
+assert(appSource.includes("data-map-pinyin-toggle"), "map quiz should render a pinyin names toggle");
+assert(appSource.includes("bindMapNameTextToggle"), "map pinyin names toggle should have an event binding");
+assert(appSource.includes("showPinyinNames: state.mapShowPinyinNames"), "map sessions should copy the pinyin names option at start");
+assert(appSource.includes("map-prompt-pinyin"), "map prompt should render a pinyin line when enabled");
+assert(stylesSource.includes(".map-prompt-pinyin"), "map prompt pinyin should have dedicated styling");
+assert(stylesSource.includes(".map-name-toggle"), "map pinyin names toggle should have dedicated styling");
 assert(
   !/map-quiz-session">\s*\$\{buildMapModeHeaderMarkup/.test(appSource),
   "active map quiz sessions should not render the mode header above the game shell",

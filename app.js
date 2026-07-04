@@ -263,8 +263,13 @@ let vocabularyTimerId = 0;
 let speechRequestId = 0;
 let pronunciationRecognition = null;
 let pronunciationRecognitionRequestId = 0;
+let pronunciationRecordingState = null;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
+const PRONUNCIATION_SILENCE_GRACE_MS = 3000;
+const PRONUNCIATION_MANUAL_STOP_GRACE_MS = 900;
+const PRONUNCIATION_RESTART_DELAY_MS = 160;
+const PRONUNCIATION_MAX_RECORDING_MS = 20000;
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
 const PINYIN_TONE_MARKS = {
   ā: ["a", "1"],
@@ -588,6 +593,11 @@ function handleSessionShortcut(event) {
   }
 
   if (state.session.type === "pronunciation") {
+    if (state.session.isListening) {
+      requestPronunciationManualStop();
+      return;
+    }
+
     startPronunciationRecording();
     return;
   }
@@ -1741,12 +1751,17 @@ function renderPronunciationSession() {
   `;
 
   document.querySelector("#playPronunciationAudio").addEventListener("click", () => speak(current.zh, { immediate: true }));
-  document.querySelector("#recordPronunciation").addEventListener("click", startPronunciationRecording);
+  document.querySelector("#recordPronunciation").addEventListener("click", () => {
+    if (session.isListening) {
+      requestPronunciationManualStop();
+      return;
+    }
+
+    startPronunciationRecording();
+  });
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#stopPronunciation")?.addEventListener("click", () => {
-    stopPronunciationRecognition();
-    session.isListening = false;
-    render();
+    requestPronunciationManualStop();
   });
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
 }
@@ -1994,8 +2009,42 @@ function supportsSpeechRecognition() {
   return Boolean(getSpeechRecognitionConstructor());
 }
 
+function clearPronunciationRecordingTimers(recording) {
+  if (!recording) {
+    return;
+  }
+
+  if (recording.finishTimerId) {
+    window.clearTimeout?.(recording.finishTimerId);
+    recording.finishTimerId = 0;
+  }
+
+  if (recording.restartTimerId) {
+    window.clearTimeout?.(recording.restartTimerId);
+    recording.restartTimerId = 0;
+  }
+
+  if (recording.maxTimerId) {
+    window.clearTimeout?.(recording.maxTimerId);
+    recording.maxTimerId = 0;
+  }
+}
+
+function isActivePronunciationRecording(recording) {
+  return Boolean(
+    recording &&
+    pronunciationRecordingState === recording &&
+    recording.requestId === pronunciationRecognitionRequestId &&
+    state.session === recording.session &&
+    recording.session?.type === "pronunciation" &&
+    !recording.session.currentAssessment,
+  );
+}
+
 function stopPronunciationRecognition() {
   pronunciationRecognitionRequestId += 1;
+  clearPronunciationRecordingTimers(pronunciationRecordingState);
+  pronunciationRecordingState = null;
   if (pronunciationRecognition) {
     try {
       pronunciationRecognition.abort?.();
@@ -2016,6 +2065,11 @@ function startPronunciationRecording() {
     return;
   }
 
+  if (session.isListening) {
+    requestPronunciationManualStop();
+    return;
+  }
+
   const SpeechRecognition = getSpeechRecognitionConstructor();
   if (!SpeechRecognition) {
     session.recognitionError = "Speech recognition is not available in this browser. Try Chrome or Edge on an HTTPS page.";
@@ -2027,33 +2081,98 @@ function startPronunciationRecording() {
   stopPronunciationRecognition();
   pronunciationRecognitionRequestId += 1;
   const requestId = pronunciationRecognitionRequestId;
-  const recognition = new SpeechRecognition();
-  pronunciationRecognition = recognition;
-
-  recognition.lang = "zh-CN";
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 3;
+  const recording = {
+    requestId,
+    session,
+    segments: [],
+    transcript: "",
+    finishTimerId: 0,
+    restartTimerId: 0,
+    maxTimerId: 0,
+    manualStopRequested: false,
+    startedAt: Date.now(),
+  };
+  pronunciationRecordingState = recording;
 
   session.isListening = true;
   session.recognitionError = "";
   render();
 
+  recording.maxTimerId = window.setTimeout(() => {
+    finalizePronunciationRecording(requestId, {
+      emptyMessage: "No Chinese speech was recognized. Try the sentence again.",
+    });
+  }, PRONUNCIATION_MAX_RECORDING_MS);
+
+  startPronunciationRecognizer(recording);
+}
+
+function startPronunciationRecognizer(recording) {
+  if (!isActivePronunciationRecording(recording)) {
+    return;
+  }
+
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+  if (!SpeechRecognition) {
+    handlePronunciationRecognitionError("Speech recognition is not available in this browser. Try Chrome or Edge on an HTTPS page.", recording.requestId);
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  const requestId = recording.requestId;
+  const session = recording.session;
+  const segmentIndex = recording.segments.length;
+  recording.segments.push("");
+  pronunciationRecognition = recognition;
+
+  recognition.lang = "zh-CN";
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
+
   recognition.onresult = (event) => {
-    if (requestId !== pronunciationRecognitionRequestId) {
+    if (!isActivePronunciationRecording(recording)) {
       return;
     }
 
     const transcript = getSpeechRecognitionTranscript(event);
-    submitPronunciationTranscript(transcript);
+    if (!transcript) {
+      return;
+    }
+
+    recording.segments[segmentIndex] = transcript;
+    recording.transcript = getPronunciationRecordingTranscript(recording);
+    session.recognitionError = "";
+    schedulePronunciationFinalization(
+      recording,
+      recording.manualStopRequested ? 250 : PRONUNCIATION_SILENCE_GRACE_MS,
+    );
   };
 
   recognition.onnomatch = () => {
+    if (!isActivePronunciationRecording(recording)) {
+      return;
+    }
+
+    if (recording.transcript) {
+      schedulePronunciationFinalization(recording, 0);
+      return;
+    }
+
     handlePronunciationRecognitionError("No Chinese speech was recognized. Try the sentence again.", requestId);
   };
 
   recognition.onerror = (event) => {
+    if (!isActivePronunciationRecording(recording)) {
+      return;
+    }
+
     if (event.error === "aborted") {
+      return;
+    }
+
+    if (recording.transcript) {
+      schedulePronunciationFinalization(recording, event.error === "no-speech" ? 400 : 0);
       return;
     }
 
@@ -2066,21 +2185,144 @@ function startPronunciationRecording() {
   };
 
   recognition.onend = () => {
-    if (requestId !== pronunciationRecognitionRequestId) {
+    if (!isActivePronunciationRecording(recording)) {
       return;
     }
 
-    pronunciationRecognition = null;
-    if (state.session === session && session.isListening) {
-      session.isListening = false;
-      render();
+    if (pronunciationRecognition === recognition) {
+      pronunciationRecognition = null;
     }
+
+    if (recording.manualStopRequested) {
+      if (recording.transcript) {
+        schedulePronunciationFinalization(recording, 0);
+        return;
+      }
+
+      finalizePronunciationRecording(requestId, {
+        emptyMessage: "No Chinese speech was recognized. Try the sentence again.",
+      });
+      return;
+    }
+
+    if (recording.transcript) {
+      restartPronunciationRecognizerAfterDelay(recording);
+      return;
+    }
+
+    session.isListening = false;
+    session.recognitionError = "No speech was detected. Try speaking a little closer to the microphone.";
+    pronunciationRecordingState = null;
+    clearPronunciationRecordingTimers(recording);
+    render();
   };
 
   try {
     recognition.start();
   } catch {
     handlePronunciationRecognitionError("Speech recognition could not start. Try again in a moment.", requestId);
+  }
+}
+
+function getPronunciationRecordingTranscript(recording) {
+  return recording.segments
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join("")
+    .trim();
+}
+
+function schedulePronunciationFinalization(recording, delay) {
+  if (!isActivePronunciationRecording(recording)) {
+    return;
+  }
+
+  if (recording.finishTimerId) {
+    window.clearTimeout?.(recording.finishTimerId);
+  }
+
+  recording.finishTimerId = window.setTimeout(() => {
+    finalizePronunciationRecording(recording.requestId, {
+      emptyMessage: "No Chinese speech was recognized. Try the sentence again.",
+    });
+  }, delay);
+}
+
+function restartPronunciationRecognizerAfterDelay(recording) {
+  if (!isActivePronunciationRecording(recording) || recording.restartTimerId) {
+    return;
+  }
+
+  if (Date.now() - recording.startedAt >= PRONUNCIATION_MAX_RECORDING_MS - PRONUNCIATION_RESTART_DELAY_MS) {
+    return;
+  }
+
+  recording.restartTimerId = window.setTimeout(() => {
+    recording.restartTimerId = 0;
+    if (isActivePronunciationRecording(recording) && !recording.manualStopRequested) {
+      startPronunciationRecognizer(recording);
+    }
+  }, PRONUNCIATION_RESTART_DELAY_MS);
+}
+
+function requestPronunciationManualStop() {
+  const recording = pronunciationRecordingState;
+  if (!isActivePronunciationRecording(recording)) {
+    stopPronunciationRecognition();
+    render();
+    return;
+  }
+
+  recording.manualStopRequested = true;
+  schedulePronunciationFinalization(recording, PRONUNCIATION_MANUAL_STOP_GRACE_MS);
+
+  if (!pronunciationRecognition) {
+    return;
+  }
+
+  try {
+    if (typeof pronunciationRecognition.stop === "function") {
+      pronunciationRecognition.stop();
+    } else {
+      pronunciationRecognition.abort?.();
+    }
+  } catch {
+    finalizePronunciationRecording(recording.requestId, {
+      emptyMessage: "No Chinese speech was recognized. Try the sentence again.",
+    });
+  }
+}
+
+function finalizePronunciationRecording(requestId, options = {}) {
+  const recording = pronunciationRecordingState;
+  if (!recording || recording.requestId !== requestId) {
+    return;
+  }
+
+  const session = recording.session;
+  const transcript = recording.transcript.trim();
+  clearPronunciationRecordingTimers(recording);
+  pronunciationRecordingState = null;
+  pronunciationRecognitionRequestId += 1;
+
+  if (pronunciationRecognition) {
+    try {
+      pronunciationRecognition.abort?.();
+    } catch {
+      // Some browser implementations throw when aborting an idle recognizer.
+    }
+  }
+  pronunciationRecognition = null;
+
+  if (transcript) {
+    submitPronunciationTranscript(transcript);
+    return;
+  }
+
+  if (state.session === session && session?.type === "pronunciation" && !session.currentAssessment) {
+    session.isListening = false;
+    session.recognitionError = options.emptyMessage || "No Chinese speech was recognized. Try the sentence again.";
+    render();
   }
 }
 
@@ -2101,6 +2343,9 @@ function handlePronunciationRecognitionError(message, requestId) {
     return;
   }
 
+  pronunciationRecognitionRequestId += 1;
+  clearPronunciationRecordingTimers(pronunciationRecordingState);
+  pronunciationRecordingState = null;
   pronunciationRecognition = null;
   state.session.isListening = false;
   state.session.recognitionError = message;
@@ -2115,6 +2360,18 @@ function submitPronunciationTranscript(transcript) {
 
   const item = session.items[session.index];
   const assessment = assessPronunciationTranscript(transcript, item);
+  if (pronunciationRecordingState || pronunciationRecognition) {
+    pronunciationRecognitionRequestId += 1;
+    clearPronunciationRecordingTimers(pronunciationRecordingState);
+    pronunciationRecordingState = null;
+    if (pronunciationRecognition) {
+      try {
+        pronunciationRecognition.abort?.();
+      } catch {
+        // Some browser implementations throw when aborting an idle recognizer.
+      }
+    }
+  }
   session.currentAssessment = assessment;
   session.isListening = false;
   session.recognitionError = "";

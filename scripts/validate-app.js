@@ -674,6 +674,10 @@ assert(!plainPronunciationExpectedMarkup.includes("annotated-pinyin-line"), "pro
 assert(plainPronunciationExpectedMarkup.includes("answer-text chinese-text"), "plain pronunciation feedback should still render Chinese text cleanly");
 assert(appSource.includes("state.session.showPinyin = state.pronunciationShowPinyin;"), "active pronunciation sessions should follow show-pinyin option changes");
 assert(stylesSource.includes(".pronunciation-token.pending"), "pending pronunciation characters should use compact spacing");
+assert(appSource.includes("recognition.continuous = true"), "pronunciation recording should keep listening across recognition chunks");
+assert(appSource.includes("recognition.interimResults = true"), "pronunciation recording should collect interim speech instead of waiting for only one final result");
+assert(appSource.includes("schedulePronunciationFinalization"), "pronunciation recording should wait for a quiet period before showing feedback");
+assert(appSource.includes("requestPronunciationManualStop"), "pronunciation recording should let users stop and score the buffered transcript manually");
 const pronunciationWeaknesses = getPronunciationWeaknessStats([partialPronunciation]);
 assert(
   pronunciationWeaknesses.tones.some((item) => item.label === "Tone 4"),

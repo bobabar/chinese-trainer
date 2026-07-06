@@ -110,6 +110,7 @@ window.__tests = {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildPronunciationSentenceMarkup,
+  buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
@@ -170,6 +171,7 @@ const {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildPronunciationSentenceMarkup,
+  buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
   buildVocabularyQuizRows,
@@ -409,6 +411,10 @@ assert(state.vocabularyHideTranslations === false, "vocabulary translations shou
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
 assert(buildVocabularyPromptMarkup(loveEntry, "meaning").includes("Play word"), "audio vocabulary mode should render a word replay button");
 assert(!buildVocabularyPromptMarkup(loveEntry, "meaning").includes("爱"), "audio vocabulary mode should hide the character before answering");
+assert(
+  buildMdbgWordUrl(loveEntry) === "https://www.mdbg.net/chinese/dictionary?page=worddict&wdqb=%E7%88%B1&wdrst=0",
+  "vocabulary words should link to the matching MDBG word dictionary search",
+);
 assert(normalizePinyinForCompare("ài") === "ai4", "tone-mark pinyin should normalize to numeric tones");
 assert(extractPinyinTones("ài").join("") === "4", "tone extraction should read marked fourth tone pinyin");
 assert(extractPinyinTones("bù yīhuǐr5", 4).join("") === "4135", "tone extraction should read mixed marked and numeric pinyin");
@@ -511,6 +517,10 @@ assert(
   "current vocabulary row should render with a highlight class",
 );
 assert(
+  buildVocabularyQuizRows(highlightedRowSession).includes('class="vocab-word-link"'),
+  "visible vocabulary quiz words should link to MDBG",
+);
+assert(
   !buildVocabularyQuizRows(highlightedRowSession).includes("tone-pinyin"),
   "unanswered pinyin vocabulary rows should not leak pinyin tone colors",
 );
@@ -565,6 +575,7 @@ assert(!hiddenTranslationRows.includes("to love"), "hidden translation option sh
 hiddenTranslationSession.foundIds.add(vocabularyItemId(loveEntry, 0));
 const revealedTranslationRows = buildVocabularyQuizRows(hiddenTranslationSession);
 assert(revealedTranslationRows.includes("to love"), "hidden translation option should reveal answered meanings");
+assert(revealedTranslationRows.includes("mdbg.net/chinese/dictionary"), "revealed pinyin quiz rows should retain MDBG word links");
 
 const givenUpRowSession = {
   type: "vocabulary",
@@ -599,11 +610,13 @@ assert(!audioRows.includes("to love"), "audio row table should not expose the En
 assert(audioRows.includes('<td class="vocab-character-cell muted-slot">Hidden</td>'), "audio row table should hide unanswered characters");
 assert(!audioRows.includes('<td class="chinese-text">爱</td>'), "audio row table should not visibly expose unanswered characters");
 assert(!audioRows.includes('<td class="pinyin-slot">ài</td>'), "audio row table should not visibly expose unanswered pinyin");
+assert(!audioRows.includes("mdbg.net/chinese/dictionary"), "audio row table should not link hidden unanswered characters");
 audioRowSession.answers.push({ item: loveEntry, itemIndex: 0, answer: "love", score: 1, correct: true });
 const answeredAudioRows = buildVocabularyQuizRows(audioRowSession, { hideTranslation: true });
 assert(!answeredAudioRows.includes("tone-character"), "audio row table should not apply tone color spans to characters");
 assert(!answeredAudioRows.includes("tone-colored-hanzi"), "audio row table should not apply tone color classes to characters");
 assert(answeredAudioRows.includes("tone-pinyin tone-four"), "audio row table should reveal answered pinyin with tone colors");
+assert(answeredAudioRows.includes("mdbg.net/chinese/dictionary"), "audio row table should link answered characters to MDBG");
 
 const audioChoiceSession = {
   type: "vocabulary",

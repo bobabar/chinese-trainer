@@ -126,6 +126,7 @@ const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
+const MDBG_WORD_DICTIONARY_URL = "https://www.mdbg.net/chinese/dictionary";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
 const CHINA_MAP_VIEWBOX = { width: 980, height: 660 };
 const CHINA_MAP_ZOOM_MIN = 1;
@@ -4205,7 +4206,7 @@ function renderVocabularyResults() {
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text">${escapeHtml(item.zh)}</td>
+          <td class="chinese-text">${buildVocabularyWordLink(item)}</td>
           <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
           <td class="${found ? "status-good" : "status-review"}">${statusText}</td>
@@ -4298,7 +4299,7 @@ function renderVocabularyMeaningResults() {
       return `
         <tr class="${answer?.correct ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text">${escapeHtml(item.zh)}</td>
+          <td class="chinese-text">${buildVocabularyWordLink(item)}</td>
           <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(answer?.answer || "No answer entered")}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
@@ -5355,6 +5356,23 @@ function formatVocabularyMeanings(item) {
   return meanings.length ? meanings.join("; ") : "No meaning listed";
 }
 
+function buildMdbgWordUrl(item) {
+  return `${MDBG_WORD_DICTIONARY_URL}?page=worddict&wdqb=${encodeURIComponent(item?.zh || "")}&wdrst=0`;
+}
+
+function buildVocabularyWordLink(item) {
+  const word = item?.zh || "";
+  return `
+    <a
+      class="vocab-word-link"
+      href="${escapeHtml(buildMdbgWordUrl(item))}"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open ${escapeHtml(word)} on MDBG"
+    >${escapeHtml(word)}</a>
+  `;
+}
+
 function buildToneColoredPinyinMarkup(pinyin) {
   return String(pinyin || "")
     .normalize("NFC")
@@ -5776,7 +5794,7 @@ function buildVocabularyPreviewRows(items, limit, options = {}) {
   const hiddenTranslation = options.hideTranslation || false;
   return items.slice(0, limit).map((item) => `
     <tr>
-      <td class="chinese-text">${escapeHtml(item.zh)}</td>
+      <td class="chinese-text">${buildVocabularyWordLink(item)}</td>
       <td class="pinyin-slot muted-slot">Hidden during quiz</td>
       <td class="${hiddenTranslation ? "translation-hidden" : ""}">
         ${hiddenTranslation ? HIDDEN_TRANSLATION_LABEL : escapeHtml(formatVocabularyMeanings(item))}
@@ -5813,7 +5831,9 @@ function buildVocabularyQuizRows(session, options = {}) {
       "vocab-character-cell",
       hiddenCharacter && !answered ? "muted-slot" : "chinese-text",
     ].filter(Boolean).join(" ");
-    const characterMarkup = escapeHtml(characterText);
+    const characterMarkup = hiddenCharacter && !answered
+      ? escapeHtml(characterText)
+      : buildVocabularyWordLink(item);
     const pinyinText = answered
       ? item.pinyin
       : "";
@@ -5874,8 +5894,16 @@ function bindVocabularyRowSelectionHandlers(session) {
       return;
     }
 
-    row.addEventListener("click", () => selectVocabularyRow(index));
+    row.addEventListener("click", (event) => {
+      if (event.target.closest?.("a")) {
+        return;
+      }
+      selectVocabularyRow(index);
+    });
     row.addEventListener("keydown", (event) => {
+      if (event.target.closest?.("a")) {
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") {
         return;
       }

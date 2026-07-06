@@ -1191,6 +1191,20 @@ select {
   background: var(--theme-border);
 }
 
+.vocab-word-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(13, 148, 136, 0.38);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.vocab-word-link:hover,
+.vocab-word-link:focus-visible {
+  color: var(--theme-hover);
+  text-decoration-color: currentColor;
+}
+
 .pinyin-slot {
   min-width: 96px;
   color: var(--theme);

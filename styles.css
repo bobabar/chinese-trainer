@@ -1196,17 +1196,8 @@ select {
   color: var(--theme);
 }
 
-.tone-colored-hanzi {
-  word-break: keep-all;
-}
-
-.tone-character,
 .tone-pinyin {
   color: var(--tone-color, currentColor);
-}
-
-.tone-character {
-  font-weight: inherit;
 }
 
 .tone-pinyin {

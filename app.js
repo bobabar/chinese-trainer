@@ -3344,7 +3344,7 @@ function buildAudioRevealedWordMarkup(item, assessment) {
     return "";
   }
 
-  return `<p class="sentence-text zh quiz-word audio-revealed-word chinese-text tone-colored-hanzi" lang="zh-CN" aria-live="polite">${buildToneColoredHanziMarkup(item)}</p>`;
+  return `<p class="sentence-text zh quiz-word audio-revealed-word chinese-text" lang="zh-CN" aria-live="polite">${escapeHtml(item.zh)}</p>`;
 }
 
 function buildAudioAnswerStatusMarkup(assessment) {
@@ -4205,7 +4205,7 @@ function renderVocabularyResults() {
       return `
         <tr class="${found ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text tone-colored-hanzi">${buildToneColoredHanziMarkup(item)}</td>
+          <td class="chinese-text">${escapeHtml(item.zh)}</td>
           <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
           <td class="${found ? "status-good" : "status-review"}">${statusText}</td>
@@ -4298,7 +4298,7 @@ function renderVocabularyMeaningResults() {
       return `
         <tr class="${answer?.correct ? "found" : "missed"}">
           <td>${index + 1}</td>
-          <td class="chinese-text tone-colored-hanzi">${buildToneColoredHanziMarkup(item)}</td>
+          <td class="chinese-text">${escapeHtml(item.zh)}</td>
           <td>${buildToneColoredPinyinMarkup(item.pinyin)}</td>
           <td>${escapeHtml(answer?.answer || "No answer entered")}</td>
           <td>${escapeHtml(formatVocabularyMeanings(item))}</td>
@@ -5355,22 +5355,6 @@ function formatVocabularyMeanings(item) {
   return meanings.length ? meanings.join("; ") : "No meaning listed";
 }
 
-function buildToneColoredHanziMarkup(item) {
-  const characters = Array.from(item?.zh || "");
-  const tones = extractPinyinTones(item?.pinyin || "", characters.filter((character) => HAN_CHARACTER_PATTERN.test(character)).length);
-  let toneIndex = 0;
-
-  return characters.map((character) => {
-    if (!HAN_CHARACTER_PATTERN.test(character)) {
-      return escapeHtml(character);
-    }
-
-    const toneClass = getPlecoToneClass(tones[toneIndex] || "5");
-    toneIndex += 1;
-    return `<span class="tone-character ${toneClass}">${escapeHtml(character)}</span>`;
-  }).join("");
-}
-
 function buildToneColoredPinyinMarkup(pinyin) {
   return String(pinyin || "")
     .normalize("NFC")
@@ -5828,11 +5812,8 @@ function buildVocabularyQuizRows(session, options = {}) {
     const characterClass = [
       "vocab-character-cell",
       hiddenCharacter && !answered ? "muted-slot" : "chinese-text",
-      answered && !(hiddenCharacter && !answered) ? "tone-colored-hanzi" : "",
     ].filter(Boolean).join(" ");
-    const characterMarkup = answered && !(hiddenCharacter && !answered)
-      ? buildToneColoredHanziMarkup(item)
-      : escapeHtml(characterText);
+    const characterMarkup = escapeHtml(characterText);
     const pinyinText = answered
       ? item.pinyin
       : "";
@@ -6170,14 +6151,6 @@ function updateVocabularySessionMetrics(session) {
       row.removeAttribute("tabindex");
     } else {
       row.setAttribute("tabindex", "0");
-    }
-
-    const characterCell = row.querySelector(".vocab-character-cell");
-    if (characterCell) {
-      characterCell.classList.toggle("tone-colored-hanzi", isAnswered);
-      characterCell.innerHTML = isAnswered
-        ? buildToneColoredHanziMarkup(item)
-        : escapeHtml(item.zh);
     }
 
     const pinyinCell = row.querySelector(".pinyin-slot");

@@ -292,10 +292,13 @@ assert(indexSource.includes("china-map-data.js"), "map quiz should load committe
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
 assert(mapMarkup.includes("china-province-outline"), "province map mode should render a top outline layer for complete highlighted borders");
+assert(mapMarkup.includes("china-small-region-selector"), "province map mode should render enlarged selectors for very small regions");
+assert(mapMarkup.includes("Small provincial-level region selector"), "small region selectors should be available to keyboard and assistive tech users");
 assert(mapMarkup.includes("map-zoom-controls"), "map quiz should render zoom controls");
 assert(mapMarkup.includes("data-map-transform-layer"), "map quiz should render a transform layer for zooming and panning");
 assert(appSource.includes("bindChinaMapZoomControls"), "map quiz should bind zoom and pan controls");
 assert(stylesSource.includes(".map-zoom-controls"), "map quiz should style the zoom controls");
+assert(stylesSource.includes(".china-small-region-selector"), "map quiz should style enlarged selectors for very small regions");
 assert(stylesSource.includes("touch-action: none"), "map quiz should disable native touch gestures inside the map for custom zooming");
 assert(!mapMarkup.includes("mapProvinceLift"), "map quiz should not use the province shadow filter that can render black selection artifacts");
 assert(!mapMarkup.includes("map-legend-row"), "map quiz should not render the bottom legend");
@@ -342,6 +345,7 @@ assert(!mapMarkup.includes("data-map-city-id"), "province map mode should not re
 assert(cityMapMarkup.includes("data-map-city-id"), "city map mode should render city pins");
 assert(!cityMapMarkup.includes("data-map-province-id"), "city map mode should not make province shapes selectable");
 assert(!cityMapMarkup.includes("china-province-outline"), "city map mode should not render province highlight outlines");
+assert(!cityMapMarkup.includes("china-small-region-selector"), "city map mode should not render province-mode small region selectors");
 assert(
   !/china-province-shape[^"]*is-(hint|correct|wrong)/.test(cityProvinceAssessmentMarkup),
   "city map mode should not apply answer highlights to province shapes",

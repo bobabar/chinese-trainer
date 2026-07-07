@@ -277,6 +277,22 @@ const PRONUNCIATION_TERMINAL_ERRORS = new Set([
   "not-allowed",
   "service-not-allowed",
 ]);
+const CHINA_SMALL_REGION_SELECTORS = [
+  {
+    provinceId: "hongkong",
+    selectorX: 696,
+    selectorY: 538,
+    curveX: 660,
+    curveY: 536,
+  },
+  {
+    provinceId: "macao",
+    selectorX: 648,
+    selectorY: 604,
+    curveX: 635,
+    curveY: 578,
+  },
+];
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
 const PINYIN_TONE_MARKS = {
   ā: ["a", "1"],
@@ -2556,6 +2572,9 @@ function buildChinaMapSvgMarkup(session, options = {}) {
           <g class="china-map-province-outlines" aria-hidden="true">
             ${buildChinaMapProvinceOutlinePaths(mapData.features, session)}
           </g>
+          <g class="china-small-region-selectors">
+            ${buildChinaMapSmallRegionSelectors(mapData.features, session)}
+          </g>
         ` : ""}
         ${shouldShowMapCityPins(session) ? `
           <g class="china-city-pins">
@@ -2601,6 +2620,50 @@ function buildChinaMapProvincePaths(features, session) {
     .join("");
 }
 
+function buildChinaMapSmallRegionSelectors(features, session) {
+  if (!shouldEnableMapProvinceSelection(session)) {
+    return "";
+  }
+
+  return CHINA_SMALL_REGION_SELECTORS.map((selector) => {
+    const feature = getMapFeatureForProvinceId(features, selector.provinceId);
+    const province = feature ? getProvinceForMapFeature(feature) : null;
+    const center = feature?.properties?.center;
+    if (!province || !Array.isArray(center)) {
+      return "";
+    }
+
+    const anchor = projectMapCoordinate(center[0], center[1], CHINA_MAINLAND_FRAME);
+    const status = getMapTargetStatus("province", province.id, session);
+    const classes = [
+      "china-small-region-selector",
+      status ? `is-${status}` : "",
+    ].filter(Boolean).join(" ");
+    const leaderPath = [
+      `M${formatMapNumber(anchor.x)} ${formatMapNumber(anchor.y)}`,
+      `C${formatMapNumber(selector.curveX)} ${formatMapNumber(selector.curveY)}`,
+      `${formatMapNumber(selector.selectorX - 16)} ${formatMapNumber(selector.selectorY)}`,
+      `${formatMapNumber(selector.selectorX)} ${formatMapNumber(selector.selectorY)}`,
+    ].join(" ");
+
+    return `
+      <g
+        class="${classes}"
+        data-map-province-id="${escapeHtml(province.id)}"
+        role="button"
+        tabindex="0"
+        aria-label="Small provincial-level region selector"
+      >
+        <path class="china-small-region-leader" d="${leaderPath}"></path>
+        <circle class="china-small-region-anchor" cx="${formatMapNumber(anchor.x)}" cy="${formatMapNumber(anchor.y)}" r="3.2"></circle>
+        <circle class="china-small-region-hit" cx="${formatMapNumber(selector.selectorX)}" cy="${formatMapNumber(selector.selectorY)}" r="34"></circle>
+        <circle class="china-small-region-ring" cx="${formatMapNumber(selector.selectorX)}" cy="${formatMapNumber(selector.selectorY)}" r="16.5"></circle>
+        <circle class="china-small-region-dot" cx="${formatMapNumber(selector.selectorX)}" cy="${formatMapNumber(selector.selectorY)}" r="5"></circle>
+      </g>
+    `;
+  }).join("");
+}
+
 function buildChinaMapProvinceOutlinePaths(features, session) {
   return features
     .map((feature) => {
@@ -2624,6 +2687,10 @@ function buildChinaMapProvinceOutlinePaths(features, session) {
       `;
     })
     .join("");
+}
+
+function getMapFeatureForProvinceId(features, provinceId) {
+  return features.find((feature) => getProvinceForMapFeature(feature)?.id === provinceId) || null;
 }
 
 function buildChinaMapCityPins(session) {

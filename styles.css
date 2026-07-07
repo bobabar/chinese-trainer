@@ -1963,6 +1963,79 @@ select {
   stroke-width: 2.5;
 }
 
+.china-small-region-selector {
+  color: #0d9488;
+  cursor: pointer;
+  outline: none;
+}
+
+.china-small-region-leader {
+  fill: none;
+  pointer-events: none;
+  stroke: currentColor;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.7;
+}
+
+.china-small-region-anchor {
+  fill: #ffffff;
+  pointer-events: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.china-small-region-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.china-small-region-ring {
+  fill: rgba(255, 255, 255, 0.96);
+  stroke: currentColor;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.16));
+  transition: fill 160ms ease, stroke-width 160ms ease;
+}
+
+.china-small-region-dot {
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.china-small-region-selector:hover,
+.china-small-region-selector:focus-visible {
+  color: #0f766e;
+}
+
+.china-small-region-selector:hover .china-small-region-ring,
+.china-small-region-selector:focus-visible .china-small-region-ring {
+  fill: #ecfdf9;
+  stroke-width: 3;
+}
+
+.china-small-region-selector.is-correct,
+.china-small-region-selector.is-hint {
+  color: #0d9488;
+}
+
+.china-small-region-selector.is-wrong {
+  color: #e14b64;
+}
+
+.china-small-region-selector.is-correct .china-small-region-ring,
+.china-small-region-selector.is-hint .china-small-region-ring {
+  fill: #e7fbf5;
+  animation: correct-pop 420ms ease;
+}
+
+.china-small-region-selector.is-wrong .china-small-region-ring {
+  fill: #fff0f3;
+}
+
 .china-city-pin {
   color: #0d9488;
   cursor: pointer;

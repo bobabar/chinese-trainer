@@ -133,6 +133,7 @@ window.__tests = {
   getVocabularyResultStats,
   getMapQuizPool,
   getPronunciationWeaknessStats,
+  getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
@@ -194,6 +195,7 @@ const {
   getVocabularyResultStats,
   getMapQuizPool,
   getPronunciationWeaknessStats,
+  getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
@@ -720,6 +722,16 @@ assert(appSource.includes("schedulePronunciationFinalization"), "pronunciation r
 assert(appSource.includes("requestPronunciationManualStop"), "pronunciation recording should let users stop and score the buffered transcript manually");
 assert(appSource.includes('session.isListening ? "Show feedback" : "Record sentence"'), "pronunciation recording should expose a manual feedback action while listening");
 assert(appSource.includes("if (state.session.isListening)"), "Enter should trigger manual feedback while pronunciation recording is active");
+assert(appSource.includes("shouldRetryPronunciationRecognition"), "pronunciation recording should retry transient empty recognizer stops");
+assert(appSource.includes("PRONUNCIATION_TERMINAL_ERRORS"), "pronunciation recording should still stop on terminal microphone and permission errors");
+assert(
+  getPronunciationRecognitionErrorMessage("network").includes("could not connect"),
+  "pronunciation recording should explain browser speech service connection failures",
+);
+assert(
+  getPronunciationRecognitionErrorMessage("audio-capture").includes("No microphone"),
+  "pronunciation recording should explain missing microphone failures",
+);
 assert(stylesSource.includes(".recording-status"), "pronunciation recording should show listening status separately from the feedback action");
 const pronunciationWeaknesses = getPronunciationWeaknessStats([partialPronunciation]);
 assert(

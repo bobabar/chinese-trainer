@@ -271,6 +271,12 @@ const PRONUNCIATION_SILENCE_GRACE_MS = 3000;
 const PRONUNCIATION_MANUAL_STOP_GRACE_MS = 900;
 const PRONUNCIATION_RESTART_DELAY_MS = 160;
 const PRONUNCIATION_MAX_RECORDING_MS = 20000;
+const PRONUNCIATION_TERMINAL_ERRORS = new Set([
+  "audio-capture",
+  "language-not-supported",
+  "not-allowed",
+  "service-not-allowed",
+]);
 const HAN_CHARACTER_PATTERN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u;
 const PINYIN_TONE_MARKS = {
   ā: ["a", "1"],
@@ -2086,6 +2092,10 @@ function isActivePronunciationRecording(recording) {
   );
 }
 
+function isCurrentPronunciationRecognizer(recording, recognizerId) {
+  return isActivePronunciationRecording(recording) && recording.activeRecognizerId === recognizerId;
+}
+
 function stopPronunciationRecognition() {
   pronunciationRecognitionRequestId += 1;
   clearPronunciationRecordingTimers(pronunciationRecordingState);
@@ -2135,6 +2145,8 @@ function startPronunciationRecording() {
     restartTimerId: 0,
     maxTimerId: 0,
     manualStopRequested: false,
+    lastRecognitionError: "",
+    activeRecognizerId: 0,
     startedAt: Date.now(),
   };
   pronunciationRecordingState = recording;
@@ -2145,7 +2157,7 @@ function startPronunciationRecording() {
 
   recording.maxTimerId = window.setTimeout(() => {
     finalizePronunciationRecording(requestId, {
-      emptyMessage: "No Chinese speech was recognized. Try the sentence again.",
+      emptyMessage: getPronunciationEmptyResultMessage(recording),
     });
   }, PRONUNCIATION_MAX_RECORDING_MS);
 
@@ -2167,6 +2179,8 @@ function startPronunciationRecognizer(recording) {
   const requestId = recording.requestId;
   const session = recording.session;
   const segmentIndex = recording.segments.length;
+  const recognizerId = recording.activeRecognizerId + 1;
+  recording.activeRecognizerId = recognizerId;
   recording.segments.push("");
   pronunciationRecognition = recognition;
 
@@ -2176,7 +2190,7 @@ function startPronunciationRecognizer(recording) {
   recognition.maxAlternatives = 3;
 
   recognition.onresult = (event) => {
-    if (!isActivePronunciationRecording(recording)) {
+    if (!isCurrentPronunciationRecognizer(recording, recognizerId)) {
       return;
     }
 
@@ -2195,7 +2209,7 @@ function startPronunciationRecognizer(recording) {
   };
 
   recognition.onnomatch = () => {
-    if (!isActivePronunciationRecording(recording)) {
+    if (!isCurrentPronunciationRecognizer(recording, recognizerId)) {
       return;
     }
 
@@ -2208,34 +2222,41 @@ function startPronunciationRecognizer(recording) {
   };
 
   recognition.onerror = (event) => {
-    if (!isActivePronunciationRecording(recording)) {
+    if (!isCurrentPronunciationRecognizer(recording, recognizerId)) {
       return;
     }
 
-    if (event.error === "aborted") {
+    const error = event.error || "";
+
+    if (error === "aborted") {
       return;
     }
 
     if (recording.transcript) {
-      schedulePronunciationFinalization(recording, event.error === "no-speech" ? 400 : 0);
+      schedulePronunciationFinalization(recording, error === "no-speech" ? 400 : 0);
       return;
     }
 
-    const message = event.error === "not-allowed" || event.error === "service-not-allowed"
-      ? "Microphone permission was blocked for this site."
-      : event.error === "no-speech"
-        ? "No speech was detected. Try speaking a little closer to the microphone."
-        : "Speech recognition stopped before it could read the sentence.";
-    handlePronunciationRecognitionError(message, requestId);
+    recording.lastRecognitionError = error;
+    if (shouldRetryPronunciationRecognition(recording, error)) {
+      restartPronunciationRecognizerAfterDelay(recording, getPronunciationRestartDelay(error));
+      return;
+    }
+
+    handlePronunciationRecognitionError(getPronunciationRecognitionErrorMessage(error), requestId);
   };
 
   recognition.onend = () => {
-    if (!isActivePronunciationRecording(recording)) {
+    if (!isCurrentPronunciationRecognizer(recording, recognizerId)) {
       return;
     }
 
     if (pronunciationRecognition === recognition) {
       pronunciationRecognition = null;
+    }
+
+    if (recording.restartTimerId) {
+      return;
     }
 
     if (recording.manualStopRequested) {
@@ -2255,8 +2276,14 @@ function startPronunciationRecognizer(recording) {
       return;
     }
 
+    recording.lastRecognitionError = recording.lastRecognitionError || "ended";
+    if (shouldRetryPronunciationRecognition(recording, "ended")) {
+      restartPronunciationRecognizerAfterDelay(recording);
+      return;
+    }
+
     session.isListening = false;
-    session.recognitionError = "No speech was detected. Try speaking a little closer to the microphone.";
+    session.recognitionError = getPronunciationEmptyResultMessage(recording);
     pronunciationRecordingState = null;
     clearPronunciationRecordingTimers(recording);
     render();
@@ -2293,7 +2320,51 @@ function schedulePronunciationFinalization(recording, delay) {
   }, delay);
 }
 
-function restartPronunciationRecognizerAfterDelay(recording) {
+function shouldRetryPronunciationRecognition(recording, error = "") {
+  if (
+    !isActivePronunciationRecording(recording) ||
+    recording.manualStopRequested ||
+    PRONUNCIATION_TERMINAL_ERRORS.has(error)
+  ) {
+    return false;
+  }
+
+  return Date.now() - recording.startedAt < PRONUNCIATION_MAX_RECORDING_MS - PRONUNCIATION_RESTART_DELAY_MS;
+}
+
+function getPronunciationRestartDelay(error = "") {
+  return error ? 450 : PRONUNCIATION_RESTART_DELAY_MS;
+}
+
+function getPronunciationRecognitionErrorMessage(error = "") {
+  if (error === "not-allowed" || error === "service-not-allowed") {
+    return "Microphone permission was blocked for this site.";
+  }
+
+  if (error === "audio-capture") {
+    return "No microphone was found. Connect or enable a microphone and try again.";
+  }
+
+  if (error === "language-not-supported") {
+    return "Chinese speech recognition is not supported by this browser.";
+  }
+
+  if (error === "network") {
+    return "Speech recognition could not connect. Check your connection or try Chrome or Edge.";
+  }
+
+  if (error === "no-speech" || error === "ended") {
+    return "No speech was detected. Try speaking a little closer to the microphone.";
+  }
+
+  return "Speech recognition could not read the sentence. Try again, or try Chrome or Edge with microphone permission enabled.";
+}
+
+function getPronunciationEmptyResultMessage(recording) {
+  return getPronunciationRecognitionErrorMessage(recording?.lastRecognitionError || "no-speech");
+}
+
+function restartPronunciationRecognizerAfterDelay(recording, delay = PRONUNCIATION_RESTART_DELAY_MS) {
   if (!isActivePronunciationRecording(recording) || recording.restartTimerId) {
     return;
   }
@@ -2305,9 +2376,10 @@ function restartPronunciationRecognizerAfterDelay(recording) {
   recording.restartTimerId = window.setTimeout(() => {
     recording.restartTimerId = 0;
     if (isActivePronunciationRecording(recording) && !recording.manualStopRequested) {
+      recording.lastRecognitionError = "";
       startPronunciationRecognizer(recording);
     }
-  }, PRONUNCIATION_RESTART_DELAY_MS);
+  }, delay);
 }
 
 function requestPronunciationManualStop() {

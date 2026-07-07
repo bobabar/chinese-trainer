@@ -2697,7 +2697,10 @@ function buildChinaMapCityPins(session) {
   return CHINA_CITIES.map((city) => {
     const status = getMapTargetStatus("city", city.id, session);
     const point = projectMapCoordinate(city.lng, city.lat, CHINA_MAINLAND_FRAME);
-    const label = status ? escapeHtml(city.name.replace(/市$/, "")) : "";
+    const rawLabel = city.name.replace(/市$/, "");
+    const label = status ? escapeHtml(rawLabel) : "";
+    const labelWidth = Math.max(42, rawLabel.length * 15 + 18);
+    const labelX = status === "correct" ? 20 : 11;
     const classes = [
       "china-city-pin",
       status ? `is-${status}` : "",
@@ -2713,9 +2716,11 @@ function buildChinaMapCityPins(session) {
         transform="translate(${formatMapNumber(point.x)} ${formatMapNumber(point.y)})"
       >
         <circle class="china-city-pin-hit" r="13"></circle>
+        ${status === "correct" ? `<circle class="china-city-pin-halo" r="18"></circle>` : ""}
         <circle class="china-city-pin-ring" r="7"></circle>
         <circle class="china-city-pin-dot" r="4"></circle>
-        ${label ? `<text class="china-city-pin-label" x="11" y="4">${label}</text>` : ""}
+        ${status === "correct" ? `<rect class="china-city-pin-label-backdrop" x="9" y="-14" width="${formatMapNumber(labelWidth)}" height="24" rx="12"></rect>` : ""}
+        ${label ? `<text class="china-city-pin-label" x="${labelX}" y="4">${label}</text>` : ""}
       </g>
     `;
   }).join("");
@@ -3214,6 +3219,15 @@ function buildMapQuizFeedbackMarkup(assessment) {
   const current = state.session.items[state.session.index];
   const status = assessment.correct ? "good correct-celebration" : "review";
   const title = assessment.correct ? "Correct" : "Wrong location";
+  const correctCityMarkup = !assessment.correct && current.kind === "city"
+    ? `
+      <div class="map-correct-answer-card">
+        <span>Correct city</span>
+        <strong class="chinese-text" lang="zh-CN">${escapeHtml(current.name)}</strong>
+        <em>${escapeHtml(current.pinyin)}</em>
+      </div>
+    `
+    : "";
 
   return `
     <section class="map-feedback ${status}" role="status" aria-live="polite">
@@ -3224,7 +3238,10 @@ function buildMapQuizFeedbackMarkup(assessment) {
       ${
         assessment.correct
           ? ""
-          : `<p>You selected ${escapeHtml(assessment.selectedName)}.</p>`
+          : `
+            ${correctCityMarkup}
+            <p>You selected ${escapeHtml(assessment.selectedName)}.</p>
+          `
       }
     </section>
   `;

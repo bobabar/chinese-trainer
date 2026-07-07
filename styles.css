@@ -2047,11 +2047,23 @@ select {
   pointer-events: all;
 }
 
+.china-city-pin-halo {
+  fill: rgba(13, 148, 136, 0.2);
+  opacity: 0.92;
+  pointer-events: none;
+  stroke: rgba(13, 148, 136, 0.52);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: city-correct-halo 900ms ease-out 1;
+}
+
 .china-city-pin-ring {
   fill: #ffffff;
   stroke: currentColor;
   stroke-width: 2.4;
   filter: drop-shadow(0 5px 8px rgba(15, 23, 42, 0.2));
+  transition: fill 160ms ease, stroke-width 160ms ease, filter 160ms ease;
 }
 
 .china-city-pin-dot {
@@ -2079,6 +2091,9 @@ select {
 
 .china-city-pin.is-correct .china-city-pin-ring,
 .china-city-pin.is-hint .china-city-pin-ring {
+  fill: #ecfdf9;
+  stroke-width: 3.2;
+  filter: drop-shadow(0 8px 14px rgba(13, 148, 136, 0.34));
   animation: correct-pop 420ms ease;
 }
 
@@ -2091,6 +2106,24 @@ select {
   font-size: 12px;
   font-weight: 850;
   pointer-events: none;
+}
+
+.china-city-pin-label-backdrop {
+  fill: rgba(236, 253, 249, 0.94);
+  pointer-events: none;
+  stroke: rgba(13, 148, 136, 0.38);
+  stroke-width: 1;
+  filter: drop-shadow(0 7px 12px rgba(13, 148, 136, 0.18));
+}
+
+.china-city-pin.is-correct .china-city-pin-label {
+  fill: #064e3b;
+  font-size: 14px;
+  stroke-width: 5;
+}
+
+.china-city-pin.is-wrong .china-city-pin-label {
+  fill: #8f1d33;
 }
 
 .south-china-sea-inset-frame {
@@ -2307,6 +2340,23 @@ select {
   }
 }
 
+@keyframes city-correct-halo {
+  0% {
+    opacity: 0.32;
+    transform: scale(0.55);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+
+  100% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+}
+
 .map-feedback {
   display: grid;
   gap: 8px;
@@ -2342,6 +2392,38 @@ select {
   font-size: 13px;
   font-weight: 720;
   line-height: 1.45;
+}
+
+.map-correct-answer-card {
+  display: grid;
+  gap: 3px;
+  margin: 2px 0;
+  padding: 12px;
+  border: 1px solid rgba(13, 148, 136, 0.34);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ecfdf9, #ffffff);
+  box-shadow: inset 3px 0 0 rgba(13, 148, 136, 0.72);
+}
+
+.map-correct-answer-card span {
+  color: var(--theme-hover);
+  font-size: 11px;
+  font-weight: 860;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.map-correct-answer-card strong {
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.map-correct-answer-card em {
+  color: var(--theme);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 820;
 }
 
 .shortcut-btn {

@@ -109,6 +109,7 @@ window.__tests = {
   buildHistoryRecord,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
+  buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -171,6 +172,7 @@ const {
   buildHistoryRecord,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
+  buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -273,8 +275,10 @@ assert(
 );
 const guangdongProvince = CHINA_PROVINCES.find((item) => item.name === "广东省");
 const guangzhouCity = CHINA_CITIES.find((item) => item.name === "广州市");
+const beijingCity = CHINA_CITIES.find((item) => item.name === "北京市");
 assert(guangdongProvince, "map data should include 广东省");
 assert(guangzhouCity, "map data should include 广州市");
+assert(beijingCity, "map data should include 北京市");
 const mapMarkup = buildChinaMapMarkup({ type: "map", mapQuizMode: "province", items: [{ ...guangdongProvince, kind: "province" }], index: 0, currentAssessment: null });
 const cityMapMarkup = buildChinaMapMarkup({ type: "map", mapQuizMode: "city", items: [{ ...guangzhouCity, kind: "city" }], index: 0, currentAssessment: null });
 const cityProvinceAssessmentMarkup = buildChinaMapMarkup({
@@ -288,6 +292,28 @@ const cityProvinceAssessmentMarkup = buildChinaMapMarkup({
     correct: false,
   },
 });
+const cityWrongAssessment = {
+  selectedKind: "city",
+  selectedId: beijingCity.id,
+  selectedName: beijingCity.name,
+  selectedPinyin: beijingCity.pinyin,
+  correct: false,
+};
+const cityWrongAssessmentMarkup = buildChinaMapMarkup({
+  type: "map",
+  mapQuizMode: "city",
+  items: [{ ...guangzhouCity, kind: "city" }],
+  index: 0,
+  currentAssessment: cityWrongAssessment,
+});
+state.session = {
+  type: "map",
+  mapQuizMode: "city",
+  items: [{ ...guangzhouCity, kind: "city" }],
+  index: 0,
+};
+const cityWrongFeedbackMarkup = buildMapQuizFeedbackMarkup(cityWrongAssessment);
+state.session = null;
 assert(indexSource.includes("china-map-data.js"), "map quiz should load committed China map data before app startup");
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
@@ -350,6 +376,13 @@ assert(
   !/china-province-shape[^"]*is-(hint|correct|wrong)/.test(cityProvinceAssessmentMarkup),
   "city map mode should not apply answer highlights to province shapes",
 );
+assert(cityWrongAssessmentMarkup.includes("china-city-pin-halo"), "wrong city answers should make the correct city pin prominent");
+assert(cityWrongAssessmentMarkup.includes("china-city-pin-label-backdrop"), "wrong city answers should give the correct city a label backdrop");
+assert(cityWrongAssessmentMarkup.includes("china-city-pin is-correct"), "wrong city answers should mark the correct city pin");
+assert(cityWrongAssessmentMarkup.includes("china-city-pin is-wrong"), "wrong city answers should mark the selected wrong city pin");
+assert(cityWrongFeedbackMarkup.includes("map-correct-answer-card"), "wrong city feedback should include a prominent correct city card");
+assert(cityWrongFeedbackMarkup.includes("Correct city"), "wrong city feedback should label the correct city clearly");
+assert(cityWrongFeedbackMarkup.includes(guangzhouCity.pinyin), "wrong city feedback should show the correct city pinyin");
 assert(!mapMarkup.includes("map-info-bubble"), "map quiz should not render a map source info bubble");
 assert(appSource.includes("Reveal: ${escapeHtml(current.pinyin)}"), "map quiz should label the pinyin reveal as Reveal");
 assert(appSource.includes('session.hintVisible ? "Revealed" : "Reveal"'), "map quiz reveal button should use reveal wording");

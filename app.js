@@ -121,50 +121,125 @@ const MEMORY_CARDS = [
     zh: "人",
     pinyin: "rén",
     meaning: "person; people",
-    image: "./assets/memory/ren.webp",
-    sceneAlt: "A walking clay figure whose two long legs form a split shape, with a small wren flying alongside.",
-    shapeCue: "A walking person forms the two strokes of 人.",
-    soundCue: "The wren points you toward rén.",
+    image: "./assets/memory/glyphs/ren-base.webp",
+    sceneAlt: "The two strokes of 人 step together like a person while a small wren flies in and perches nearby.",
+    shapeCue: "The two sloping strokes form the body and walking legs of a person.",
+    soundCue: "A wren flies alongside to point you toward rén.",
+    components: [
+      { symbol: "人", label: "person pictograph" },
+      { symbol: "wren", label: "sound cue for rén" },
+    ],
+    art: {
+      accents: [
+        { src: "./assets/memory/glyphs/ren-coral.webp", className: "memory-ren-stroke-left" },
+        { src: "./assets/memory/glyphs/ren-coral.webp", className: "memory-ren-stroke-right" },
+      ],
+      props: [
+        { src: "./assets/memory/props/wren.webp", className: "memory-ren-wren" },
+      ],
+    },
   },
   {
     id: "san",
     zh: "三",
     pinyin: "sān",
     meaning: "three",
-    image: "./assets/memory/san.webp",
-    sceneAlt: "Exactly three golden suns rise on three separate horizontal horizon bands.",
-    shapeCue: "Three horizons form the three lines of 三.",
-    soundCue: "Three suns point you toward sān.",
+    image: "./assets/memory/glyphs/san-base.webp",
+    sceneAlt: "Three gold suns rise one after another beside the three horizontal strokes of 三.",
+    shapeCue: "One line, then another, then another: the three strokes directly show three.",
+    soundCue: "Three suns make the sound cue for sān easy to recall.",
+    components: [
+      { symbol: "一", label: "first line" },
+      { symbol: "一", label: "second line" },
+      { symbol: "一", label: "third line" },
+    ],
+    art: {
+      accents: [
+        { src: "./assets/memory/glyphs/san-gold.webp", className: "memory-san-line-one" },
+        { src: "./assets/memory/glyphs/san-gold.webp", className: "memory-san-line-two" },
+        { src: "./assets/memory/glyphs/san-gold.webp", className: "memory-san-line-three" },
+      ],
+      props: [
+        { src: "./assets/memory/props/sun.webp", className: "memory-san-sun-one" },
+        { src: "./assets/memory/props/sun.webp", className: "memory-san-sun-two" },
+        { src: "./assets/memory/props/sun.webp", className: "memory-san-sun-three" },
+      ],
+    },
   },
   {
     id: "men",
     zh: "门",
     pinyin: "mén",
     meaning: "door; gate",
-    image: "./assets/memory/men.webp",
-    sceneAlt: "Three clay men walk through a teal doorway shaped like a simple gate.",
-    shapeCue: "The doorway traces the outer shape of 门.",
-    soundCue: "The men walking through it point you toward mén.",
+    image: "./assets/memory/glyphs/men-base.webp",
+    sceneAlt: "The character 门 becomes a teal door frame while three men walk through it.",
+    shapeCue: "门 is shaped like the frame and panel of a door or gate.",
+    soundCue: "Three men walk through the door to point you toward mén.",
+    components: [
+      { symbol: "门", label: "door frame" },
+      { symbol: "men", label: "sound cue for mén" },
+    ],
+    art: {
+      accents: [
+        { src: "./assets/memory/glyphs/men-teal.webp", className: "memory-men-door" },
+      ],
+      props: [
+        { src: "./assets/memory/props/men.webp", className: "memory-men-walkers" },
+      ],
+    },
   },
   {
     id: "kan",
     zh: "看",
     pinyin: "kàn",
     meaning: "to look; to see",
-    image: "./assets/memory/kan.webp",
-    sceneAlt: "A large hand shades an eye while another hand holds a teal can like a telescope.",
-    shapeCue: "A hand above an eye mirrors 手 over 目 in 看.",
-    soundCue: "The can telescope points you toward kàn.",
+    image: "./assets/memory/glyphs/kan-base.webp",
+    sceneAlt: "A hand slides above the 手 part of 看 while an eye and can telescope blink over the 目 part.",
+    shapeCue: "手, a hand, sits above 目, an eye: shade your eye with your hand to look.",
+    soundCue: "The little can telescope points you toward kàn.",
+    components: [
+      { symbol: "手", label: "hand above" },
+      { symbol: "目", label: "eye below" },
+      { symbol: "can", label: "sound cue for kàn" },
+    ],
+    art: {
+      accents: [
+        { src: "./assets/memory/glyphs/kan-coral.webp", className: "memory-kan-hand-component" },
+        { src: "./assets/memory/glyphs/kan-teal.webp", className: "memory-kan-eye-component" },
+      ],
+      props: [
+        { src: "./assets/memory/props/hand.webp", className: "memory-kan-hand" },
+        { src: "./assets/memory/props/eye-can.webp", className: "memory-kan-eye" },
+      ],
+    },
   },
   {
     id: "cha",
     zh: "茶",
     pinyin: "chá",
     meaning: "tea; tea plant",
-    image: "./assets/memory/cha.webp",
-    sceneAlt: "Tea leaves sit above a dancing person, who is above a broad tea tree.",
-    shapeCue: "Tea leaves, a person, and a tree stack into the visual shape of 茶.",
-    soundCue: "The dancer does the cha-cha to cue chá.",
+    image: "./assets/memory/glyphs/cha-base.webp",
+    sceneAlt: "Tea leaves fall onto the top of 茶 while a small dancer cha-chas over the person-like middle and the tree-like base grows below.",
+    shapeCue: "For this visual mnemonic, see tea leaves 艹 above a person-like 人 and a tree-like 木.",
+    soundCue: "The person dances the cha-cha to point you toward chá.",
+    components: [
+      { symbol: "艹", label: "tea leaves" },
+      { symbol: "人", label: "person-like middle" },
+      { symbol: "木", label: "tree-like base" },
+    ],
+    art: {
+      accents: [
+        { src: "./assets/memory/glyphs/cha-green.webp", className: "memory-cha-leaf-component" },
+        { src: "./assets/memory/glyphs/cha-coral.webp", className: "memory-cha-person-component" },
+        { src: "./assets/memory/glyphs/cha-teal.webp", className: "memory-cha-tree-component" },
+      ],
+      props: [
+        { src: "./assets/memory/props/leaf.webp", className: "memory-cha-leaf-one" },
+        { src: "./assets/memory/props/leaf.webp", className: "memory-cha-leaf-two" },
+        { src: "./assets/memory/props/leaf.webp", className: "memory-cha-leaf-three" },
+        { src: "./assets/memory/props/dancer.webp", className: "memory-cha-dancer" },
+      ],
+    },
   },
 ];
 
@@ -1486,9 +1561,7 @@ function renderMemoryHome() {
       </div>
 
       <div class="memory-home-layout">
-        <figure class="memory-cover memory-scene memory-scene-cha" aria-label="Tea memory card preview">
-          <img src="./assets/memory/cha.webp" alt="Tea leaves above a dancing person and a tea tree." width="1280" height="800">
-        </figure>
+        ${buildMemorySceneMarkup(MEMORY_CARDS.find((card) => card.id === "cha"), { className: "memory-cover" })}
 
         <div class="memory-home-content">
           <div class="memory-home-metrics" aria-label="Memory card progress">
@@ -1552,10 +1625,7 @@ function renderMemorySession() {
       </div>
 
       <div class="memory-game-layout">
-        <figure class="memory-scene memory-scene-${current.id} ${assessment?.correct ? "is-correct" : ""}">
-          <img src="${escapeHtml(current.image)}" alt="${escapeHtml(current.sceneAlt)}" width="1280" height="800">
-          <span class="memory-scene-shine" aria-hidden="true"></span>
-        </figure>
+        ${buildMemorySceneMarkup(current, { correct: assessment?.correct })}
 
         <div class="memory-answer-panel">
           <h3>Which word does this scene encode?</h3>
@@ -1589,6 +1659,62 @@ function renderMemorySession() {
   });
 }
 
+function buildMemorySceneMarkup(card, { className = "", correct = false } = {}) {
+  if (!card) {
+    return "";
+  }
+
+  const accentLayers = (card.art?.accents || []).map((layer) => `
+    <img
+      class="memory-layer memory-glyph memory-glyph-accent ${escapeHtml(layer.className)}"
+      src="${escapeHtml(layer.src)}"
+      alt=""
+      width="900"
+      height="900"
+      aria-hidden="true"
+      draggable="false"
+    >
+  `).join("");
+  const propLayers = (card.art?.props || []).map((layer) => `
+    <img
+      class="memory-layer memory-prop ${escapeHtml(layer.className)}"
+      src="${escapeHtml(layer.src)}"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+    >
+  `).join("");
+
+  return `
+    <figure
+      class="memory-scene memory-scene-${escapeHtml(card.id)} ${correct ? "is-correct" : ""} ${escapeHtml(className)}"
+      role="img"
+      aria-label="${escapeHtml(card.sceneAlt)}"
+    >
+      <img
+        class="memory-layer memory-backdrop"
+        src="./assets/memory/props/backdrop.webp"
+        alt=""
+        width="900"
+        height="738"
+        aria-hidden="true"
+        draggable="false"
+      >
+      <img
+        class="memory-layer memory-glyph memory-glyph-base"
+        src="${escapeHtml(card.image)}"
+        alt=""
+        width="900"
+        height="900"
+        aria-hidden="true"
+        draggable="false"
+      >
+      ${accentLayers}
+      ${propLayers}
+    </figure>
+  `;
+}
+
 function buildMemoryChoiceMarkup(session, current, assessment = null) {
   return getMemoryChoiceSet(session, session.index).map((choice) => {
     const isCorrectChoice = choice.id === current.id;
@@ -1618,6 +1744,13 @@ function buildMemoryChoiceMarkup(session, current, assessment = null) {
 }
 
 function buildMemoryFeedbackMarkup(card, assessment) {
+  const componentMarkup = card.components.map((component) => `
+    <div class="memory-component-item">
+      <strong class="${containsChinese(component.symbol) ? "chinese-text" : ""}" ${containsChinese(component.symbol) ? 'lang="zh-CN"' : ""}>${escapeHtml(component.symbol)}</strong>
+      <span>${escapeHtml(component.label)}</span>
+    </div>
+  `).join("");
+
   return `
     <div class="memory-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
       <div class="memory-feedback-heading">
@@ -1628,8 +1761,11 @@ function buildMemoryFeedbackMarkup(card, assessment) {
           <em>${escapeHtml(card.meaning)}</em>
         </div>
       </div>
-      <p>${escapeHtml(card.shapeCue)}</p>
-      <p>${escapeHtml(card.soundCue)}</p>
+      <div class="memory-component-breakdown" aria-label="Character breakdown">
+        ${componentMarkup}
+      </div>
+      <p><strong>Shape:</strong> ${escapeHtml(card.shapeCue)}</p>
+      <p><strong>Sound:</strong> ${escapeHtml(card.soundCue)}</p>
     </div>
   `;
 }

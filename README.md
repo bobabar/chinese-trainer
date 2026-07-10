@@ -1,6 +1,6 @@
 # Chinese Trainer
 
-A browser-based Chinese training app for sentence drills and vocabulary quizzes.
+A browser-based Chinese training app for visual memory, pronunciation, geography, sentence drills, and vocabulary quizzes.
 
 ## Live Site
 
@@ -33,7 +33,8 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 ## Features
 
-- Global navigation between Sentence Drills and the Vocabulary Quiz.
+- Global navigation across vocabulary, memory cards, pronunciation, geography, sentence drills, and history.
+- A five-word New HSK 1 Memory Cards MVP uses animated visual mnemonics for character shape, meaning, and pronunciation, with browser-local mastery tracking.
 - Sentence drill navigation for Listening, Writing, and Reading.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.

@@ -97,6 +97,7 @@ window.__tests = {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  MEMORY_CARDS,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -110,6 +111,9 @@ window.__tests = {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
+  buildMemoryBestCelebration,
+  buildMemoryChoiceMarkup,
+  buildMemoryFeedbackMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -133,6 +137,9 @@ window.__tests = {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getMapQuizPool,
+  getMemoryBestRecord,
+  getMemoryChoiceSet,
+  getMemoryStrengthLabel,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
   formatTimer,
@@ -141,6 +148,7 @@ window.__tests = {
   isVocabularyRowCorrect,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
+  markMemoryBestResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
@@ -153,6 +161,7 @@ window.__tests = {
   state,
   stopSpeech,
   trashIconMarkup,
+  updateMemoryProgress,
   vocabularyItemId,
 };`, context, { filename: "app.js" });
 
@@ -160,6 +169,7 @@ const {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  MEMORY_CARDS,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -173,6 +183,9 @@ const {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
+  buildMemoryBestCelebration,
+  buildMemoryChoiceMarkup,
+  buildMemoryFeedbackMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -196,6 +209,9 @@ const {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getMapQuizPool,
+  getMemoryBestRecord,
+  getMemoryChoiceSet,
+  getMemoryStrengthLabel,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
   formatTimer,
@@ -204,6 +220,7 @@ const {
   isVocabularyRowCorrect,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
+  markMemoryBestResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
@@ -216,6 +233,7 @@ const {
   state,
   stopSpeech,
   trashIconMarkup,
+  updateMemoryProgress,
   vocabularyItemId,
 } =
   context.window.__tests;
@@ -242,8 +260,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Pronunciation, Geography of China, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|memory:Memory Cards|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Memory Cards, Pronunciation, Geography of China, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -253,6 +271,72 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+assert(MEMORY_CARDS.length === 5, "memory card MVP should include exactly five words");
+assert(new Set(MEMORY_CARDS.map((card) => card.zh)).size === 5, "memory card words should be unique");
+assert(
+  MEMORY_CARDS.every((card) => hsk1VocabularyWords.some((word) => word.zh === card.zh)),
+  "every memory card word should come from the New HSK 1 vocabulary list",
+);
+assert(
+  MEMORY_CARDS.every((card) => card.image.endsWith(".webp") && fs.existsSync(path.join(ROOT, card.image.replace(/^\.\//, "")))),
+  "every memory card should reference a committed optimized illustration",
+);
+assert(
+  MEMORY_CARDS.every((card) => card.shapeCue && card.soundCue && card.sceneAlt),
+  "every memory card should explain shape, sound, and accessible scene meaning",
+);
+const memorySession = {
+  type: "memory",
+  items: [...MEMORY_CARDS],
+  index: 0,
+  answers: [],
+  choiceSets: new Map(),
+  currentAssessment: null,
+};
+const memoryChoices = getMemoryChoiceSet(memorySession, 0);
+assert(memoryChoices.length === 4, "memory cards should present four answer choices");
+assert(new Set(memoryChoices.map((choice) => choice.id)).size === 4, "memory answer choices should not repeat");
+assert(memoryChoices.some((choice) => choice.id === MEMORY_CARDS[0].id), "memory choices should include the correct card");
+assert(memoryChoices.map((choice) => choice.shortcut).join("") === "1234", "memory choices should expose shortcuts 1 through 4");
+const memoryChoiceMarkup = buildMemoryChoiceMarkup(memorySession, MEMORY_CARDS[0]);
+assert((memoryChoiceMarkup.match(/data-memory-choice-id=/g) || []).length === 4, "memory choice markup should render four clickable options");
+const memoryFeedbackMarkup = buildMemoryFeedbackMarkup(MEMORY_CARDS[0], { correct: true });
+assert(memoryFeedbackMarkup.includes("Correct"), "correct memory feedback should announce success");
+assert(memoryFeedbackMarkup.includes(MEMORY_CARDS[0].shapeCue), "memory feedback should reveal the character-shape cue");
+assert(memoryFeedbackMarkup.includes(MEMORY_CARDS[0].soundCue), "memory feedback should reveal the pronunciation cue");
+assert(sessionUsesAudioPrompt(memorySession), "memory cards should support the shared audio shortcut");
+assert(getMemoryStrengthLabel({ attempts: 3, correct: 3 }) === "Strong", "memory mastery should identify strong cards");
+assert(getMemoryStrengthLabel({ attempts: 1, correct: 0 }) === "Learning", "memory mastery should identify cards needing practice");
+const memoryResult = {
+  type: "memory",
+  items: MEMORY_CARDS,
+  answers: MEMORY_CARDS.map((item, index) => ({
+    item,
+    itemIndex: index,
+    answer: item.zh,
+    correct: index !== 4,
+    score: index !== 4 ? 1 : 0,
+  })),
+  elapsedSeconds: 31,
+  finishReason: "complete",
+  total: MEMORY_CARDS.length,
+};
+const memoryRecord = buildHistoryRecord(memoryResult);
+assert(memoryRecord.type === "memory", "memory rounds should create memory history records");
+assert(memoryRecord.correct === 4 && memoryRecord.total === 5, "memory history should store the round score");
+assert(memoryRecord.answers[0].pinyin === MEMORY_CARDS[0].pinyin, "memory history should store pinyin review data");
+assert(getMemoryBestRecord([memoryRecord]) === memoryRecord, "memory best score should select completed memory rounds");
+localStorageEntries.delete("chineseTrainerMemoryProgress");
+updateMemoryProgress(memoryResult);
+const storedMemoryProgress = JSON.parse(localStorageEntries.get("chineseTrainerMemoryProgress"));
+assert(storedMemoryProgress[MEMORY_CARDS[0].id].correct === 1, "memory mastery should persist correct answers in browser storage");
+assert(storedMemoryProgress[MEMORY_CARDS[4].id].correct === 0, "memory mastery should persist missed answers in browser storage");
+localStorageEntries.set("chineseTrainerHistory", JSON.stringify([{ ...memoryRecord, elapsedSeconds: 40 }]));
+const improvedMemoryResult = markMemoryBestResult({ ...memoryResult, elapsedSeconds: 30 });
+assert(improvedMemoryResult.isNewBest, "a faster tied memory score should be marked as a new best");
+assert(buildMemoryBestCelebration(improvedMemoryResult).includes("New memory best!"), "memory best results should render a celebration");
+localStorageEntries.delete("chineseTrainerHistory");
+localStorageEntries.delete("chineseTrainerMemoryProgress");
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");
 assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");

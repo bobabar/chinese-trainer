@@ -6,7 +6,9 @@ const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
+const RETIRED_MEMORY_PROGRESS_KEY = "chineseTrainerMemoryProgress";
 const HISTORY_LIMIT = 100;
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "pronunciation", "map"]);
 
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
@@ -367,6 +369,7 @@ function init() {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
 
+  purgeRetiredMemoryData();
   loadSettings();
   renderLevelOptions();
   syncVocabularyOptionControls();
@@ -5310,9 +5313,29 @@ function buildHistoryRecord(result) {
 function loadHistoryRecords() {
   try {
     const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((record) => record && SUPPORTED_HISTORY_TYPES.has(record.type))
+      : [];
   } catch {
     return [];
+  }
+}
+
+function purgeRetiredMemoryData() {
+  localStorage.removeItem(RETIRED_MEMORY_PROGRESS_KEY);
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+
+    const supportedRecords = parsed.filter((record) => record && SUPPORTED_HISTORY_TYPES.has(record.type));
+    if (supportedRecords.length !== parsed.length) {
+      saveHistoryRecords(supportedRecords);
+    }
+  } catch {
+    // Malformed history can still be removed with the History screen's clear action.
   }
 }
 

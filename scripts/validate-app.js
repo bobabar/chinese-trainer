@@ -139,11 +139,13 @@ window.__tests = {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  loadHistoryRecords,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
+  purgeRetiredMemoryData,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -202,11 +204,13 @@ const {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  loadHistoryRecords,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
+  purgeRetiredMemoryData,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -253,6 +257,22 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+localStorageEntries.set("chineseTrainerMemoryProgress", JSON.stringify({ ren: { attempts: 1 } }));
+localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
+  { id: "retired-memory", type: "memory" },
+  { id: "kept-drill", type: "drill" },
+]));
+assert(
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill",
+  "history loading should ignore records from retired tools",
+);
+purgeRetiredMemoryData();
+assert(!localStorageEntries.has("chineseTrainerMemoryProgress"), "retired memory progress should be removed from browser storage");
+assert(
+  JSON.parse(localStorageEntries.get("chineseTrainerHistory")).map((record) => record.id).join("|") === "kept-drill",
+  "retired memory sessions should be removed from browser history",
+);
+localStorageEntries.delete("chineseTrainerHistory");
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");
 assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");

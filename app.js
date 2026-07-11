@@ -7,7 +7,6 @@ const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
 const HISTORY_LIMIT = 100;
-const MEMORY_PROGRESS_KEY = "chineseTrainerMemoryProgress";
 
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
@@ -48,9 +47,6 @@ const MODES = {
 const TOOLS = {
   vocabulary: {
     label: "Vocabulary Quiz",
-  },
-  memory: {
-    label: "Memory Cards",
   },
   pronunciation: {
     label: "Pronunciation",
@@ -114,59 +110,6 @@ const VOCABULARY_PREVIEW_CELLS = {
     description: "Audio-first vocabulary meaning recall",
   },
 };
-
-const MEMORY_CARDS = [
-  {
-    id: "ren",
-    zh: "人",
-    pinyin: "rén",
-    meaning: "person; people",
-    image: "./assets/memory/ren.webp",
-    sceneAlt: "A walking clay figure whose two long legs form a split shape, with a small wren flying alongside.",
-    shapeCue: "A walking person forms the two strokes of 人.",
-    soundCue: "The wren points you toward rén.",
-  },
-  {
-    id: "san",
-    zh: "三",
-    pinyin: "sān",
-    meaning: "three",
-    image: "./assets/memory/san.webp",
-    sceneAlt: "Exactly three golden suns rise on three separate horizontal horizon bands.",
-    shapeCue: "Three horizons form the three lines of 三.",
-    soundCue: "Three suns point you toward sān.",
-  },
-  {
-    id: "men",
-    zh: "门",
-    pinyin: "mén",
-    meaning: "door; gate",
-    image: "./assets/memory/men.webp",
-    sceneAlt: "Three clay men walk through a teal doorway shaped like a simple gate.",
-    shapeCue: "The doorway traces the outer shape of 门.",
-    soundCue: "The men walking through it point you toward mén.",
-  },
-  {
-    id: "kan",
-    zh: "看",
-    pinyin: "kàn",
-    meaning: "to look; to see",
-    image: "./assets/memory/kan.webp",
-    sceneAlt: "A large hand shades an eye while another hand holds a teal can like a telescope.",
-    shapeCue: "A hand above an eye mirrors 手 over 目 in 看.",
-    soundCue: "The can telescope points you toward kàn.",
-  },
-  {
-    id: "cha",
-    zh: "茶",
-    pinyin: "chá",
-    meaning: "tea; tea plant",
-    image: "./assets/memory/cha.webp",
-    sceneAlt: "Tea leaves sit above a dancing person, who is above a broad tea tree.",
-    shapeCue: "Tea leaves, a person, and a tree stack into the visual shape of 茶.",
-    soundCue: "The dancer does the cha-cha to cue chá.",
-  },
-];
 
 const SENTENCES = [];
 const RAW_VOCABULARY_QUIZ_SETS = Array.isArray(window.VOCABULARY_QUIZ_SETS)
@@ -629,12 +572,6 @@ function handleSessionShortcut(event) {
     return;
   }
 
-  if (isMemoryChoiceShortcut(event)) {
-    event.preventDefault();
-    submitMemoryChoiceByShortcut(event.key);
-    return;
-  }
-
   if (isVocabularyChoiceShortcut(event)) {
     event.preventDefault();
     submitVocabularyChoiceByShortcut(event.key);
@@ -716,22 +653,13 @@ function shouldStartSessionFromShortcut(target) {
 }
 
 function sessionUsesAudioPrompt(session) {
-  if (session?.type === "pronunciation" || session?.type === "memory") {
+  if (session?.type === "pronunciation") {
     return true;
   }
 
   return session?.type === "vocabulary"
     ? session.quizMode === "meaning"
     : session?.mode === "listening";
-}
-
-function isMemoryChoiceShortcut(event) {
-  return state.session?.type === "memory" &&
-    !state.session.currentAssessment &&
-    !event.metaKey &&
-    !event.ctrlKey &&
-    !event.shiftKey &&
-    /^[1-4]$/.test(event.key);
 }
 
 function isVocabularyChoiceShortcut(event) {
@@ -1037,8 +965,6 @@ function render() {
     stopVocabularyTimer();
     if (state.result.type === "vocabulary") {
       renderVocabularyResults();
-    } else if (state.result.type === "memory") {
-      renderMemoryResults();
     } else if (state.result.type === "pronunciation") {
       renderPronunciationResults();
     } else if (state.result.type === "map") {
@@ -1067,11 +993,6 @@ function render() {
 
   if (state.tool === "vocabulary") {
     renderVocabularyHome();
-    return;
-  }
-
-  if (state.tool === "memory") {
-    renderMemoryHome();
     return;
   }
 
@@ -1470,413 +1391,6 @@ function renderVocabularyHome() {
   document.querySelector("#startVocabularySession").addEventListener("click", startVocabularySession);
 }
 
-function renderMemoryHome() {
-  const history = loadHistoryRecords();
-  const best = getMemoryBestRecord(history);
-  const progress = loadMemoryProgress();
-  const practicedCount = MEMORY_CARDS.filter((card) => (progress[card.id]?.attempts || 0) > 0).length;
-
-  app.innerHTML = `
-    <section class="workspace-panel memory-home">
-      <div class="mode-heading">
-        <div>
-          <h2>Memory Cards</h2>
-          <p>Five HSK 1 visual mnemonics.</p>
-        </div>
-      </div>
-
-      <div class="memory-home-layout">
-        <figure class="memory-cover memory-scene memory-scene-cha" aria-label="Tea memory card preview">
-          <img src="./assets/memory/cha.webp" alt="Tea leaves above a dancing person and a tea tree." width="1280" height="800">
-        </figure>
-
-        <div class="memory-home-content">
-          <div class="memory-home-metrics" aria-label="Memory card progress">
-            <div class="quiz-start-metric">
-              <strong>${practicedCount}/5</strong>
-              <span>Practiced</span>
-            </div>
-            <div class="quiz-start-metric">
-              <strong>${best ? `${best.correct}/5` : "None"}</strong>
-              <span>Best score</span>
-            </div>
-          </div>
-
-          <div class="memory-deck-preview" aria-label="HSK 1 memory deck">
-            ${MEMORY_CARDS.map((card) => `
-              <div class="memory-deck-word">
-                <strong class="chinese-text" lang="zh-CN">${card.zh}</strong>
-                <span>${buildToneColoredPinyinMarkup(card.pinyin)}</span>
-                <em>${escapeHtml(card.meaning)}</em>
-              </div>
-            `).join("")}
-          </div>
-
-          <button class="primary-btn shortcut-btn memory-start-btn" type="button" id="startMemorySession">
-            <span>Start five-card round</span>
-            ${shortcutHint("Enter")}
-          </button>
-        </div>
-      </div>
-    </section>
-  `;
-
-  document.querySelector("#startMemorySession").addEventListener("click", startMemorySession);
-}
-
-function renderMemorySession() {
-  const session = state.session;
-  const current = session.items[session.index];
-  const assessment = session.currentAssessment;
-  const correctCount = session.answers.filter((answer) => answer.correct).length;
-  const progressPercent = Math.round((session.index / session.items.length) * 100);
-  const nextLabel = session.index + 1 === session.items.length ? "View results" : "Next card";
-
-  app.innerHTML = `
-    <section class="workspace-panel memory-game-shell">
-      <div class="memory-game-header">
-        <h2>Memory Cards</h2>
-        <div class="memory-game-progress">
-          <div>
-            <strong>Card ${session.index + 1} of ${session.items.length}</strong>
-            <span>${correctCount} correct</span>
-          </div>
-          <div class="progress-track" aria-hidden="true">
-            <div class="progress-fill" style="width: ${progressPercent}%"></div>
-          </div>
-        </div>
-        <button class="secondary-btn icon-label-btn" type="button" id="playMemoryWord" ${supportsSpeechSynthesis() ? "" : "disabled"}>
-          ${speakerIconMarkup()}
-          <span>Play word</span>
-        </button>
-      </div>
-
-      <div class="memory-game-layout">
-        <figure class="memory-scene memory-scene-${current.id} ${assessment?.correct ? "is-correct" : ""}">
-          <img src="${escapeHtml(current.image)}" alt="${escapeHtml(current.sceneAlt)}" width="1280" height="800">
-          <span class="memory-scene-shine" aria-hidden="true"></span>
-        </figure>
-
-        <div class="memory-answer-panel">
-          <h3>Which word does this scene encode?</h3>
-          <div class="memory-choices" role="group" aria-label="Choose the matching Chinese word">
-            ${buildMemoryChoiceMarkup(session, current, assessment)}
-          </div>
-
-          ${assessment ? buildMemoryFeedbackMarkup(current, assessment) : ""}
-
-          ${assessment ? `
-            <button class="primary-btn shortcut-btn memory-next-btn" type="button" id="nextQuestion">
-              <span>${nextLabel}</span>
-              ${shortcutHint("Enter")}
-            </button>
-          ` : ""}
-        </div>
-      </div>
-    </section>
-  `;
-
-  document.querySelector("#playMemoryWord")?.addEventListener("click", () => speak(current.zh, { immediate: true }));
-
-  if (assessment) {
-    document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
-    scrollMemoryFeedbackIntoView();
-    return;
-  }
-
-  document.querySelectorAll("[data-memory-choice-id]").forEach((button) => {
-    button.addEventListener("click", () => submitMemoryChoice(button.dataset.memoryChoiceId));
-  });
-}
-
-function buildMemoryChoiceMarkup(session, current, assessment = null) {
-  return getMemoryChoiceSet(session, session.index).map((choice) => {
-    const isCorrectChoice = choice.id === current.id;
-    const isSelected = assessment?.choiceId === choice.id;
-    const statusClass = assessment
-      ? isCorrectChoice
-        ? "is-correct"
-        : isSelected
-          ? "is-wrong"
-          : "is-muted"
-      : "";
-
-    return `
-      <button
-        class="memory-choice ${statusClass}"
-        type="button"
-        data-memory-choice-id="${escapeHtml(choice.id)}"
-        aria-pressed="${isSelected ? "true" : "false"}"
-        ${assessment ? "disabled" : ""}
-      >
-        <span class="memory-choice-shortcut" aria-hidden="true">${choice.shortcut}</span>
-        <strong class="chinese-text" lang="zh-CN">${choice.zh}</strong>
-        <kbd>${choice.shortcut}</kbd>
-      </button>
-    `;
-  }).join("");
-}
-
-function buildMemoryFeedbackMarkup(card, assessment) {
-  return `
-    <div class="memory-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
-      <div class="memory-feedback-heading">
-        <span>${assessment.correct ? "Correct" : "Not quite"}</span>
-        <div class="memory-word-reveal">
-          <strong class="chinese-text" lang="zh-CN">${card.zh}</strong>
-          <span>${buildToneColoredPinyinMarkup(card.pinyin)}</span>
-          <em>${escapeHtml(card.meaning)}</em>
-        </div>
-      </div>
-      <p>${escapeHtml(card.shapeCue)}</p>
-      <p>${escapeHtml(card.soundCue)}</p>
-    </div>
-  `;
-}
-
-function renderMemoryResults() {
-  const result = state.result;
-  const correct = result.answers.filter((answer) => answer.correct).length;
-  const best = getMemoryBestRecord();
-  const progress = loadMemoryProgress();
-  const rows = result.items.map((card) => {
-    const answer = result.answers.find((item) => item.item.id === card.id);
-    return `
-      <div class="memory-review-row ${answer?.correct ? "is-correct" : "is-review"}">
-        <img src="${escapeHtml(card.image)}" alt="" width="160" height="100" loading="lazy">
-        <div class="memory-review-word">
-          <strong class="chinese-text" lang="zh-CN">${card.zh}</strong>
-          <span>${buildToneColoredPinyinMarkup(card.pinyin)}</span>
-          <em>${escapeHtml(card.meaning)}</em>
-        </div>
-        <p>${escapeHtml(card.shapeCue)} ${escapeHtml(card.soundCue)}</p>
-        <span class="memory-review-status">${answer ? (answer.correct ? "Correct" : "Review") : "Not seen"}</span>
-        <small>${escapeHtml(getMemoryStrengthLabel(progress[card.id]))}</small>
-      </div>
-    `;
-  }).join("");
-
-  app.innerHTML = `
-    <section class="workspace-panel memory-results">
-      <div class="results-header">
-        <div>
-          <h2>Memory Cards Results</h2>
-          <p>${correct} correct out of ${result.items.length} in ${formatTimer(result.elapsedSeconds)}.</p>
-        </div>
-        <div class="result-actions">
-          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
-            <span>Play again</span>
-            ${shortcutHint("Enter")}
-          </button>
-          <button class="ghost-btn" type="button" id="backToModes">Back to memory cards</button>
-        </div>
-      </div>
-
-      ${buildMemoryBestCelebration(result)}
-
-      <div class="memory-result-metrics">
-        <div>
-          <strong>${correct}/${result.items.length}</strong>
-          <span>This round</span>
-        </div>
-        <div>
-          <strong>${best ? `${best.correct}/${best.total}` : `${correct}/${result.items.length}`}</strong>
-          <span>Best score</span>
-        </div>
-        <div>
-          <strong>${formatTimer(result.elapsedSeconds)}</strong>
-          <span>Time</span>
-        </div>
-      </div>
-
-      <div class="memory-review-list" aria-label="Memory card review">
-        ${rows}
-      </div>
-    </section>
-  `;
-
-  document.querySelector("#restartSession").addEventListener("click", startMemorySession);
-  document.querySelector("#backToModes").addEventListener("click", () => {
-    state.result = null;
-    state.session = null;
-    render();
-  });
-  dismissHighScoreCelebration();
-}
-
-function buildMemoryBestCelebration(result) {
-  if (!result?.isNewBest) {
-    return "";
-  }
-
-  return `
-    <div class="high-score-celebration" role="status" aria-live="polite">
-      <span class="high-score-icon" aria-hidden="true"><span></span></span>
-      <div>
-        <strong>New memory best!</strong>
-        <span>${result.answers.filter((answer) => answer.correct).length} correct in ${formatTimer(result.elapsedSeconds)}.</span>
-      </div>
-    </div>
-  `;
-}
-
-function startMemorySession() {
-  stopPronunciationRecognition();
-  stopSpeech();
-  state.result = null;
-  state.session = {
-    type: "memory",
-    items: shuffle(MEMORY_CARDS),
-    index: 0,
-    answers: [],
-    choiceSets: new Map(),
-    currentAssessment: null,
-    startedAt: Date.now(),
-  };
-  saveSettings();
-  render();
-}
-
-function getMemoryChoiceSet(session, itemIndex) {
-  if (!(session.choiceSets instanceof Map)) {
-    session.choiceSets = new Map();
-  }
-
-  if (!session.choiceSets.has(itemIndex)) {
-    const current = session.items[itemIndex];
-    const distractors = shuffle(MEMORY_CARDS.filter((card) => card.id !== current.id)).slice(0, 3);
-    session.choiceSets.set(itemIndex, shuffle([current, ...distractors]).map((card, index) => ({
-      ...card,
-      shortcut: String(index + 1),
-    })));
-  }
-
-  return session.choiceSets.get(itemIndex);
-}
-
-function submitMemoryChoiceByShortcut(shortcut) {
-  const session = state.session;
-  if (session?.type !== "memory" || session.currentAssessment) {
-    return;
-  }
-
-  const choice = getMemoryChoiceSet(session, session.index).find((item) => item.shortcut === shortcut);
-  if (choice) {
-    submitMemoryChoice(choice.id);
-  }
-}
-
-function submitMemoryChoice(choiceId) {
-  const session = state.session;
-  if (session?.type !== "memory" || session.currentAssessment) {
-    return;
-  }
-
-  const current = session.items[session.index];
-  const choice = getMemoryChoiceSet(session, session.index).find((item) => item.id === choiceId);
-  if (!choice) {
-    return;
-  }
-
-  const assessment = {
-    answer: choice.zh,
-    choiceId: choice.id,
-    correct: choice.id === current.id,
-    score: choice.id === current.id ? 1 : 0,
-  };
-  session.currentAssessment = assessment;
-  session.answers.push({ ...assessment, item: current, itemIndex: session.index });
-  render();
-}
-
-function completeMemorySession(session) {
-  const result = markMemoryBestResult(buildSessionResult(session));
-  updateMemoryProgress(result);
-  state.result = result;
-  saveHistoryResult(result);
-  state.session = null;
-  stopSpeech();
-  render();
-}
-
-function markMemoryBestResult(result) {
-  if (result?.type !== "memory" || result.finishReason !== "complete") {
-    return result;
-  }
-
-  const correct = result.answers.filter((answer) => answer.correct).length;
-  const previousBest = getMemoryBestRecord();
-  const isNewBest = !previousBest ||
-    correct > previousBest.correct ||
-    (correct === previousBest.correct && result.elapsedSeconds < previousBest.elapsedSeconds);
-  return { ...result, isNewBest };
-}
-
-function getMemoryBestRecord(records = loadHistoryRecords()) {
-  return records
-    .filter((record) => record.type === "memory" && record.finishReason === "complete")
-    .sort((a, b) => b.correct - a.correct || a.elapsedSeconds - b.elapsedSeconds)[0] || null;
-}
-
-function loadMemoryProgress() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(MEMORY_PROGRESS_KEY) || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function updateMemoryProgress(result) {
-  const progress = loadMemoryProgress();
-  result.answers.forEach((answer) => {
-    const existing = progress[answer.item.id] || { attempts: 0, correct: 0 };
-    progress[answer.item.id] = {
-      attempts: existing.attempts + 1,
-      correct: existing.correct + (answer.correct ? 1 : 0),
-    };
-  });
-
-  try {
-    localStorage.setItem(MEMORY_PROGRESS_KEY, JSON.stringify(progress));
-  } catch {
-    // Browser-local mastery is optional; the current round can still finish without storage.
-  }
-}
-
-function getMemoryStrengthLabel(record) {
-  if (!record?.attempts) {
-    return "New";
-  }
-
-  const accuracy = record.correct / record.attempts;
-  if (record.attempts >= 3 && accuracy >= 0.8) {
-    return "Strong";
-  }
-  if (accuracy >= 0.5) {
-    return "Building";
-  }
-  return "Learning";
-}
-
-function scrollMemoryFeedbackIntoView() {
-  if (!isTouchLikeDevice()) {
-    return;
-  }
-  const feedback = document.querySelector(".memory-feedback");
-  feedback?.scrollIntoView?.({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "nearest" });
-}
-
-function speakerIconMarkup() {
-  return `
-    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M5 9h4l5-4v14l-5-4H5z"></path>
-      <path d="M17 9a4 4 0 0 1 0 6"></path>
-      <path d="M19 6a8 8 0 0 1 0 12"></path>
-    </svg>
-  `;
-}
-
 function buildVocabularySetPicker(selectedSetId) {
   if (!VOCABULARY_QUIZ_SETS.length) {
     return "";
@@ -1973,7 +1487,6 @@ function renderHistoryHome() {
   const history = loadHistoryRecords();
   const drillCount = history.filter((record) => record.type === "drill").length;
   const quizCount = history.filter((record) => record.type === "vocabulary").length;
-  const memoryCount = history.filter((record) => record.type === "memory").length;
   const pronunciationCount = history.filter((record) => record.type === "pronunciation").length;
   const mapCount = history.filter((record) => record.type === "map").length;
   const highScores = getVocabularyHighScoreRecords(history);
@@ -2018,10 +1531,6 @@ function renderHistoryHome() {
         <div class="stat">
           <strong>${quizCount}</strong>
           <span>Quizzes</span>
-        </div>
-        <div class="stat">
-          <strong>${memoryCount}</strong>
-          <span>Memory rounds</span>
         </div>
         <div class="stat">
           <strong>${pronunciationCount}</strong>
@@ -2081,7 +1590,7 @@ function renderHistoryHome() {
   `;
 
   document.querySelector("#clearHistory").addEventListener("click", () => {
-    if (!window.confirm("Clear saved practice, quiz, and memory history from this browser?")) {
+    if (!window.confirm("Clear saved practice and quiz history from this browser?")) {
       return;
     }
 
@@ -2093,8 +1602,6 @@ function renderHistoryHome() {
 function buildHistoryRowMarkup(record) {
   const typeLabel = record.type === "vocabulary"
     ? "Vocabulary quiz"
-    : record.type === "memory"
-      ? "Memory cards"
     : record.type === "pronunciation"
       ? "Pronunciation"
       : record.type === "map"
@@ -2102,8 +1609,6 @@ function buildHistoryRowMarkup(record) {
       : "Sentence drill";
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
-    : record.type === "memory"
-      ? "HSK 1 visual deck"
     : record.type === "pronunciation"
       ? selectedLevelLabels(record.levels)
       : record.type === "map"
@@ -2111,8 +1616,6 @@ function buildHistoryRowMarkup(record) {
       : MODES[record.mode]?.label || record.mode;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
-    : record.type === "memory"
-      ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
     : record.type === "pronunciation"
       ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
       : record.type === "map"
@@ -2143,11 +1646,6 @@ function buildVocabularyHistoryResultLabel(record) {
 function renderSession() {
   if (state.session?.type === "vocabulary") {
     renderVocabularySession();
-    return;
-  }
-
-  if (state.session?.type === "memory") {
-    renderMemorySession();
     return;
   }
 
@@ -5078,11 +4576,6 @@ function startActiveSession() {
     return;
   }
 
-  if (state.tool === "memory") {
-    startMemorySession();
-    return;
-  }
-
   if (state.tool === "pronunciation") {
     startPronunciationSession();
     return;
@@ -5474,18 +4967,6 @@ function nextQuestion() {
   const session = state.session;
   const sessionLength = session.items.length;
 
-  if (session.type === "memory") {
-    if (session.index + 1 >= sessionLength) {
-      completeMemorySession(session);
-      return;
-    }
-
-    session.index += 1;
-    session.currentAssessment = null;
-    render();
-    return;
-  }
-
   if (session.type === "vocabulary") {
     const nextIndex = selectNextVocabularyRowAfter(session, session.index);
     if (nextIndex < 0) {
@@ -5640,18 +5121,6 @@ function buildSessionResult(session) {
     };
   }
 
-  if (session.type === "memory") {
-    const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
-    return {
-      type: "memory",
-      items: session.items,
-      answers: session.answers,
-      elapsedSeconds,
-      finishReason: session.answers.length === session.items.length ? "complete" : "ended",
-      total: session.items.length,
-    };
-  }
-
   if (session.type === "pronunciation") {
     const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
     return {
@@ -5749,29 +5218,6 @@ function buildHistoryRecord(result) {
       highScoreEligible: stats.highScoreEligible,
       timeLimitSeconds: result.timeLimitSeconds,
       answers: answerRows,
-    };
-  }
-
-  if (result.type === "memory") {
-    const correct = result.answers.filter((answer) => answer.correct).length;
-    return {
-      id,
-      type: "memory",
-      completedAt,
-      total: result.total || result.items.length,
-      correct,
-      elapsedSeconds: result.elapsedSeconds || 0,
-      finishReason: result.finishReason || "ended",
-      answers: result.answers.map((answer, index) => ({
-        index,
-        cardId: answer.item.id,
-        zh: answer.item.zh,
-        pinyin: answer.item.pinyin,
-        meaning: answer.item.meaning,
-        answer: answer.answer,
-        correct: answer.correct,
-        score: answer.score,
-      })),
     };
   }
 
@@ -5876,7 +5322,6 @@ function saveHistoryRecords(records) {
 
 function clearHistoryRecords() {
   localStorage.removeItem(HISTORY_KEY);
-  localStorage.removeItem(MEMORY_PROGRESS_KEY);
 }
 
 function getVocabularyResultStats(result) {

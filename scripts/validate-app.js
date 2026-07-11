@@ -114,7 +114,6 @@ window.__tests = {
   buildMemoryBestCelebration,
   buildMemoryChoiceMarkup,
   buildMemoryFeedbackMarkup,
-  buildMemorySceneMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -187,7 +186,6 @@ const {
   buildMemoryBestCelebration,
   buildMemoryChoiceMarkup,
   buildMemoryFeedbackMarkup,
-  buildMemorySceneMarkup,
   buildPronunciationSentenceMarkup,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
@@ -281,27 +279,11 @@ assert(
 );
 assert(
   MEMORY_CARDS.every((card) => card.image.endsWith(".webp") && fs.existsSync(path.join(ROOT, card.image.replace(/^\.\//, "")))),
-  "every memory card should reference a committed optimized character glyph",
+  "every memory card should reference a committed optimized illustration",
 );
 assert(
   MEMORY_CARDS.every((card) => card.shapeCue && card.soundCue && card.sceneAlt),
   "every memory card should explain shape, sound, and accessible scene meaning",
-);
-assert(
-  MEMORY_CARDS.every((card) => card.components.length >= 2 && card.art.accents.length && card.art.props.length),
-  "every memory card should define a component breakdown and layered mnemonic artwork",
-);
-const memoryAssetPaths = new Set([
-  "./assets/memory/props/backdrop.webp",
-  ...MEMORY_CARDS.flatMap((card) => [
-    card.image,
-    ...card.art.accents.map((layer) => layer.src),
-    ...card.art.props.map((layer) => layer.src),
-  ]),
-]);
-assert(
-  [...memoryAssetPaths].every((assetPath) => assetPath.endsWith(".webp") && fs.existsSync(path.join(ROOT, assetPath.replace(/^\.\//, "")))),
-  "every layered mnemonic asset should be a committed WebP",
 );
 const memorySession = {
   type: "memory",
@@ -318,17 +300,8 @@ assert(memoryChoices.some((choice) => choice.id === MEMORY_CARDS[0].id), "memory
 assert(memoryChoices.map((choice) => choice.shortcut).join("") === "1234", "memory choices should expose shortcuts 1 through 4");
 const memoryChoiceMarkup = buildMemoryChoiceMarkup(memorySession, MEMORY_CARDS[0]);
 assert((memoryChoiceMarkup.match(/data-memory-choice-id=/g) || []).length === 4, "memory choice markup should render four clickable options");
-const memorySceneMarkup = buildMemorySceneMarkup(MEMORY_CARDS[0]);
-assert(memorySceneMarkup.includes("memory-glyph-base"), "memory scenes should preserve the exact Chinese character as the base layer");
-assert(memorySceneMarkup.includes("memory-glyph-accent"), "memory scenes should animate character stroke accents independently");
-assert(memorySceneMarkup.includes("memory-ren-wren"), "memory scenes should integrate a mnemonic prop with the character");
-assert(memorySceneMarkup.includes('role="img"') && memorySceneMarkup.includes(MEMORY_CARDS[0].sceneAlt), "memory scenes should expose one concise accessible description");
-assert(stylesSource.includes("@keyframes memory-ren-wren"), "memory cards should animate mnemonic props rather than zooming a complete illustration");
-assert(stylesSource.includes("@keyframes memory-men-walkers"), "memory card props should have word-specific motion");
-assert(!stylesSource.includes(".memory-scene-ren img"), "memory cards should not animate the full scene image");
 const memoryFeedbackMarkup = buildMemoryFeedbackMarkup(MEMORY_CARDS[0], { correct: true });
 assert(memoryFeedbackMarkup.includes("Correct"), "correct memory feedback should announce success");
-assert(memoryFeedbackMarkup.includes("memory-component-breakdown"), "memory feedback should explain the character components");
 assert(memoryFeedbackMarkup.includes(MEMORY_CARDS[0].shapeCue), "memory feedback should reveal the character-shape cue");
 assert(memoryFeedbackMarkup.includes(MEMORY_CARDS[0].soundCue), "memory feedback should reveal the pronunciation cue");
 assert(sessionUsesAudioPrompt(memorySession), "memory cards should support the shared audio shortcut");

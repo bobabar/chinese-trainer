@@ -38,6 +38,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - The vocabulary word library searches all 1,256 HSK 1 and HSK 2 words by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.
 - The HSK Vocabulary Path organizes the complete corpus by level and part, tracks New, Due, Learning, and Strong words, and launches focused part reviews or matching timed quizzes.
 - Word Study keeps learners in context with review status, audio, dictionary notes, exact-match example sentences, pinyin, Tatoeba attribution, and the existing MDBG link.
+- The Sentence Library searches all 1,800 sourced examples by Chinese, tone-insensitive pinyin, or English, with optional pinyin, word glosses, audio, bookmarks, and saved-sentence drills.
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
 - Review sessions mix character-to-pinyin recall with audio-to-meaning choices and support keyboard controls.
 - Global navigation between Today, Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History.

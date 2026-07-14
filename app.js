@@ -14,6 +14,7 @@ const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
 const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
 const SAVED_VOCABULARY_KEY = "chineseTrainerSavedVocabulary";
+const SAVED_SENTENCES_KEY = "chineseTrainerSavedSentences";
 const HISTORY_LIMIT = 100;
 const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
@@ -33,6 +34,8 @@ const SENTENCE_COUNTS = {
 
 const SENTENCE_DATA_SRC = "./sentence-data.js";
 const WORD_DATA_SRC = "./word-data.js";
+const SENTENCE_LIBRARY_PAGE_SIZE = 40;
+const DRILL_VIEWS = new Set(["practice", "library"]);
 
 const MODES = {
   listening: {
@@ -286,6 +289,7 @@ let pronunciationRecognitionRequestId = 0;
 let pronunciationRecordingState = null;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
+const sentencePinyinSearchCache = new Map();
 const PRONUNCIATION_SILENCE_GRACE_MS = 3000;
 const PRONUNCIATION_MANUAL_STOP_GRACE_MS = 900;
 const PRONUNCIATION_RESTART_DELAY_MS = 160;
@@ -355,6 +359,11 @@ const PLECO_TONE_CLASS_BY_TONE = {
 const state = {
   tool: "dashboard",
   mode: "reading",
+  drillView: "practice",
+  sentenceLibraryQuery: "",
+  sentenceLibrarySavedOnly: false,
+  sentenceLibraryShowPinyin: true,
+  sentenceLibraryVisibleCount: SENTENCE_LIBRARY_PAGE_SIZE,
   vocabularyMode: "pinyin",
   vocabularyView: "quiz",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
@@ -406,6 +415,12 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
     if (saved.mode && MODES[saved.mode]) {
       state.mode = saved.mode;
+    }
+    if (DRILL_VIEWS.has(saved.drillView)) {
+      state.drillView = saved.drillView;
+    }
+    if (typeof saved.sentenceLibraryShowPinyin === "boolean") {
+      state.sentenceLibraryShowPinyin = saved.sentenceLibraryShowPinyin;
     }
     if (saved.vocabularyMode && VOCABULARY_MODES[saved.vocabularyMode]) {
       state.vocabularyMode = saved.vocabularyMode;
@@ -468,6 +483,8 @@ function saveSettings() {
       JSON.stringify({
         settingsVersion: SETTINGS_VERSION,
         mode: state.mode,
+        drillView: state.drillView,
+        sentenceLibraryShowPinyin: state.sentenceLibraryShowPinyin,
         vocabularyMode: state.vocabularyMode,
         vocabularyView: state.vocabularyView,
         vocabularySetId: state.vocabularySetId,
@@ -1105,6 +1122,7 @@ function updateNavigationState() {
     button.classList.toggle("active", button.dataset.vocabularyMode === state.vocabularyMode);
   });
   document.body.dataset.vocabularyView = state.vocabularyView;
+  document.body.dataset.drillView = state.drillView;
   syncVocabularyOptionControls();
 }
 
@@ -1527,6 +1545,7 @@ function launchDashboardActivity(tool, mode = "") {
   state.dataError = "";
   if (tool === "drill" && MODES[mode]) {
     state.mode = mode;
+    state.drillView = "practice";
   }
   saveSettings();
 
@@ -1544,6 +1563,11 @@ function launchDashboardActivity(tool, mode = "") {
 }
 
 function renderModeHome() {
+  if (state.drillView === "library") {
+    renderSentenceLibrary();
+    return;
+  }
+
   const mode = MODES[state.mode];
   const preview = PREVIEW_CELLS[state.mode];
   const hasEnoughSentences = getSelectedSentenceCount() >= SESSION_LENGTH;
@@ -1551,6 +1575,7 @@ function renderModeHome() {
 
   app.innerHTML = `
     <section class="workspace-panel">
+      ${buildDrillViewSwitcher()}
       <div class="mode-heading">
         <div>
           <h2>${mode.label} Training</h2>
@@ -1579,7 +1604,401 @@ function renderModeHome() {
     </section>
   `;
 
+  bindDrillViewSwitcher();
   document.querySelector("#startSession").addEventListener("click", startSession);
+}
+
+function buildDrillViewSwitcher() {
+  return `
+    <nav class="drill-view-switcher" aria-label="Sentence drill view">
+      <button class="${state.drillView === "practice" ? "active" : ""}" type="button" data-drill-view="practice">Practice</button>
+      <button class="${state.drillView === "library" ? "active" : ""}" type="button" data-drill-view="library">Sentence Library</button>
+    </nav>
+  `;
+}
+
+function bindDrillViewSwitcher() {
+  document.querySelectorAll(".drill-view-switcher button[data-drill-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.dataset.drillView;
+      if (!DRILL_VIEWS.has(nextView) || nextView === state.drillView) {
+        return;
+      }
+      state.drillView = nextView;
+      state.sentenceLibraryVisibleCount = SENTENCE_LIBRARY_PAGE_SIZE;
+      state.dataError = "";
+      saveSettings();
+      render();
+    });
+  });
+}
+
+function renderSentenceLibrary() {
+  const resourcesReady = sentenceDataLoaded && wordDataLoaded;
+  const savedIds = loadSavedSentenceIds();
+  const validSavedCount = resourcesReady
+    ? getSavedSentenceItems(SENTENCES, savedIds, state.selectedLevels).length
+    : savedIds.size;
+
+  if (!resourcesReady) {
+    app.innerHTML = `
+      <section class="workspace-panel sentence-library">
+        ${buildDrillViewSwitcher()}
+        <div class="mode-heading sentence-library-heading">
+          <div>
+            <h2>Sentence Library</h2>
+            <p>Search 1,800 sourced Chinese examples, inspect their pinyin and meanings, and save useful sentences for practice.</p>
+          </div>
+          <button class="primary-btn sentence-library-practice-btn" type="button" disabled>Practice saved in ${escapeHtml(MODES[state.mode].label)}${validSavedCount ? ` (${validSavedCount})` : ""}</button>
+        </div>
+        <div class="sentence-library-loading" role="status">
+          <strong>${state.dataError ? "Sentence library unavailable" : "Loading sentence library"}</strong>
+          <p>${state.dataError ? escapeHtml(state.dataError) : "Preparing sentences, pinyin, and word annotations."}</p>
+          ${state.dataError ? `<button class="secondary-btn" type="button" id="retrySentenceLibrary">Retry</button>` : ""}
+        </div>
+      </section>
+    `;
+    bindDrillViewSwitcher();
+    document.querySelector("#retrySentenceLibrary")?.addEventListener("click", () => {
+      state.dataError = "";
+      loadSentenceLibraryResources();
+    });
+    if (!state.isLoadingSentences && !state.dataError) {
+      loadSentenceLibraryResources();
+    }
+    return;
+  }
+
+  const filteredItems = filterSentenceLibraryItems(SENTENCES, {
+    query: state.sentenceLibraryQuery,
+    levels: state.selectedLevels,
+    savedOnly: state.sentenceLibrarySavedOnly,
+    savedIds,
+  });
+  const visibleItems = filteredItems.slice(0, state.sentenceLibraryVisibleCount);
+  const itemById = new Map(SENTENCES.map((item) => [sentenceItemKey(item), item]));
+
+  app.innerHTML = `
+    <section class="workspace-panel sentence-library">
+      ${buildDrillViewSwitcher()}
+      <div class="mode-heading sentence-library-heading">
+        <div>
+          <h2>Sentence Library</h2>
+          <p>Search 1,800 sourced Chinese examples, inspect their pinyin and meanings, and save useful sentences for practice.</p>
+        </div>
+        <button class="primary-btn sentence-library-practice-btn" type="button" id="practiceSavedSentences" ${validSavedCount ? "" : "disabled"}>
+          Practice saved in ${escapeHtml(MODES[state.mode].label)}${validSavedCount ? ` (${validSavedCount})` : ""}
+        </button>
+      </div>
+
+      <form class="sentence-library-toolbar" id="sentenceLibrarySearch" role="search">
+        <div class="field sentence-library-search-field">
+          <label for="sentenceLibraryQuery">Search sentences</label>
+          <span class="vocabulary-search-input-wrap">
+            ${searchIconMarkup()}
+            <input
+              id="sentenceLibraryQuery"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Chinese, pinyin, or English"
+              value="${escapeHtml(state.sentenceLibraryQuery)}"
+            >
+            ${state.sentenceLibraryQuery ? `
+              <button class="icon-btn vocabulary-search-clear" type="button" id="clearSentenceLibrarySearch" aria-label="Clear search" title="Clear search">
+                ${closeIconMarkup()}
+              </button>
+            ` : ""}
+          </span>
+        </div>
+        <label class="sentence-library-toggle">
+          <input type="checkbox" id="sentenceLibrarySavedOnly" ${state.sentenceLibrarySavedOnly ? "checked" : ""}>
+          <span>Saved only</span>
+        </label>
+        <label class="sentence-library-toggle">
+          <input type="checkbox" id="sentenceLibraryShowPinyin" ${state.sentenceLibraryShowPinyin ? "checked" : ""}>
+          <span>Show pinyin</span>
+        </label>
+      </form>
+
+      <div class="sentence-library-summary">
+        <strong>${filteredItems.length}</strong>
+        <span>${filteredItems.length === 1 ? "sentence" : "sentences"}</span>
+        <span>· ${escapeHtml(selectedLevelLabels())}</span>
+        ${state.sentenceLibraryQuery ? `<span>· matching &ldquo;${escapeHtml(state.sentenceLibraryQuery)}&rdquo;</span>` : ""}
+      </div>
+
+      ${visibleItems.length ? `
+        <div class="sentence-library-list" aria-label="Chinese sentence examples">
+          ${visibleItems.map((item) => buildSentenceLibraryRow(item, {
+            saved: savedIds.has(sentenceItemKey(item)),
+            showPinyin: state.sentenceLibraryShowPinyin,
+          })).join("")}
+        </div>
+        ${visibleItems.length < filteredItems.length ? `
+          <button class="secondary-btn sentence-library-more" type="button" id="loadMoreSentences">
+            Show ${Math.min(SENTENCE_LIBRARY_PAGE_SIZE, filteredItems.length - visibleItems.length)} more
+          </button>
+        ` : ""}
+      ` : `
+        <div class="sentence-library-empty">
+          <strong>No matching sentences</strong>
+          <p>Try another phrase, change the difficulty filter in Options, or turn off Saved only.</p>
+        </div>
+      `}
+    </section>
+  `;
+
+  bindDrillViewSwitcher();
+  bindSentenceLibraryInteractions(itemById);
+}
+
+async function loadSentenceLibraryResources() {
+  if (state.isLoadingSentences) {
+    return;
+  }
+  state.isLoadingSentences = true;
+  state.dataError = "";
+  try {
+    await Promise.all([ensureSentenceData(), ensureWordData()]);
+  } catch {
+    state.dataError = "The sentence and word data could not be loaded. Check your connection and try again.";
+  }
+  state.isLoadingSentences = false;
+  if (state.tool === "drill" && state.drillView === "library") {
+    render();
+  }
+}
+
+function filterSentenceLibraryItems(items, {
+  query = "",
+  levels = new Set(),
+  savedOnly = false,
+  savedIds = new Set(),
+} = {}) {
+  const rawQuery = String(query || "").trim().toLowerCase();
+  const normalizedPinyinQuery = compactPinyin(stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(rawQuery)));
+  const matches = [];
+  items.forEach((item, sourceIndex) => {
+    const key = sentenceItemKey(item);
+    if (levels.size && !levels.has(item.level)) {
+      return;
+    }
+    if (savedOnly && !savedIds.has(key)) {
+      return;
+    }
+    if (!rawQuery) {
+      matches.push({ item, score: 0, sourceIndex });
+      return;
+    }
+
+    const chinese = String(item.zh || "").toLowerCase();
+    const english = String(item.en || "").toLowerCase();
+    let score = Infinity;
+    if (chinese === rawQuery || english === rawQuery) {
+      score = 0;
+    } else if (chinese.startsWith(rawQuery) || english.startsWith(rawQuery)) {
+      score = 1;
+    } else if (chinese.includes(rawQuery) || english.includes(rawQuery)) {
+      score = 2;
+    } else if (normalizedPinyinQuery) {
+      const pinyin = getSentenceSearchPinyin(item);
+      if (pinyin === normalizedPinyinQuery) {
+        score = 0;
+      } else if (pinyin.startsWith(normalizedPinyinQuery)) {
+        score = 1;
+      } else if (pinyin.includes(normalizedPinyinQuery)) {
+        score = 2;
+      }
+    }
+    if (Number.isFinite(score)) {
+      matches.push({ item, score, sourceIndex });
+    }
+  });
+  return matches
+    .sort((a, b) => a.score - b.score || a.sourceIndex - b.sourceIndex)
+    .map((match) => match.item);
+}
+
+function getSentenceSearchPinyin(item) {
+  hydrateWordDataFromWindow();
+  const key = sentenceItemKey(item);
+  if (!sentencePinyinSearchCache.has(key)) {
+    const pinyin = tokenizeAnnotatedChinese(String(item?.zh || ""))
+      .filter((token) => token.type === "word")
+      .map((token) => token.entry.pinyin || "")
+      .join(" ");
+    sentencePinyinSearchCache.set(
+      key,
+      compactPinyin(stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(pinyin))),
+    );
+  }
+  return sentencePinyinSearchCache.get(key) || "";
+}
+
+function buildSentenceLibraryRow(item, { saved = false, showPinyin = true } = {}) {
+  const key = sentenceItemKey(item);
+  const levelLabel = selectedLevelLabel(item.level);
+  const sourceLink = item.sourceId
+    ? `<a href="https://tatoeba.org/en/sentences/show/${encodeURIComponent(item.sourceId)}" target="_blank" rel="noopener noreferrer">Tatoeba ${externalLinkIconMarkup()}</a>`
+    : "";
+  return `
+    <article class="sentence-library-row ${saved ? "is-saved" : ""}" data-sentence-library-id="${escapeHtml(key)}">
+      <button
+        class="icon-btn sentence-library-save ${saved ? "active" : ""}"
+        type="button"
+        data-sentence-save-id="${escapeHtml(key)}"
+        aria-label="${saved ? "Remove" : "Save"} sentence ${saved ? "from" : "to"} saved sentences"
+        aria-pressed="${saved ? "true" : "false"}"
+        title="${saved ? "Remove from saved sentences" : "Save sentence"}">
+        ${bookmarkIconMarkup(saved)}
+      </button>
+      <div class="sentence-library-copy">
+        ${buildAnnotatedChineseMarkup(item.zh, { showPinyin })}
+        <p class="sentence-library-english">${escapeHtml(item.en)}</p>
+        <footer>
+          <span>${escapeHtml(levelLabel)}</span>
+          ${sourceLink}
+        </footer>
+      </div>
+      <button
+        class="icon-btn sentence-library-audio"
+        type="button"
+        data-sentence-audio-id="${escapeHtml(key)}"
+        aria-label="Play sentence"
+        title="Play sentence"
+        ${supportsSpeechSynthesis() ? "" : "disabled"}>
+        ${speakerIconMarkup()}
+      </button>
+    </article>
+  `;
+}
+
+function bindSentenceLibraryInteractions(itemById) {
+  const searchForm = document.querySelector("#sentenceLibrarySearch");
+  const searchInput = document.querySelector("#sentenceLibraryQuery");
+  let searchTimer = 0;
+  searchForm?.addEventListener("submit", (event) => event.preventDefault());
+  searchInput?.addEventListener("input", () => {
+    state.sentenceLibraryQuery = searchInput.value;
+    state.sentenceLibraryVisibleCount = SENTENCE_LIBRARY_PAGE_SIZE;
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => {
+      const cursor = state.sentenceLibraryQuery.length;
+      render();
+      const nextInput = document.querySelector("#sentenceLibraryQuery");
+      nextInput?.focus();
+      nextInput?.setSelectionRange?.(cursor, cursor);
+    }, 90);
+  });
+  document.querySelector("#clearSentenceLibrarySearch")?.addEventListener("click", () => {
+    state.sentenceLibraryQuery = "";
+    state.sentenceLibraryVisibleCount = SENTENCE_LIBRARY_PAGE_SIZE;
+    render();
+    document.querySelector("#sentenceLibraryQuery")?.focus();
+  });
+  document.querySelector("#sentenceLibrarySavedOnly")?.addEventListener("change", (event) => {
+    state.sentenceLibrarySavedOnly = event.target.checked;
+    state.sentenceLibraryVisibleCount = SENTENCE_LIBRARY_PAGE_SIZE;
+    render();
+  });
+  document.querySelector("#sentenceLibraryShowPinyin")?.addEventListener("change", (event) => {
+    state.sentenceLibraryShowPinyin = event.target.checked;
+    saveSettings();
+    render();
+  });
+  document.querySelectorAll("[data-sentence-save-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = itemById.get(button.dataset.sentenceSaveId);
+      if (!item) {
+        return;
+      }
+      const saved = toggleSavedSentence(item);
+      if (state.sentenceLibrarySavedOnly && !saved) {
+        render();
+        return;
+      }
+      updateSentenceLibrarySavedControls(item, saved);
+    });
+  });
+  document.querySelectorAll("[data-sentence-audio-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = itemById.get(button.dataset.sentenceAudioId);
+      if (item) {
+        speak(item.zh, { immediate: true });
+      }
+    });
+  });
+  document.querySelector("#loadMoreSentences")?.addEventListener("click", () => {
+    state.sentenceLibraryVisibleCount += SENTENCE_LIBRARY_PAGE_SIZE;
+    render();
+  });
+  document.querySelector("#practiceSavedSentences")?.addEventListener("click", startSavedSentenceSession);
+}
+
+function updateSentenceLibrarySavedControls(item, saved) {
+  const key = sentenceItemKey(item);
+  const button = document.querySelector(`[data-sentence-save-id="${cssEscape(key)}"]`);
+  const row = button?.closest(".sentence-library-row");
+  if (button) {
+    button.classList.toggle("active", saved);
+    button.setAttribute("aria-pressed", String(saved));
+    button.setAttribute("aria-label", `${saved ? "Remove" : "Save"} sentence ${saved ? "from" : "to"} saved sentences`);
+    button.title = saved ? "Remove from saved sentences" : "Save sentence";
+    button.innerHTML = bookmarkIconMarkup(saved);
+  }
+  row?.classList.toggle("is-saved", saved);
+  const savedIds = loadSavedSentenceIds();
+  const validSavedCount = getSavedSentenceItems(SENTENCES, savedIds, state.selectedLevels).length;
+  const practiceButton = document.querySelector("#practiceSavedSentences");
+  if (practiceButton) {
+    practiceButton.disabled = validSavedCount === 0;
+    practiceButton.textContent = `Practice saved in ${MODES[state.mode].label}${validSavedCount ? ` (${validSavedCount})` : ""}`;
+  }
+}
+
+function sentenceItemKey(item) {
+  return String(item?.id || item?.sourceId || "").trim();
+}
+
+function loadSavedSentenceIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SAVED_SENTENCES_KEY) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string" && id) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSavedSentenceIds(ids) {
+  try {
+    localStorage.setItem(SAVED_SENTENCES_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Saved sentences remain optional browser-local state.
+  }
+}
+
+function toggleSavedSentence(item) {
+  const key = sentenceItemKey(item);
+  if (!key) {
+    return false;
+  }
+  const savedIds = loadSavedSentenceIds();
+  if (savedIds.has(key)) {
+    savedIds.delete(key);
+    saveSavedSentenceIds(savedIds);
+    return false;
+  }
+  savedIds.add(key);
+  saveSavedSentenceIds(savedIds);
+  return true;
+}
+
+function getSavedSentenceItems(items = SENTENCES, savedIds = loadSavedSentenceIds(), levels = new Set()) {
+  return items.filter((item) =>
+    savedIds.has(sentenceItemKey(item)) &&
+    (!levels.size || levels.has(item.level)),
+  );
 }
 
 function renderPronunciationHome() {
@@ -3638,7 +4057,7 @@ function getHistoryRecordPresentation(record) {
         ? selectedLevelLabels(record.levels)
       : record.type === "map"
           ? getSelectedMapQuizMode(record.mapQuizMode).targetMetric
-          : MODES[record.mode]?.label || record.mode;
+          : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : ""}`;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
     : record.type === "review"
@@ -6205,7 +6624,7 @@ function buildAnswerBoxText(value) {
   return buildAnnotatedChineseMarkup(value);
 }
 
-function buildAnnotatedChineseMarkup(value) {
+function buildAnnotatedChineseMarkup(value, { showPinyin = true } = {}) {
   hydrateWordDataFromWindow();
   const tokens = tokenizeAnnotatedChinese(value);
   const textMarkup = tokens.map(buildAnnotatedTextTokenMarkup).join("");
@@ -6214,7 +6633,7 @@ function buildAnnotatedChineseMarkup(value) {
   return `
     <div class="annotated-chinese chinese-text" lang="zh-CN">
       <p class="annotated-hanzi-line">${textMarkup}</p>
-      <p class="annotated-pinyin-line">${pinyinMarkup}</p>
+      ${showPinyin ? `<p class="annotated-pinyin-line">${pinyinMarkup}</p>` : ""}
     </div>
   `;
 }
@@ -6316,6 +6735,7 @@ function getGlossTooltipMeasurer() {
 
 function renderResults() {
   const result = state.result;
+  const isSavedSentenceSession = result.source === "saved";
   const correct = result.answers.filter((answer) => answer.correct).length;
   const average = result.answers.length
     ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
@@ -6351,15 +6771,15 @@ function renderResults() {
     <section class="workspace-panel">
       <div class="results-header">
         <div>
-          <h2>${MODES[result.mode].label} Results</h2>
+          <h2>${isSavedSentenceSession ? "Saved Sentence Results" : `${MODES[result.mode].label} Results`}</h2>
           <p>${correct} correct out of ${result.answers.length}; average score ${percent}%.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
-            <span>Start another session</span>
+            <span>${isSavedSentenceSession ? "Practice saved again" : "Start another session"}</span>
             ${shortcutHint("Enter")}
           </button>
-          <button class="ghost-btn" type="button" id="backToModes">Back to trainer</button>
+          <button class="ghost-btn" type="button" id="backToModes">${isSavedSentenceSession ? "Back to sentence library" : "Back to trainer"}</button>
         </div>
       </div>
 
@@ -6401,10 +6821,14 @@ function renderResults() {
     </section>
   `;
 
-  document.querySelector("#restartSession").addEventListener("click", startSession);
+  document.querySelector("#restartSession").addEventListener("click", isSavedSentenceSession ? startSavedSentenceSession : startSession);
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
+    if (isSavedSentenceSession) {
+      state.drillView = "library";
+      saveSettings();
+    }
     render();
   });
 }
@@ -7320,7 +7744,11 @@ function startActiveSession() {
     return;
   }
 
-  startSession();
+  if (state.tool === "drill" && state.drillView === "library") {
+    startSavedSentenceSession();
+  } else {
+    startSession();
+  }
 }
 
 async function startSession() {
@@ -7351,12 +7779,52 @@ async function startSession() {
   }
 
   const items = pool.slice(0, SESSION_LENGTH);
+  startSentenceDrillItems(items, "random");
+}
+
+async function startSavedSentenceSession() {
+  if (state.isLoadingSentences) {
+    return;
+  }
+
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.dataError = "";
+  state.isLoadingSentences = true;
+  render();
+
+  try {
+    await ensureSentenceData();
+  } catch {
+    state.dataError = "The sentence bank could not be loaded. Check your connection and try again.";
+    state.isLoadingSentences = false;
+    render();
+    return;
+  }
+
+  state.isLoadingSentences = false;
+  const savedIds = loadSavedSentenceIds();
+  const items = shuffle(getSavedSentenceItems(SENTENCES, savedIds, state.selectedLevels))
+    .slice(0, SESSION_LENGTH);
+  if (!items.length) {
+    render();
+    return;
+  }
+
+  startSentenceDrillItems(items, "saved");
+}
+
+function startSentenceDrillItems(items, source = "random") {
+  if (!items.length) {
+    return;
+  }
 
   state.result = null;
   state.session = {
     type: "drill",
+    source,
     mode: state.mode,
-    levels: [...state.selectedLevels],
+    levels: uniqueStrings(items.map((item) => item.level)),
     items,
     index: 0,
     answers: [],
@@ -7927,6 +8395,7 @@ function buildSessionResult(session) {
 
   return {
     type: "drill",
+    source: session.source || "random",
     mode: session.mode,
     levels: session.levels,
     answers: session.answers,
@@ -8099,6 +8568,7 @@ function buildHistoryRecord(result) {
   return {
     id,
     type: "drill",
+    source: result.source || "random",
     completedAt,
     mode: result.mode,
     levels: result.levels,

@@ -740,6 +740,252 @@ select {
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
 }
 
+.drill-view-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: min(360px, 100%);
+  margin-bottom: 22px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f3f5f8;
+}
+
+.drill-view-switcher button {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted-strong);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.drill-view-switcher button:hover {
+  color: var(--ink);
+}
+
+.drill-view-switcher button.active {
+  border-color: var(--line);
+  color: var(--theme);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+}
+
+.sentence-library {
+  min-width: 0;
+}
+
+.sentence-library-heading {
+  align-items: center;
+}
+
+.sentence-library-heading > div {
+  min-width: 0;
+}
+
+.sentence-library-practice-btn {
+  flex: 0 0 auto;
+  min-width: 160px;
+}
+
+.sentence-library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(130px, auto) minmax(140px, auto);
+  align-items: end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.sentence-library-search-field {
+  min-width: 0;
+}
+
+.sentence-library-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--muted-strong);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.sentence-library-toggle:has(input:checked) {
+  border-color: var(--theme-border);
+  color: var(--theme);
+  background: var(--theme-soft);
+}
+
+.sentence-library-toggle input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--theme);
+}
+
+.sentence-library-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 46px;
+  padding-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sentence-library-summary strong {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.sentence-library-list {
+  border-top: 1px solid var(--line);
+}
+
+.sentence-library-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 2px;
+  border-bottom: 1px solid var(--line);
+  transition: background 140ms ease;
+}
+
+.sentence-library-row:hover {
+  background: #fbfcfd;
+}
+
+.sentence-library-row.is-saved {
+  background: #f7fcfa;
+}
+
+.sentence-library-save,
+.sentence-library-audio {
+  width: 38px;
+  min-height: 38px;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.sentence-library-save:hover,
+.sentence-library-audio:hover {
+  color: var(--theme);
+}
+
+.sentence-library-save.active {
+  border-color: var(--theme-border);
+  color: var(--theme);
+  background: var(--theme-soft);
+}
+
+.sentence-library-copy {
+  min-width: 0;
+}
+
+.sentence-library-copy .annotated-hanzi-line {
+  font-size: 22px;
+  font-weight: 620;
+  line-height: 1.5;
+}
+
+.sentence-library-copy .annotated-pinyin-line {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sentence-library .annotated-word.has-gloss::after {
+  display: none;
+}
+
+.sentence-library .annotated-word.has-gloss:hover::after,
+.sentence-library .annotated-word.has-gloss:focus-visible::after {
+  display: block;
+}
+
+.sentence-library-english {
+  margin-top: 9px;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sentence-library-copy footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sentence-library-copy footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-strong);
+  text-decoration: none;
+}
+
+.sentence-library-copy footer a:hover {
+  color: var(--theme);
+}
+
+.sentence-library-copy footer .button-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sentence-library-more {
+  display: flex;
+  min-width: 180px;
+  margin: 18px auto 0;
+}
+
+.sentence-library-loading,
+.sentence-library-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-height: 220px;
+  align-content: center;
+  margin-top: 20px;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  text-align: center;
+}
+
+.sentence-library-loading strong,
+.sentence-library-empty strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.sentence-library-loading p,
+.sentence-library-empty p {
+  max-width: 48ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sentence-library-loading .secondary-btn {
+  width: auto;
+  min-width: 110px;
+  margin-top: 6px;
+}
+
 .vocabulary-library {
   min-width: 0;
 }
@@ -5692,6 +5938,23 @@ td.status-review {
     grid-template-columns: minmax(130px, 0.7fr) minmax(180px, 1.3fr) minmax(130px, 0.8fr) auto;
   }
 
+  .sentence-library-heading {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .sentence-library-practice-btn {
+    width: 100%;
+  }
+
+  .sentence-library-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sentence-library-search-field {
+    grid-column: 1 / -1;
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -5756,6 +6019,56 @@ td.status-review {
     min-height: 44px;
     padding: 0 6px;
     font-size: 13px;
+  }
+
+  .drill-view-switcher {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .sentence-library-toolbar {
+    margin-top: 18px;
+  }
+
+  .sentence-library-toggle {
+    min-height: 40px;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+
+  .sentence-library-summary {
+    padding-top: 13px;
+  }
+
+  .sentence-library-row {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 5px;
+    padding: 14px 0;
+  }
+
+  .sentence-library-save,
+  .sentence-library-audio {
+    width: 44px;
+    min-height: 44px;
+  }
+
+  .sentence-library-copy .annotated-hanzi-line {
+    font-size: 20px;
+  }
+
+  .sentence-library-copy .annotated-pinyin-line {
+    font-size: 11px;
+  }
+
+  .sentence-library-english {
+    margin-top: 7px;
+    font-size: 13px;
+  }
+
+  .sentence-library-copy footer {
+    flex-wrap: wrap;
+    gap: 7px 10px;
+    margin-top: 8px;
   }
 
   .review-heading {

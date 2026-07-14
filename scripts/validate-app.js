@@ -100,6 +100,7 @@ window.__tests = {
   DASHBOARD_DAILY_GOAL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
@@ -121,6 +122,7 @@ window.__tests = {
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildDrillViewSwitcher,
   buildReviewFeedbackMarkup,
   buildReviewQueue,
   buildMdbgWordUrl,
@@ -134,6 +136,7 @@ window.__tests = {
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
   buildVocabularyViewSwitcher,
+  buildSentenceLibraryRow,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
@@ -142,6 +145,7 @@ window.__tests = {
   formatVocabularyChoiceText,
   formatVocabularySetOption,
   filterVocabularyLibraryItems,
+  filterSentenceLibraryItems,
   findVocabularyExamples,
   getDashboardData,
   getDashboardFocusInsight,
@@ -174,6 +178,8 @@ window.__tests = {
   getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
+  getSavedSentenceItems,
+  getSentenceSearchPinyin,
   getRecommendedVocabularyPathPart,
   getVocabularySetReviewItems,
   isVocabularyRowAnswered,
@@ -183,6 +189,7 @@ window.__tests = {
   loadHistoryRecords,
   loadReviewProgress,
   loadSavedVocabularyKeys,
+  loadSavedSentenceIds,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
@@ -199,6 +206,7 @@ window.__tests = {
   stopSpeech,
   trashIconMarkup,
   toggleSavedVocabularyItem,
+  toggleSavedSentence,
   ensureVocabularyReviewEntry,
   updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
@@ -211,6 +219,7 @@ const {
   DASHBOARD_DAILY_GOAL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
@@ -232,6 +241,7 @@ const {
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildDrillViewSwitcher,
   buildReviewFeedbackMarkup,
   buildReviewQueue,
   buildMdbgWordUrl,
@@ -245,6 +255,7 @@ const {
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
   buildVocabularyViewSwitcher,
+  buildSentenceLibraryRow,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
@@ -253,6 +264,7 @@ const {
   formatVocabularyChoiceText,
   formatVocabularySetOption,
   filterVocabularyLibraryItems,
+  filterSentenceLibraryItems,
   findVocabularyExamples,
   getDashboardData,
   getDashboardFocusInsight,
@@ -285,6 +297,8 @@ const {
   getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
+  getSavedSentenceItems,
+  getSentenceSearchPinyin,
   getRecommendedVocabularyPathPart,
   getVocabularySetReviewItems,
   isVocabularyRowAnswered,
@@ -294,6 +308,7 @@ const {
   loadHistoryRecords,
   loadReviewProgress,
   loadSavedVocabularyKeys,
+  loadSavedSentenceIds,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
@@ -310,6 +325,7 @@ const {
   stopSpeech,
   trashIconMarkup,
   toggleSavedVocabularyItem,
+  toggleSavedSentence,
   ensureVocabularyReviewEntry,
   updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
@@ -349,6 +365,69 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+assert(SENTENCE_LIBRARY_PAGE_SIZE === 40, "sentence library should use a focused initial result batch");
+assert(indexSource.includes('class="mode-nav drill-only"'), "sentence modes should remain available while choosing saved-sentence practice");
+const sentenceLibraryFixtures = [
+  {
+    id: "library-love",
+    level: "beginner",
+    zh: "我爱你。",
+    en: "I love you.",
+    source: "Tatoeba",
+    sourceId: 101,
+    translationId: 201,
+  },
+  {
+    id: "library-running",
+    level: "intermediate",
+    zh: "他每天跑步。",
+    en: "He runs every day.",
+    source: "Tatoeba",
+    sourceId: 102,
+    translationId: 202,
+  },
+  {
+    id: "library-weather",
+    level: "advanced",
+    zh: "今天的天气很好。",
+    en: "The weather is pleasant today.",
+    source: "Tatoeba",
+    sourceId: 103,
+    translationId: 203,
+  },
+];
+const allSentenceLevels = new Set(["beginner", "intermediate", "advanced"]);
+assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "love", levels: allSentenceLevels })[0].id === "library-love", "sentence library should search English translations");
+assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "每天", levels: allSentenceLevels })[0].id === "library-running", "sentence library should search Chinese text");
+assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "wo ai ni", levels: allSentenceLevels })[0].id === "library-love", "sentence library should search tone-insensitive pinyin");
+assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { levels: new Set(["advanced"]) }).map((item) => item.id).join("") === "library-weather", "sentence library should respect selected difficulty levels");
+const savedSentenceFixtureIds = new Set(["library-running"]);
+assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { levels: allSentenceLevels, savedOnly: true, savedIds: savedSentenceFixtureIds })[0].id === "library-running", "sentence library should isolate saved examples");
+assert(getSavedSentenceItems(sentenceLibraryFixtures, savedSentenceFixtureIds).map((item) => item.id).join("") === "library-running", "saved sentence practice should contain only bookmarked examples");
+assert(getSavedSentenceItems(sentenceLibraryFixtures, savedSentenceFixtureIds, new Set(["beginner"])).length === 0, "saved sentence practice should respect the active difficulty filter");
+const sentenceLibraryRow = buildSentenceLibraryRow(sentenceLibraryFixtures[0], { saved: true, showPinyin: true });
+assert(sentenceLibraryRow.includes("annotated-pinyin-line") && sentenceLibraryRow.includes("Tatoeba") && sentenceLibraryRow.includes('aria-pressed="true"'), "sentence rows should include pinyin, source attribution, and bookmark state");
+assert(!buildSentenceLibraryRow(sentenceLibraryFixtures[0], { showPinyin: false }).includes("annotated-pinyin-line"), "sentence rows should hide pinyin when requested");
+assert(getSentenceSearchPinyin(sentenceLibraryFixtures[0]).includes("woaini"), "sentence pinyin indexing should use local word annotations");
+const previousDrillView = state.drillView;
+state.drillView = "library";
+assert(buildDrillViewSwitcher().includes('class="active" type="button" data-drill-view="library"'), "sentence library should have a distinct active navigation state");
+state.drillView = previousDrillView;
+localStorageEntries.delete("chineseTrainerSavedSentences");
+assert(toggleSavedSentence(sentenceLibraryFixtures[0]), "saving a sentence should return its saved state");
+assert(loadSavedSentenceIds().has("library-love"), "saved sentences should persist in browser storage");
+assert(!toggleSavedSentence(sentenceLibraryFixtures[0]), "toggling a saved sentence should remove it");
+assert(!loadSavedSentenceIds().size, "removed sentences should leave the saved set");
+const savedSentenceHistory = buildHistoryRecord({
+  type: "drill",
+  source: "saved",
+  mode: "reading",
+  levels: ["beginner"],
+  answers: [{ item: sentenceLibraryFixtures[0], answer: "I love you", score: 1, correct: true }],
+  elapsedSeconds: 9,
+});
+assert(savedSentenceHistory.source === "saved" && buildHistoryRowMarkup(savedSentenceHistory).includes("Saved sentences"), "History should distinguish saved-sentence drills");
+assert(stylesSource.includes(".sentence-library-row") && stylesSource.includes(".drill-view-switcher"), "sentence library should include dedicated responsive styling");
 assert(!/<body[^>]*data-mode=/i.test(indexSource), "initial page markup should not make the body look like a drill mode control");
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "unsupported-record", type: "unsupported" },

@@ -301,6 +301,7 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+assert(!/<body[^>]*data-mode=/i.test(indexSource), "initial page markup should not make the body look like a drill mode control");
 localStorageEntries.set("chineseTrainerMemoryProgress", JSON.stringify({ ren: { attempts: 1 } }));
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "retired-memory", type: "memory" },

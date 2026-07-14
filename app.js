@@ -493,7 +493,7 @@ function bindTopLevelControls() {
     });
   });
 
-  document.querySelectorAll("[data-mode]").forEach((button) => {
+  document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextMode = button.dataset.mode;
       if (nextMode === state.mode) return;
@@ -1082,7 +1082,7 @@ function updateNavigationState() {
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === state.tool);
   });
-  document.querySelectorAll("[data-mode]").forEach((button) => {
+  document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === state.mode);
   });
   document.querySelectorAll("[data-vocabulary-mode]").forEach((button) => {

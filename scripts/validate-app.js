@@ -99,6 +99,7 @@ window.__tests = {
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
   REVIEW_SESSION_LENGTH,
+  VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -122,6 +123,7 @@ window.__tests = {
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
+  buildVocabularyLibraryRow,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
@@ -132,6 +134,7 @@ window.__tests = {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  filterVocabularyLibraryItems,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
@@ -147,6 +150,7 @@ window.__tests = {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getVocabularyLibraryStatus,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -160,6 +164,7 @@ window.__tests = {
   isDashboardPlanRecordComplete,
   loadHistoryRecords,
   loadReviewProgress,
+  loadSavedVocabularyKeys,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
@@ -176,6 +181,8 @@ window.__tests = {
   state,
   stopSpeech,
   trashIconMarkup,
+  toggleSavedVocabularyItem,
+  ensureVocabularyReviewEntry,
   updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
 };`, context, { filename: "app.js" });
@@ -186,6 +193,7 @@ const {
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
   REVIEW_SESSION_LENGTH,
+  VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -209,6 +217,7 @@ const {
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
+  buildVocabularyLibraryRow,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
@@ -219,6 +228,7 @@ const {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  filterVocabularyLibraryItems,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
@@ -234,6 +244,7 @@ const {
   getVocabularyHighScoreRecords,
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
+  getVocabularyLibraryStatus,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -247,6 +258,7 @@ const {
   isDashboardPlanRecordComplete,
   loadHistoryRecords,
   loadReviewProgress,
+  loadSavedVocabularyKeys,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
@@ -263,6 +275,8 @@ const {
   state,
   stopSpeech,
   trashIconMarkup,
+  toggleSavedVocabularyItem,
+  ensureVocabularyReviewEntry,
   updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
 } =
@@ -452,6 +466,44 @@ updateReviewProgressFromVocabularyResult({
   answers: [],
 });
 assert(loadReviewProgress()[reviewItemKey(reviewVocabulary[0])].stage === 1, "completed vocabulary answers should feed the adaptive review schedule");
+localStorageEntries.delete("chineseTrainerReviewProgress");
+assert(VOCABULARY_LIBRARY_PAGE_SIZE === 80, "the vocabulary library should render a focused initial batch");
+assert(reviewVocabulary.every((item) => item.level), "vocabulary library entries should retain their HSK level");
+const libraryWoman = reviewVocabulary.find((item) => item.zh === "女");
+const libraryFatherResults = filterVocabularyLibraryItems(reviewVocabulary, { query: "father" });
+assert(libraryFatherResults.some((item) => item.zh === "爸" || item.zh === "爸爸"), "library search should match English meanings");
+assert(filterVocabularyLibraryItems(reviewVocabulary, { query: "nu" })[0]?.zh === "女", "exact tone-free pinyin matches should rank ahead of definition substrings");
+assert(filterVocabularyLibraryItems(reviewVocabulary, { query: "爱" }).some((item) => item.zh === "爱"), "library search should match Chinese characters");
+const hskOneLibrary = filterVocabularyLibraryItems(reviewVocabulary, { level: "1" });
+assert(hskOneLibrary.length === hsk1VocabularyWords.length, "library level filtering should isolate the complete HSK 1 collection");
+const savedLibraryKeys = new Set([reviewItemKey(libraryWoman)]);
+assert(
+  filterVocabularyLibraryItems(reviewVocabulary, { status: "saved", savedKeys: savedLibraryKeys }).length === 1,
+  "library filtering should isolate saved words",
+);
+const libraryStatusProgress = {};
+ensureVocabularyReviewEntry(libraryStatusProgress, libraryWoman, reviewNow);
+assert(getVocabularyLibraryStatus(libraryWoman, libraryStatusProgress, reviewNow).id === "due", "newly saved words should be due for review");
+libraryStatusProgress[reviewItemKey(libraryWoman)].stage = 4;
+libraryStatusProgress[reviewItemKey(libraryWoman)].dueAt = reviewNow + dashboardDay;
+assert(getVocabularyLibraryStatus(libraryWoman, libraryStatusProgress, reviewNow).id === "strong", "mature vocabulary should show a strong status");
+const libraryRow = buildVocabularyLibraryRow(libraryWoman, {
+  saved: true,
+  status: { id: "strong", label: "Strong" },
+});
+assert(libraryRow.includes("mdbg.net") && libraryRow.includes("data-vocabulary-audio-key") && libraryRow.includes("aria-pressed=\"true\""), "library rows should include dictionary, audio, and saved-word controls");
+localStorageEntries.delete("chineseTrainerSavedVocabulary");
+localStorageEntries.delete("chineseTrainerReviewProgress");
+assert(toggleSavedVocabularyItem(libraryWoman, reviewNow), "saving a library word should return its saved state");
+assert(loadSavedVocabularyKeys().has(reviewItemKey(libraryWoman)), "saved words should persist in browser storage");
+const savedSchedule = loadReviewProgress()[reviewItemKey(libraryWoman)];
+assert(savedSchedule?.dueAt === reviewNow && savedSchedule.attempts === 0, "saving a word should schedule it now without recording a false attempt");
+assert(!toggleSavedVocabularyItem(libraryWoman, reviewNow), "toggling a saved word again should remove the bookmark");
+assert(!loadSavedVocabularyKeys().size, "removed saved words should leave the saved list");
+const savedReviewHistory = buildHistoryRecord({ type: "review", source: "saved", answers: [], elapsedSeconds: 4 });
+assert(savedReviewHistory.source === "saved" && buildHistoryRowMarkup(savedReviewHistory).includes("Saved vocabulary"), "History should distinguish saved-word review sessions");
+assert(stylesSource.includes(".vocabulary-library-row") && stylesSource.includes(".vocabulary-view-switcher"), "the word library should include dedicated responsive styling");
+localStorageEntries.delete("chineseTrainerSavedVocabulary");
 localStorageEntries.delete("chineseTrainerReviewProgress");
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");
 assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");

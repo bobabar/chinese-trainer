@@ -11,6 +11,7 @@ const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
 const RETIRED_MEMORY_PROGRESS_KEY = "chineseTrainerMemoryProgress";
 const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
+const SAVED_VOCABULARY_KEY = "chineseTrainerSavedVocabulary";
 const HISTORY_LIMIT = 100;
 const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
@@ -139,6 +140,7 @@ const VOCABULARY_CHOICE_COUNT = 5;
 const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
+const VOCABULARY_LIBRARY_PAGE_SIZE = 80;
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const MDBG_WORD_DICTIONARY_URL = "https://www.mdbg.net/chinese/dictionary";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
@@ -351,9 +353,14 @@ const state = {
   tool: "dashboard",
   mode: "reading",
   vocabularyMode: "pinyin",
+  vocabularyView: "quiz",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
   vocabularyOrder: DEFAULT_VOCABULARY_ORDER,
   vocabularyHideTranslations: false,
+  vocabularyLibraryQuery: "",
+  vocabularyLibraryLevel: "all",
+  vocabularyLibraryStatus: "all",
+  vocabularyLibraryVisibleCount: VOCABULARY_LIBRARY_PAGE_SIZE,
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
   mapShowPinyinNames: false,
   pronunciationShowPinyin: true,
@@ -400,6 +407,9 @@ function loadSettings() {
     }
     if (saved.vocabularyMode && VOCABULARY_MODES[saved.vocabularyMode]) {
       state.vocabularyMode = saved.vocabularyMode;
+    }
+    if (["quiz", "library"].includes(saved.vocabularyView)) {
+      state.vocabularyView = saved.vocabularyView;
     }
     if (saved.vocabularySetId && VOCABULARY_QUIZ_SETS.some((set) => set.id === saved.vocabularySetId)) {
       state.vocabularySetId = saved.vocabularySetId;
@@ -457,6 +467,7 @@ function saveSettings() {
         settingsVersion: SETTINGS_VERSION,
         mode: state.mode,
         vocabularyMode: state.vocabularyMode,
+        vocabularyView: state.vocabularyView,
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
@@ -1079,6 +1090,9 @@ function updateNavigationState() {
   document.querySelectorAll(".vocabulary-only").forEach((element) => {
     element.hidden = state.tool !== "vocabulary";
   });
+  document.querySelectorAll(".vocabulary-quiz-only").forEach((element) => {
+    element.hidden = state.tool !== "vocabulary" || state.vocabularyView !== "quiz";
+  });
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === state.tool);
   });
@@ -1088,6 +1102,7 @@ function updateNavigationState() {
   document.querySelectorAll("[data-vocabulary-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.vocabularyMode === state.vocabularyMode);
   });
+  document.body.dataset.vocabularyView = state.vocabularyView;
   syncVocabularyOptionControls();
 }
 
@@ -1748,6 +1763,11 @@ function bindMapNameTextToggle() {
 }
 
 function renderVocabularyHome() {
+  if (state.vocabularyView === "library") {
+    renderVocabularyLibrary();
+    return;
+  }
+
   const mode = VOCABULARY_MODES[state.vocabularyMode];
   const selectedSet = getSelectedVocabularySet();
   const wordCount = selectedSet?.words.length || 0;
@@ -1769,6 +1789,7 @@ function renderVocabularyHome() {
 
   app.innerHTML = `
     <section class="workspace-panel vocabulary-home">
+      ${buildVocabularyViewSwitcher()}
       <div class="mode-heading">
         <div>
           <h2>${mode.label} Vocabulary Quiz</h2>
@@ -1827,6 +1848,8 @@ function renderVocabularyHome() {
     </section>
   `;
 
+  bindVocabularyViewSwitcher();
+
   document.querySelectorAll("[data-vocabulary-set-id]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextSetId = button.dataset.vocabularySetId;
@@ -1842,6 +1865,411 @@ function renderVocabularyHome() {
   });
 
   document.querySelector("#startVocabularySession").addEventListener("click", startVocabularySession);
+}
+
+function buildVocabularyViewSwitcher() {
+  return `
+    <nav class="vocabulary-view-switcher" aria-label="Vocabulary view">
+      <button class="${state.vocabularyView === "quiz" ? "active" : ""}" type="button" data-vocabulary-view="quiz">Quiz</button>
+      <button class="${state.vocabularyView === "library" ? "active" : ""}" type="button" data-vocabulary-view="library">Word Library</button>
+    </nav>
+  `;
+}
+
+function bindVocabularyViewSwitcher() {
+  document.querySelectorAll("[data-vocabulary-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.dataset.vocabularyView;
+      if (!["quiz", "library"].includes(nextView) || nextView === state.vocabularyView) {
+        return;
+      }
+      state.vocabularyView = nextView;
+      state.vocabularyLibraryVisibleCount = VOCABULARY_LIBRARY_PAGE_SIZE;
+      saveSettings();
+      render();
+    });
+  });
+}
+
+function renderVocabularyLibrary() {
+  const items = getAllVocabularyReviewItems();
+  const savedKeys = loadSavedVocabularyKeys();
+  const progress = ensureReviewProgress();
+  const now = Date.now();
+  const filteredItems = filterVocabularyLibraryItems(items, {
+    query: state.vocabularyLibraryQuery,
+    level: state.vocabularyLibraryLevel,
+    status: state.vocabularyLibraryStatus,
+    savedKeys,
+    progress,
+    now,
+  });
+  const visibleItems = filteredItems.slice(0, state.vocabularyLibraryVisibleCount);
+  const validSavedCount = items.filter((item) => savedKeys.has(reviewItemKey(item))).length;
+  const itemByKey = new Map(items.map((item) => [reviewItemKey(item), item]));
+
+  app.innerHTML = `
+    <section class="workspace-panel vocabulary-library">
+      ${buildVocabularyViewSwitcher()}
+      <div class="mode-heading vocabulary-library-heading">
+        <div>
+          <h2>Vocabulary Word Library</h2>
+          <p>Search the complete HSK 1 and HSK 2 collection, hear each word, and save vocabulary for adaptive review.</p>
+        </div>
+        <button class="primary-btn vocabulary-saved-review-btn" type="button" id="reviewSavedVocabulary" ${validSavedCount ? "" : "disabled"}>
+          Review saved${validSavedCount ? ` (${validSavedCount})` : ""}
+        </button>
+      </div>
+
+      <form class="vocabulary-library-toolbar" id="vocabularyLibrarySearch" role="search">
+        <div class="field vocabulary-library-search-field">
+          <label for="vocabularyLibraryQuery">Search words</label>
+          <span class="vocabulary-search-input-wrap">
+            ${searchIconMarkup()}
+            <input
+              id="vocabularyLibraryQuery"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Chinese, pinyin, or English meaning"
+              value="${escapeHtml(state.vocabularyLibraryQuery)}"
+            >
+            ${state.vocabularyLibraryQuery ? `
+              <button class="icon-btn vocabulary-search-clear" type="button" id="clearVocabularyLibrarySearch" aria-label="Clear search" title="Clear search">
+                ${closeIconMarkup()}
+              </button>
+            ` : ""}
+          </span>
+        </div>
+        <label class="field compact-field">
+          <span>HSK level</span>
+          <select id="vocabularyLibraryLevel">
+            <option value="all" ${state.vocabularyLibraryLevel === "all" ? "selected" : ""}>All levels</option>
+            <option value="1" ${state.vocabularyLibraryLevel === "1" ? "selected" : ""}>HSK 1</option>
+            <option value="2" ${state.vocabularyLibraryLevel === "2" ? "selected" : ""}>HSK 2</option>
+          </select>
+        </label>
+        <label class="field compact-field">
+          <span>Learning status</span>
+          <select id="vocabularyLibraryStatus">
+            <option value="all" ${state.vocabularyLibraryStatus === "all" ? "selected" : ""}>All words</option>
+            <option value="saved" ${state.vocabularyLibraryStatus === "saved" ? "selected" : ""}>Saved words</option>
+            <option value="due" ${state.vocabularyLibraryStatus === "due" ? "selected" : ""}>Due now</option>
+            <option value="learning" ${state.vocabularyLibraryStatus === "learning" ? "selected" : ""}>Learning</option>
+            <option value="strong" ${state.vocabularyLibraryStatus === "strong" ? "selected" : ""}>Strong</option>
+            <option value="new" ${state.vocabularyLibraryStatus === "new" ? "selected" : ""}>New</option>
+          </select>
+        </label>
+      </form>
+
+      <div class="vocabulary-library-summary">
+        <strong>${filteredItems.length}</strong>
+        <span>${filteredItems.length === 1 ? "word" : "words"}</span>
+        ${state.vocabularyLibraryQuery ? `<span>matching &ldquo;${escapeHtml(state.vocabularyLibraryQuery)}&rdquo;</span>` : ""}
+      </div>
+
+      ${visibleItems.length ? `
+        <div class="vocabulary-library-list" aria-label="Vocabulary words">
+          ${visibleItems.map((item) => buildVocabularyLibraryRow(item, {
+            saved: savedKeys.has(reviewItemKey(item)),
+            status: getVocabularyLibraryStatus(item, progress, now),
+          })).join("")}
+        </div>
+        ${visibleItems.length < filteredItems.length ? `
+          <button class="secondary-btn vocabulary-library-more" type="button" id="loadMoreVocabularyWords">
+            Show ${Math.min(VOCABULARY_LIBRARY_PAGE_SIZE, filteredItems.length - visibleItems.length)} more
+          </button>
+        ` : ""}
+      ` : `
+        <div class="vocabulary-library-empty">
+          <strong>No matching words</strong>
+          <p>Try a different spelling or remove one of the filters.</p>
+        </div>
+      `}
+    </section>
+  `;
+
+  bindVocabularyViewSwitcher();
+  bindVocabularyLibraryInteractions(itemByKey);
+}
+
+function buildVocabularyLibraryRow(item, { saved = false, status = { id: "new", label: "New" } } = {}) {
+  const meta = getVocabularySetMeta({
+    id: item.setId,
+    label: item.setLabel,
+    level: item.level,
+  });
+  const key = reviewItemKey(item);
+  return `
+    <article class="vocabulary-library-row">
+      <button
+        class="icon-btn vocabulary-save-button ${saved ? "active" : ""}"
+        type="button"
+        data-vocabulary-save-key="${escapeHtml(key)}"
+        aria-label="${saved ? "Remove" : "Save"} ${escapeHtml(item.zh)} ${saved ? "from" : "to"} saved words"
+        aria-pressed="${saved ? "true" : "false"}"
+        title="${saved ? "Remove from saved words" : "Save for review"}">
+        ${bookmarkIconMarkup(saved)}
+      </button>
+      <div class="vocabulary-library-word">
+        <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+        <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+      </div>
+      <p class="vocabulary-library-meaning">${escapeHtml(formatVocabularyMeanings(item))}</p>
+      <div class="vocabulary-library-meta">
+        <span>${escapeHtml(`${meta.levelLabel} · ${meta.partLabel}`)}</span>
+        <strong class="is-${escapeHtml(status.id)}">${escapeHtml(status.label)}</strong>
+      </div>
+      <button
+        class="icon-btn vocabulary-library-audio"
+        type="button"
+        data-vocabulary-audio-key="${escapeHtml(key)}"
+        aria-label="Play ${escapeHtml(item.zh)}"
+        title="Play word">
+        ${speakerIconMarkup()}
+      </button>
+    </article>
+  `;
+}
+
+function bindVocabularyLibraryInteractions(itemByKey) {
+  const searchForm = document.querySelector("#vocabularyLibrarySearch");
+  const searchInput = document.querySelector("#vocabularyLibraryQuery");
+  let searchTimer = 0;
+  searchForm?.addEventListener("submit", (event) => event.preventDefault());
+  searchInput?.addEventListener("input", () => {
+    state.vocabularyLibraryQuery = searchInput.value;
+    state.vocabularyLibraryVisibleCount = VOCABULARY_LIBRARY_PAGE_SIZE;
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => {
+      const cursor = state.vocabularyLibraryQuery.length;
+      render();
+      const nextInput = document.querySelector("#vocabularyLibraryQuery");
+      nextInput?.focus();
+      nextInput?.setSelectionRange?.(cursor, cursor);
+    }, 90);
+  });
+  document.querySelector("#clearVocabularyLibrarySearch")?.addEventListener("click", () => {
+    state.vocabularyLibraryQuery = "";
+    state.vocabularyLibraryVisibleCount = VOCABULARY_LIBRARY_PAGE_SIZE;
+    render();
+    document.querySelector("#vocabularyLibraryQuery")?.focus();
+  });
+  document.querySelector("#vocabularyLibraryLevel")?.addEventListener("change", (event) => {
+    state.vocabularyLibraryLevel = event.target.value;
+    state.vocabularyLibraryVisibleCount = VOCABULARY_LIBRARY_PAGE_SIZE;
+    render();
+  });
+  document.querySelector("#vocabularyLibraryStatus")?.addEventListener("change", (event) => {
+    state.vocabularyLibraryStatus = event.target.value;
+    state.vocabularyLibraryVisibleCount = VOCABULARY_LIBRARY_PAGE_SIZE;
+    render();
+  });
+  document.querySelectorAll("[data-vocabulary-save-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = itemByKey.get(button.dataset.vocabularySaveKey);
+      if (item) {
+        toggleSavedVocabularyItem(item);
+        render();
+      }
+    });
+  });
+  document.querySelectorAll("[data-vocabulary-audio-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = itemByKey.get(button.dataset.vocabularyAudioKey);
+      if (item) {
+        speak(item.zh, { immediate: true });
+      }
+    });
+  });
+  document.querySelector("#loadMoreVocabularyWords")?.addEventListener("click", () => {
+    state.vocabularyLibraryVisibleCount += VOCABULARY_LIBRARY_PAGE_SIZE;
+    render();
+  });
+  document.querySelector("#reviewSavedVocabulary")?.addEventListener("click", startSavedVocabularyReview);
+}
+
+function filterVocabularyLibraryItems(items, {
+  query = "",
+  level = "all",
+  status = "all",
+  savedKeys = new Set(),
+  progress = {},
+  now = Date.now(),
+} = {}) {
+  const rawQuery = String(query || "").trim().toLowerCase();
+  const normalizedPinyinQuery = compactPinyin(stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(rawQuery)));
+  const matches = [];
+  items.forEach((item, sourceIndex) => {
+    const key = reviewItemKey(item);
+    const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
+    if (level !== "all" && meta.levelNumber !== level) {
+      return;
+    }
+    const learningStatus = getVocabularyLibraryStatus(item, progress, now).id;
+    if (status === "saved" && !savedKeys.has(key)) {
+      return;
+    }
+    if (!["all", "saved"].includes(status) && learningStatus !== status) {
+      return;
+    }
+    if (!rawQuery) {
+      matches.push({ item, score: 0, sourceIndex });
+      return;
+    }
+
+    const word = String(item.zh || "").toLowerCase();
+    const meanings = formatVocabularyMeanings(item).toLowerCase();
+    const setLabel = String(item.setLabel || "").toLowerCase();
+    const itemPinyin = compactPinyin(stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(item.pinyin)));
+    let score = Infinity;
+    if (word === rawQuery || (normalizedPinyinQuery && itemPinyin === normalizedPinyinQuery)) {
+      score = 0;
+    } else if (word.startsWith(rawQuery) || (normalizedPinyinQuery && itemPinyin.startsWith(normalizedPinyinQuery))) {
+      score = 1;
+    } else if (word.includes(rawQuery) || (normalizedPinyinQuery && itemPinyin.includes(normalizedPinyinQuery))) {
+      score = 2;
+    } else if (getVocabularyMeaningCandidates(item).some((meaning) => meaning.toLowerCase().startsWith(rawQuery))) {
+      score = 3;
+    } else if (meanings.includes(rawQuery)) {
+      score = 4;
+    } else if (setLabel.includes(rawQuery)) {
+      score = 5;
+    }
+    if (Number.isFinite(score)) {
+      matches.push({ item, score, sourceIndex });
+    }
+  });
+  return matches
+    .sort((a, b) => a.score - b.score || a.sourceIndex - b.sourceIndex)
+    .map((match) => match.item);
+}
+
+function getVocabularyLibraryStatus(item, progress = {}, now = Date.now()) {
+  const record = progress[reviewItemKey(item)];
+  if (!record) {
+    return { id: "new", label: "New" };
+  }
+  if ((Number(record.dueAt) || 0) <= now) {
+    return { id: "due", label: "Due" };
+  }
+  if ((Number(record.stage) || 0) >= 4) {
+    return { id: "strong", label: "Strong" };
+  }
+  return { id: "learning", label: "Learning" };
+}
+
+function loadSavedVocabularyKeys() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SAVED_VOCABULARY_KEY) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string" && key) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSavedVocabularyKeys(keys) {
+  try {
+    localStorage.setItem(SAVED_VOCABULARY_KEY, JSON.stringify([...keys]));
+  } catch {
+    // Saved words are optional browser-local state.
+  }
+}
+
+function toggleSavedVocabularyItem(item, now = Date.now()) {
+  const key = reviewItemKey(item);
+  if (!key) {
+    return false;
+  }
+  const savedKeys = loadSavedVocabularyKeys();
+  if (savedKeys.has(key)) {
+    savedKeys.delete(key);
+    saveSavedVocabularyKeys(savedKeys);
+    return false;
+  }
+
+  savedKeys.add(key);
+  saveSavedVocabularyKeys(savedKeys);
+  const progress = ensureReviewProgress();
+  ensureVocabularyReviewEntry(progress, item, now);
+  saveReviewProgress(progress);
+  return true;
+}
+
+function ensureVocabularyReviewEntry(progress, item, now = Date.now()) {
+  const key = reviewItemKey(item);
+  if (!key || progress[key]) {
+    return progress[key] || null;
+  }
+  progress[key] = {
+    key,
+    zh: item.zh,
+    pinyin: item.pinyin,
+    meanings: getVocabularyMeaningCandidates(item),
+    setId: item.setId || "",
+    setLabel: item.setLabel || "",
+    stage: 0,
+    dueAt: now,
+    lastReviewedAt: 0,
+    lastMode: "",
+    attempts: 0,
+    correct: 0,
+    streak: 0,
+    lapses: 0,
+  };
+  return progress[key];
+}
+
+function startSavedVocabularyReview() {
+  const savedKeys = loadSavedVocabularyKeys();
+  const items = getAllVocabularyReviewItems().filter((item) => savedKeys.has(reviewItemKey(item)));
+  if (!items.length) {
+    return;
+  }
+  const progress = ensureReviewProgress();
+  const selected = shuffle(items).slice(0, REVIEW_SESSION_LENGTH).map((item, index) => ({
+    ...item,
+    reviewMode: chooseReviewMode(progress[reviewItemKey(item)], index),
+  }));
+  state.tool = "review";
+  saveSettings();
+  startReviewItems(selected, "saved");
+}
+
+function bookmarkIconMarkup(saved = false) {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path class="bookmark-shape ${saved ? "filled" : ""}" d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.6L6 21V4.5z"></path>
+    </svg>
+  `;
+}
+
+function speakerIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M11 5L6.5 9H3v6h3.5l4.5 4V5z"></path>
+      <path d="M15 9a4 4 0 0 1 0 6"></path>
+      <path d="M17.5 6.5a8 8 0 0 1 0 11"></path>
+    </svg>
+  `;
+}
+
+function searchIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="11" cy="11" r="6"></circle>
+      <path d="M16 16l5 5"></path>
+    </svg>
+  `;
+}
+
+function closeIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 6l12 12"></path>
+      <path d="M18 6L6 18"></path>
+    </svg>
+  `;
 }
 
 function renderReviewHome() {
@@ -2110,15 +2538,15 @@ function renderReviewResults() {
     <section class="workspace-panel review-results">
       <div class="results-header">
         <div>
-          <h2>Daily Review Complete</h2>
+          <h2>${result.source === "saved" ? "Saved Words Review Complete" : "Daily Review Complete"}</h2>
           <p>${correct} of ${result.answers.length} correct in ${formatTimer(result.elapsedSeconds)}.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
-            <span>Start another review</span>
+            <span>${result.source === "saved" ? "Review saved again" : "Start another review"}</span>
             ${shortcutHint("Enter")}
           </button>
-          <button class="ghost-btn" type="button" id="backToModes">Back to review</button>
+          <button class="ghost-btn" type="button" id="backToModes">${result.source === "saved" ? "Back to word library" : "Back to review"}</button>
         </div>
       </div>
 
@@ -2138,10 +2566,15 @@ function renderReviewResults() {
     </section>
   `;
 
-  document.querySelector("#restartSession").addEventListener("click", startReviewSession);
+  document.querySelector("#restartSession").addEventListener("click", result.source === "saved" ? startSavedVocabularyReview : startReviewSession);
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
+    if (result.source === "saved") {
+      state.tool = "vocabulary";
+      state.vocabularyView = "library";
+      saveSettings();
+    }
     render();
   });
 }
@@ -2372,7 +2805,7 @@ function buildHistoryRowMarkup(record) {
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
     : record.type === "review"
-      ? "Adaptive vocabulary"
+      ? record.source === "saved" ? "Saved vocabulary" : "Adaptive vocabulary"
     : record.type === "pronunciation"
       ? selectedLevelLabels(record.levels)
       : record.type === "map"
@@ -5358,6 +5791,7 @@ function getAllVocabularyReviewItems() {
         reviewKey: key,
         setId: set.id,
         setLabel: set.label,
+        level: set.level,
       });
     });
   });
@@ -5600,15 +6034,24 @@ function startReviewSession() {
     return;
   }
 
+  startReviewItems(selected.map((entry, index) => ({
+    ...entry.item,
+    reviewMode: chooseReviewMode(entry.record, index),
+  })), "adaptive");
+}
+
+function startReviewItems(items, source = "adaptive") {
+  if (!items.length) {
+    return;
+  }
+
   stopPronunciationRecognition();
   stopSpeech();
   state.result = null;
   state.session = {
     type: "review",
-    items: selected.map((entry, index) => ({
-      ...entry.item,
-      reviewMode: chooseReviewMode(entry.record, index),
-    })),
+    source,
+    items,
     index: 0,
     answers: [],
     choiceSets: new Map(),
@@ -5707,7 +6150,11 @@ function startActiveSession() {
   }
 
   if (state.tool === "vocabulary") {
-    startVocabularySession();
+    if (state.vocabularyView === "library") {
+      startSavedVocabularyReview();
+    } else {
+      startVocabularySession();
+    }
     return;
   }
 
@@ -6278,6 +6725,7 @@ function buildSessionResult(session) {
   if (session.type === "review") {
     return {
       type: "review",
+      source: session.source || "adaptive",
       items: session.items,
       answers: session.answers,
       elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
@@ -6380,6 +6828,7 @@ function buildHistoryRecord(result) {
     return {
       id,
       type: "review",
+      source: result.source || "adaptive",
       completedAt,
       total: result.answers.length,
       correct,

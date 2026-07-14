@@ -372,6 +372,10 @@ assert(
   "global nav should show Today before the learning tools and History",
 );
 assert(
+  !toolNavButtons.some((match) => match[1] === "memory"),
+  "the retired memory aid should not appear in global navigation",
+);
+assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
   "global nav tool buttons should include distinguishing icons",
 );
@@ -515,13 +519,13 @@ assert(stylesSource.includes(".sentence-library-row") && stylesSource.includes("
 assert(stylesSource.includes(".history-retry-btn"), "History mistake actions should include responsive styling");
 assert(!/<body[^>]*data-mode=/i.test(indexSource), "initial page markup should not make the body look like a drill mode control");
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
-  { id: "unsupported-record", type: "unsupported" },
+  { id: "retired-memory", type: "memory" },
   { id: "kept-drill", type: "drill" },
   { id: "kept-review", type: "review" },
 ]));
 assert(
   loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review",
-  "history loading should ignore unsupported record types",
+  "history loading should ignore records from the retired memory aid",
 );
 localStorageEntries.delete("chineseTrainerHistory");
 const backupStorageSnapshot = new Map(localStorageEntries);

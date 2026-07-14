@@ -1885,7 +1885,7 @@ function buildVocabularyViewSwitcher() {
 }
 
 function bindVocabularyViewSwitcher() {
-  document.querySelectorAll("[data-vocabulary-view]").forEach((button) => {
+  document.querySelectorAll(".vocabulary-view-switcher button[data-vocabulary-view]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextView = button.dataset.vocabularyView;
       if (!VOCABULARY_VIEWS.has(nextView) || nextView === state.vocabularyView) {

@@ -233,6 +233,15 @@
             </svg>
           </button>
         </div>
+        <div class="global-search-view-row">
+          <div class="global-search-view-switcher" role="tablist" aria-label="Learning library view">
+            <button class="active" type="button" role="tab" data-global-search-view="search" aria-selected="true" aria-controls="globalSearchResults">All</button>
+            <button type="button" role="tab" data-global-search-view="saved" aria-selected="false" aria-controls="globalSearchResults">
+              Saved <span id="globalSearchSavedCount">0</span>
+            </button>
+          </div>
+          <div class="global-search-saved-actions" id="globalSearchSavedActions" hidden></div>
+        </div>
         <div class="global-search-results" id="globalSearchResults" role="listbox" aria-label="Search results"></div>
       </div>
     </dialog>

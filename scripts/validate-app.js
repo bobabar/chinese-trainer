@@ -185,6 +185,8 @@ window.__tests = {
   getGrammarLessonProgress,
   getGrammarQuestionPool,
   getGlobalSearchResults,
+  getSavedGlobalSearchResults,
+  getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
   getPracticeStreakDays,
@@ -344,6 +346,8 @@ const {
   getGrammarLessonProgress,
   getGrammarQuestionPool,
   getGlobalSearchResults,
+  getSavedGlobalSearchResults,
+  getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
   getPracticeStreakDays,
@@ -531,6 +535,32 @@ const globalSearchFixtureResults = (query, options = {}) => Object.fromEntries(
     ...options,
   }).map((group) => [group.id, group.results]),
 );
+const savedNotebookFixture = getSavedNotebookData({
+  vocabulary: [loveEntry, eightEntry],
+  sentences: sentenceLibraryFixtures,
+  savedVocabularyKeys: new Set([reviewItemKey(loveEntry)]),
+  savedSentenceIds: new Set(["library-running"]),
+});
+assert(
+  savedNotebookFixture.total === 2 &&
+    savedNotebookFixture.vocabulary[0].zh === "爱" &&
+    savedNotebookFixture.sentences[0].id === "library-running",
+  "the saved notebook should combine only bookmarked vocabulary and sentences",
+);
+const savedNotebookGroups = Object.fromEntries(
+  getSavedGlobalSearchResults("", savedNotebookFixture).map((group) => [group.id, group.results]),
+);
+assert(
+  savedNotebookGroups["saved-vocabulary"][0].item.zh === "爱" &&
+    savedNotebookGroups["saved-sentences"][0].item.id === "library-running",
+  "the saved notebook should preserve separate word and sentence groups",
+);
+assert(
+  getSavedGlobalSearchResults("runs", savedNotebookFixture)
+    .find((group) => group.id === "sentences")
+    .results[0].item.id === "library-running",
+  "the saved notebook should search within bookmarked material",
+);
 assert(
   globalSearchFixtureResults("爱").vocabulary[0].item.zh === "爱",
   "global search should prioritize an exact Chinese vocabulary match",
@@ -561,14 +591,25 @@ assert(
   "the app shell should expose a global learning search",
 );
 assert(
+  indexSource.includes('data-global-search-view="saved"') && indexSource.includes('id="globalSearchSavedActions"'),
+  "the learning library should expose the saved notebook and its practice actions",
+);
+assert(
   appSource.includes('event.key.toLowerCase() !== "k"') &&
     appSource.includes('event.key === "Escape"') &&
     appSource.includes("activateGlobalSearchResult"),
   "global search should support keyboard entry, dismissal, and real study destinations",
 );
 assert(
-  stylesSource.includes(".global-search-result") && stylesSource.includes(".global-search-dialog"),
-  "global search should include dedicated responsive command-palette styling",
+  stylesSource.includes(".global-search-result") &&
+    stylesSource.includes(".global-search-dialog") &&
+    stylesSource.includes(".global-search-saved-actions") &&
+    stylesSource.includes(".dashboard-notebook-button"),
+  "global search and the saved notebook should include dedicated responsive styling",
+);
+assert(
+  appSource.includes('id="openSavedNotebook"') && appSource.includes('openGlobalSearch({ view: "saved" })'),
+  "Today should provide a direct entry into the saved notebook",
 );
 assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "love", levels: allSentenceLevels })[0].id === "library-love", "sentence library should search English translations");
 assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "每天", levels: allSentenceLevels })[0].id === "library-running", "sentence library should search Chinese text");

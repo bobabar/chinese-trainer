@@ -1799,9 +1799,108 @@ body.global-search-open {
 
 .global-search-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   max-height: min(76vh, 720px);
   max-height: min(76dvh, 720px);
+}
+
+.global-search-view-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 12px;
+}
+
+.global-search-view-switcher {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  padding: 2px;
+}
+
+.global-search-view-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.global-search-view-switcher button.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+}
+
+.global-search-view-switcher button:focus-visible,
+.global-search-saved-actions button:focus-visible {
+  outline: 3px solid var(--theme-focus);
+  outline-offset: 1px;
+}
+
+.global-search-view-switcher span {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted-strong);
+  font-size: 9px;
+}
+
+.global-search-view-switcher button.active span {
+  background: var(--theme-soft);
+  color: var(--theme);
+}
+
+.global-search-saved-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.global-search-saved-actions[hidden] {
+  display: none;
+}
+
+.global-search-saved-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.global-search-saved-actions button:hover:not(:disabled) {
+  border-color: var(--theme-border);
+  background: var(--theme-soft);
+  color: var(--theme);
+}
+
+.global-search-saved-actions .button-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .global-search-input-row {
@@ -5555,6 +5654,72 @@ button:focus-visible {
   font-weight: 850;
 }
 
+.dashboard-notebook-button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.dashboard-notebook-button:hover {
+  border-color: var(--theme-border);
+  background: var(--theme-soft);
+}
+
+.dashboard-notebook-button:focus-visible {
+  outline: 3px solid var(--theme-focus);
+  outline-offset: 2px;
+}
+
+.dashboard-notebook-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--theme-soft);
+  color: var(--theme);
+}
+
+.dashboard-notebook-icon .button-icon,
+.dashboard-notebook-button > .button-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.dashboard-notebook-button > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-notebook-button strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.dashboard-notebook-button small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-notebook-button > .button-icon {
+  color: var(--line-strong);
+}
+
 .dashboard-focus {
   display: grid;
   align-items: start;
@@ -8309,6 +8474,27 @@ td.status-review {
 
   .global-search-results {
     padding: 5px;
+  }
+
+  .global-search-view-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 6px;
+  }
+
+  .global-search-view-switcher {
+    align-self: center;
+  }
+
+  .global-search-saved-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .global-search-saved-actions button {
+    min-width: 0;
+    padding-inline: 6px;
   }
 
   .global-search-result {

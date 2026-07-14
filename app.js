@@ -357,6 +357,7 @@ let pwaOfflineReady = false;
 let pwaUpdateRequested = false;
 let pwaReloading = false;
 let globalSearchDataLoading = false;
+let globalSearchView = "search";
 let globalSearchActiveIndex = 0;
 let globalSearchFlatResults = [];
 let globalSearchRestoreFocus = null;
@@ -495,6 +496,8 @@ const globalSearchDialog = document.querySelector("#globalSearchDialog");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const globalSearchResults = document.querySelector("#globalSearchResults");
 const globalSearchClose = document.querySelector("#globalSearchClose");
+const globalSearchSavedCount = document.querySelector("#globalSearchSavedCount");
+const globalSearchSavedActions = document.querySelector("#globalSearchSavedActions");
 
 function init() {
   if (
@@ -508,7 +511,9 @@ function init() {
     !globalSearchDialog ||
     !globalSearchInput ||
     !globalSearchResults ||
-    !globalSearchClose
+    !globalSearchClose ||
+    !globalSearchSavedCount ||
+    !globalSearchSavedActions
   ) {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
@@ -743,9 +748,44 @@ function bindGlobalSearch() {
     shortcut.textContent = isApplePlatform ? "⌘K" : "Ctrl K";
   }
 
-  globalSearchTrigger.addEventListener("click", openGlobalSearch);
+  globalSearchTrigger.addEventListener("click", () => openGlobalSearch());
   globalSearchClose.addEventListener("click", closeGlobalSearch);
   document.addEventListener("keydown", handleGlobalSearchShortcut);
+
+  document.querySelectorAll("[data-global-search-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.dataset.globalSearchView;
+      if (!["search", "saved"].includes(nextView) || nextView === globalSearchView) {
+        return;
+      }
+      globalSearchView = nextView;
+      globalSearchInput.value = "";
+      globalSearchActiveIndex = 0;
+      renderGlobalSearchResults();
+      globalSearchInput.focus();
+    });
+  });
+  globalSearchSavedActions.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-global-search-saved-action]");
+    if (
+      !button ||
+      button.disabled ||
+      !prepareGlobalSearchNavigation("Start saved practice and end the current session?")
+    ) {
+      return;
+    }
+    if (button.dataset.globalSearchSavedAction === "vocabulary") {
+      startSavedVocabularyReview();
+      return;
+    }
+    if (button.dataset.globalSearchSavedAction === "sentences") {
+      state.tool = "drill";
+      state.drillView = "library";
+      state.selectedLevels = new Set(LEVELS.map((level) => level.id));
+      saveSettings();
+      startSavedSentenceSession({ allLevels: true });
+    }
+  });
 
   globalSearchInput.addEventListener("input", () => {
     globalSearchActiveIndex = 0;
@@ -810,11 +850,15 @@ function handleGlobalSearchShortcut(event) {
   openGlobalSearch();
 }
 
-function openGlobalSearch() {
+function openGlobalSearch({ view = "search" } = {}) {
   globalSearchRestoreFocus = document.activeElement instanceof HTMLElement
     ? document.activeElement
     : globalSearchTrigger;
+  globalSearchView = view === "saved" ? "saved" : "search";
   globalSearchInput.value = "";
+  globalSearchInput.placeholder = globalSearchView === "saved"
+    ? "Search your saved words and sentences"
+    : "Search Chinese, pinyin, or English";
   globalSearchActiveIndex = 0;
   renderGlobalSearchResults();
   document.body.classList.add("global-search-open");
@@ -889,21 +933,35 @@ function handleGlobalSearchNavigation(event) {
 
 function renderGlobalSearchResults() {
   const query = globalSearchInput.value.trim();
-  const groups = query
-    ? getGlobalSearchResults(query)
-    : [{ id: "recent", label: "Recent", results: getRecentGlobalSearchResults() }];
+  const notebook = getSavedNotebookData();
+  renderGlobalSearchViewControls(notebook);
+  const groups = globalSearchView === "saved"
+    ? getSavedGlobalSearchResults(query, notebook)
+    : query
+      ? getGlobalSearchResults(query)
+      : [{ id: "recent", label: "Recent", results: getRecentGlobalSearchResults() }];
   globalSearchFlatResults = groups.flatMap((group) => group.results);
   if (globalSearchActiveIndex >= globalSearchFlatResults.length) {
     globalSearchActiveIndex = Math.max(0, globalSearchFlatResults.length - 1);
   }
 
   if (!globalSearchFlatResults.length) {
-    const loading = globalSearchDataLoading && query;
+    const loading = globalSearchDataLoading && (query || globalSearchView === "saved");
+    const emptyTitle = globalSearchView === "saved"
+      ? query ? "No saved matches" : "Your notebook is empty"
+      : query
+        ? "No matching study material"
+        : "Your learning library";
+    const emptyDetail = globalSearchView === "saved"
+      ? query ? "Try another Chinese word, pinyin, or English phrase." : "Save useful words and sentences to collect them here."
+      : query
+        ? "Try another Chinese word, pinyin, or English phrase."
+        : "Search vocabulary, grammar, and example sentences.";
     globalSearchResults.innerHTML = `
       <div class="global-search-empty" role="status">
         ${loading ? `<span class="global-search-loader" aria-hidden="true"></span>` : searchIconMarkup()}
-        <strong>${loading ? "Searching your library" : query ? "No matching study material" : "Your learning library"}</strong>
-        <span>${loading ? "Loading local sentence resources…" : query ? "Try another Chinese word, pinyin, or English phrase." : "Search vocabulary, grammar, and example sentences."}</span>
+        <strong>${loading ? "Opening your notebook" : emptyTitle}</strong>
+        <span>${loading ? "Loading local saved resources…" : emptyDetail}</span>
       </div>
     `;
     globalSearchInput.removeAttribute("aria-activedescendant");
@@ -917,7 +975,7 @@ function renderGlobalSearchResults() {
       <section class="global-search-group" aria-labelledby="global-search-group-${escapeHtml(group.id)}">
         <div class="global-search-group-heading" id="global-search-group-${escapeHtml(group.id)}">
           <span>${escapeHtml(group.label)}</span>
-          <small>${group.results.length}</small>
+          <small>${Number.isFinite(group.count) ? group.count : group.results.length}</small>
         </div>
         <div class="global-search-list">
           ${group.results.map((result) => {
@@ -929,6 +987,80 @@ function renderGlobalSearchResults() {
       </section>
     `).join("");
   syncGlobalSearchActiveResult();
+}
+
+function renderGlobalSearchViewControls(notebook = getSavedNotebookData()) {
+  document.querySelectorAll("[data-global-search-view]").forEach((button) => {
+    const active = button.dataset.globalSearchView === globalSearchView;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  globalSearchSavedCount.textContent = String(notebook.total);
+  globalSearchInput.placeholder = globalSearchView === "saved"
+    ? "Search your saved words and sentences"
+    : "Search Chinese, pinyin, or English";
+  globalSearchSavedActions.hidden = globalSearchView !== "saved";
+  if (globalSearchView !== "saved") {
+    globalSearchSavedActions.innerHTML = "";
+    return;
+  }
+  globalSearchSavedActions.innerHTML = `
+    <button
+      type="button"
+      data-global-search-saved-action="vocabulary"
+      ${notebook.vocabulary.length ? "" : "disabled"}>
+      ${bookmarkIconMarkup(true)}
+      <span>Review ${notebook.vocabulary.length} ${notebook.vocabulary.length === 1 ? "word" : "words"}</span>
+    </button>
+    <button
+      type="button"
+      data-global-search-saved-action="sentences"
+      ${notebook.sentences.length ? "" : "disabled"}>
+      ${sentenceSearchIconMarkup()}
+      <span>Practice ${notebook.sentences.length} ${notebook.sentences.length === 1 ? "sentence" : "sentences"}</span>
+    </button>
+  `;
+}
+
+function getSavedNotebookData({
+  vocabulary = getAllVocabularyReviewItems(),
+  sentences = SENTENCES,
+  savedVocabularyKeys = loadSavedVocabularyKeys(),
+  savedSentenceIds = loadSavedSentenceIds(),
+} = {}) {
+  const savedVocabulary = vocabulary.filter((item) => savedVocabularyKeys.has(reviewItemKey(item)));
+  const savedSentences = sentences.filter((item) => savedSentenceIds.has(sentenceItemKey(item)));
+  return {
+    vocabulary: savedVocabulary,
+    sentences: savedSentences,
+    total: savedVocabulary.length + savedSentences.length,
+  };
+}
+
+function getSavedGlobalSearchResults(query = "", notebook = getSavedNotebookData(), limit = GLOBAL_SEARCH_RESULT_LIMIT) {
+  const trimmedQuery = String(query || "").trim();
+  if (trimmedQuery) {
+    return getGlobalSearchResults(trimmedQuery, {
+      vocabulary: notebook.vocabulary,
+      grammar: [],
+      sentences: notebook.sentences,
+      limit,
+    }).filter((group) => group.id !== "grammar");
+  }
+  return [
+    {
+      id: "saved-vocabulary",
+      label: "Saved vocabulary",
+      count: notebook.vocabulary.length,
+      results: notebook.vocabulary.slice(0, limit).map(createVocabularySearchResult),
+    },
+    {
+      id: "saved-sentences",
+      label: "Saved sentences",
+      count: notebook.sentences.length,
+      results: notebook.sentences.slice(0, limit).map(createSentenceSearchResult),
+    },
+  ];
 }
 
 function buildGlobalSearchResultMarkup(result, index) {
@@ -1008,17 +1140,7 @@ function getGlobalSearchResults(query, {
     pinyin: [item.pinyin, item.numeric, ...(item.pinyinAlternates || []), ...(item.numericAlternates || [])],
   }))
     .slice(0, limit)
-    .map(({ item }) => {
-      const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
-      return {
-        type: "vocabulary",
-        key: reviewItemKey(item),
-        title: item.zh,
-        detail: formatVocabularyMeanings(item),
-        meta: `${meta.levelLabel} · ${meta.partLabel}`,
-        item,
-      };
-    });
+    .map(({ item }) => createVocabularySearchResult(item));
   const grammarResults = rankGlobalSearchItems(grammar, (lesson) => scoreGlobalSearchItem(trimmedQuery, {
     text: [
       lesson.title,
@@ -1032,33 +1154,53 @@ function getGlobalSearchResults(query, {
     pinyin: (lesson.examples || []).map((example) => example.pinyin),
   }))
     .slice(0, limit)
-    .map(({ item }) => ({
-      type: "grammar",
-      key: item.id,
-      title: item.title,
-      detail: item.summary,
-      meta: `HSK ${item.level} · ${item.category}`,
-      item,
-    }));
+    .map(({ item }) => createGrammarSearchResult(item));
   const sentenceResults = rankGlobalSearchItems(sentences, (item) => scoreGlobalSearchItem(trimmedQuery, {
     text: [item.zh, item.en],
     pinyin: [getSentenceSearchPinyin(item)],
   }))
     .slice(0, limit)
-    .map(({ item }) => ({
-      type: "sentence",
-      key: sentenceItemKey(item),
-      title: item.en,
-      detail: item.en,
-      meta: selectedLevelLabel(item.level),
-      item,
-    }));
+    .map(({ item }) => createSentenceSearchResult(item));
 
   return [
     { id: "vocabulary", label: "Vocabulary", results: vocabularyResults },
     { id: "grammar", label: "Grammar", results: grammarResults },
     { id: "sentences", label: "Sentences", results: sentenceResults },
   ];
+}
+
+function createVocabularySearchResult(item) {
+  const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
+  return {
+    type: "vocabulary",
+    key: reviewItemKey(item),
+    title: item.zh,
+    detail: formatVocabularyMeanings(item),
+    meta: `${meta.levelLabel} · ${meta.partLabel}`,
+    item,
+  };
+}
+
+function createGrammarSearchResult(item) {
+  return {
+    type: "grammar",
+    key: item.id,
+    title: item.title,
+    detail: item.summary,
+    meta: `HSK ${item.level} · ${item.category}`,
+    item,
+  };
+}
+
+function createSentenceSearchResult(item) {
+  return {
+    type: "sentence",
+    key: sentenceItemKey(item),
+    title: item.en,
+    detail: item.en,
+    meta: selectedLevelLabel(item.level),
+    item,
+  };
 }
 
 function rankGlobalSearchItems(items, getScore) {
@@ -1134,37 +1276,15 @@ function resolveGlobalSearchReference(reference) {
   if (reference?.type === "vocabulary") {
     const item = getAllVocabularyReviewItems().find((candidate) => reviewItemKey(candidate) === reference.key);
     if (!item) return null;
-    const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
-    return {
-      type: "vocabulary",
-      key: reference.key,
-      title: item.zh,
-      detail: formatVocabularyMeanings(item),
-      meta: `${meta.levelLabel} · ${meta.partLabel}`,
-      item,
-    };
+    return createVocabularySearchResult(item);
   }
   if (reference?.type === "grammar") {
     const item = getGrammarLessonById(reference.key);
-    return item ? {
-      type: "grammar",
-      key: reference.key,
-      title: item.title,
-      detail: item.summary,
-      meta: `HSK ${item.level} · ${item.category}`,
-      item,
-    } : null;
+    return item ? createGrammarSearchResult(item) : null;
   }
   if (reference?.type === "sentence") {
     const item = SENTENCES.find((candidate) => sentenceItemKey(candidate) === reference.key);
-    return item ? {
-      type: "sentence",
-      key: reference.key,
-      title: item.en,
-      detail: item.en,
-      meta: selectedLevelLabel(item.level),
-      item,
-    } : null;
+    return item ? createSentenceSearchResult(item) : null;
   }
   return null;
 }
@@ -1186,21 +1306,14 @@ function rememberGlobalSearchResult(result) {
 }
 
 function activateGlobalSearchResult(result) {
-  if (state.session && !window.confirm("Open this result and end the current session?")) {
+  const navigation = prepareGlobalSearchNavigation();
+  if (!navigation) {
     return;
   }
   rememberGlobalSearchResult(result);
-  stopPronunciationRecognition();
-  stopSpeech();
-  const shouldRefreshCurrentView = Boolean(state.session || state.result);
-  state.session = null;
-  state.result = null;
-  state.planSetupOpen = false;
-  state.dataError = "";
-  closeGlobalSearch();
 
   if (result.type === "vocabulary") {
-    if (shouldRefreshCurrentView) {
+    if (navigation.shouldRefreshCurrentView) {
       render();
     }
     openVocabularyDetail(result.item, globalSearchTrigger);
@@ -1220,6 +1333,21 @@ function activateGlobalSearchResult(result) {
   saveSettings();
   render();
   window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+}
+
+function prepareGlobalSearchNavigation(message = "Open this result and end the current session?") {
+  if (state.session && !window.confirm(message)) {
+    return null;
+  }
+  stopPronunciationRecognition();
+  stopSpeech();
+  const shouldRefreshCurrentView = Boolean(state.session || state.result);
+  state.session = null;
+  state.result = null;
+  state.planSetupOpen = false;
+  state.dataError = "";
+  closeGlobalSearch();
+  return { shouldRefreshCurrentView };
 }
 
 function searchIconMarkup() {
@@ -2292,6 +2420,16 @@ function renderDashboardHome() {
             <div><dt>Pronunciation average</dt><dd>${pronunciationMetric}</dd></div>
             <div><dt>Sessions this week</dt><dd>${dashboard.sessionsThisWeek}</dd></div>
           </dl>
+          <button class="dashboard-notebook-button" type="button" id="openSavedNotebook">
+            <span class="dashboard-notebook-icon" aria-hidden="true">${bookmarkIconMarkup(true)}</span>
+            <span>
+              <strong>Saved notebook</strong>
+              <small>${dashboard.saved.vocabularyCount} ${dashboard.saved.vocabularyCount === 1 ? "word" : "words"} · ${dashboard.saved.sentenceCount} ${dashboard.saved.sentenceCount === 1 ? "sentence" : "sentences"}</small>
+            </span>
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
           <div class="dashboard-focus">
             <span>Focus next</span>
             <strong>${escapeHtml(dashboard.focus.title)}</strong>
@@ -2333,6 +2471,7 @@ function renderDashboardHome() {
     state.planSetupOpen = true;
     render();
   });
+  document.querySelector("#openSavedNotebook")?.addEventListener("click", () => openGlobalSearch({ view: "saved" }));
   document.querySelectorAll("[data-roadmap-level]").forEach((button) => {
     button.addEventListener("click", () => {
       const level = Number(button.dataset.roadmapLevel);
@@ -2355,6 +2494,11 @@ function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
   const completedCount = plan.filter((activity) => activity.completed).length;
   const week = getDashboardWeek(history, now);
   const todayKey = localDateKey(now);
+  const savedVocabularyKeys = loadSavedVocabularyKeys();
+  const savedVocabularyCount = getAllVocabularyReviewItems()
+    .filter((item) => savedVocabularyKeys.has(reviewItemKey(item)))
+    .length;
+  const savedSentenceCount = loadSavedSentenceIds().size;
 
   return {
     now,
@@ -2369,6 +2513,11 @@ function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
     todaySessionCount: history.filter((record) => localDateKey(Date.parse(record.completedAt)) === todayKey).length,
     pronunciationAccuracy: getDashboardPronunciationAccuracy(history),
     focus: getDashboardFocusInsight(history, review),
+    saved: {
+      vocabularyCount: savedVocabularyCount,
+      sentenceCount: savedSentenceCount,
+      total: savedVocabularyCount + savedSentenceCount,
+    },
   };
 }
 
@@ -10761,7 +10910,7 @@ async function startSession() {
   startSentenceDrillItems(items, "random");
 }
 
-async function startSavedSentenceSession() {
+async function startSavedSentenceSession({ allLevels = false } = {}) {
   if (state.isLoadingSentences) {
     return;
   }
@@ -10783,7 +10932,8 @@ async function startSavedSentenceSession() {
 
   state.isLoadingSentences = false;
   const savedIds = loadSavedSentenceIds();
-  const items = shuffle(getSavedSentenceItems(SENTENCES, savedIds, state.selectedLevels))
+  const levels = allLevels ? new Set() : state.selectedLevels;
+  const items = shuffle(getSavedSentenceItems(SENTENCES, savedIds, levels))
     .slice(0, SESSION_LENGTH);
   if (!items.length) {
     render();

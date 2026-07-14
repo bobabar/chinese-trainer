@@ -338,6 +338,9 @@ const MAP_QUIZ_MODES = {
   },
 };
 const DEFAULT_MAP_QUIZ_MODE = "province";
+const GLOBAL_SEARCH_RECENTS_KEY = "chineseTrainerSearchRecents";
+const GLOBAL_SEARCH_RESULT_LIMIT = 5;
+const GLOBAL_SEARCH_RECENT_LIMIT = 6;
 const loadedScripts = new Map();
 let sentenceDataPromise = null;
 let sentenceDataLoaded = false;
@@ -353,6 +356,10 @@ let pwaRegistration = null;
 let pwaOfflineReady = false;
 let pwaUpdateRequested = false;
 let pwaReloading = false;
+let globalSearchDataLoading = false;
+let globalSearchActiveIndex = 0;
+let globalSearchFlatResults = [];
+let globalSearchRestoreFocus = null;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const sentencePinyinSearchCache = new Map();
@@ -483,9 +490,26 @@ const pwaAccess = document.querySelector("#pwaAccess");
 const pwaStatus = document.querySelector("#pwaStatus");
 const installAppButton = document.querySelector("#installApp");
 const refreshAppButton = document.querySelector("#refreshApp");
+const globalSearchTrigger = document.querySelector("#globalSearchTrigger");
+const globalSearchDialog = document.querySelector("#globalSearchDialog");
+const globalSearchInput = document.querySelector("#globalSearchInput");
+const globalSearchResults = document.querySelector("#globalSearchResults");
+const globalSearchClose = document.querySelector("#globalSearchClose");
 
 function init() {
-  if (!app || !levelOptions || !voiceSpeed || !vocabularyOrder || !vocabularyHideTranslations || !pronunciationShowPinyin) {
+  if (
+    !app ||
+    !levelOptions ||
+    !voiceSpeed ||
+    !vocabularyOrder ||
+    !vocabularyHideTranslations ||
+    !pronunciationShowPinyin ||
+    !globalSearchTrigger ||
+    !globalSearchDialog ||
+    !globalSearchInput ||
+    !globalSearchResults ||
+    !globalSearchClose
+  ) {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
 
@@ -493,6 +517,7 @@ function init() {
   renderLevelOptions();
   syncVocabularyOptionControls();
   bindTopLevelControls();
+  bindGlobalSearch();
   bindGlossTooltipAlignment();
   bindPwaLifecycle();
   loadVoices();
@@ -709,6 +734,519 @@ function bindTopLevelControls() {
     saveSettings();
     render();
   });
+}
+
+function bindGlobalSearch() {
+  const shortcut = globalSearchTrigger.querySelector(".global-search-trigger-shortcut");
+  if (shortcut) {
+    const isApplePlatform = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+    shortcut.textContent = isApplePlatform ? "⌘K" : "Ctrl K";
+  }
+
+  globalSearchTrigger.addEventListener("click", openGlobalSearch);
+  globalSearchClose.addEventListener("click", closeGlobalSearch);
+  document.addEventListener("keydown", handleGlobalSearchShortcut);
+
+  globalSearchInput.addEventListener("input", () => {
+    globalSearchActiveIndex = 0;
+    renderGlobalSearchResults();
+  });
+  globalSearchInput.addEventListener("keydown", handleGlobalSearchNavigation);
+  globalSearchResults.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-global-search-index]");
+    if (!button) {
+      return;
+    }
+    const result = globalSearchFlatResults[Number(button.dataset.globalSearchIndex)];
+    if (result) {
+      activateGlobalSearchResult(result);
+    }
+  });
+  globalSearchResults.addEventListener("pointermove", (event) => {
+    const button = event.target.closest?.("[data-global-search-index]");
+    if (!button) {
+      return;
+    }
+    const nextIndex = Number(button.dataset.globalSearchIndex);
+    if (Number.isInteger(nextIndex) && nextIndex !== globalSearchActiveIndex) {
+      globalSearchActiveIndex = nextIndex;
+      syncGlobalSearchActiveResult();
+    }
+  });
+  globalSearchDialog.addEventListener("click", (event) => {
+    if (event.target === globalSearchDialog) {
+      closeGlobalSearch();
+    }
+  });
+  globalSearchDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeGlobalSearch();
+  });
+  globalSearchDialog.addEventListener("close", () => {
+    document.body.classList.remove("global-search-open");
+    globalSearchDialog.removeAttribute("aria-busy");
+    const restoreFocus = globalSearchRestoreFocus;
+    globalSearchRestoreFocus = null;
+    restoreFocus?.focus?.();
+  });
+}
+
+function handleGlobalSearchShortcut(event) {
+  if (
+    event.isComposing ||
+    event.altKey ||
+    !(event.metaKey || event.ctrlKey) ||
+    event.key.toLowerCase() !== "k"
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  if (globalSearchDialog.open) {
+    globalSearchInput.focus();
+    globalSearchInput.select();
+    return;
+  }
+  openGlobalSearch();
+}
+
+function openGlobalSearch() {
+  globalSearchRestoreFocus = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : globalSearchTrigger;
+  globalSearchInput.value = "";
+  globalSearchActiveIndex = 0;
+  renderGlobalSearchResults();
+  document.body.classList.add("global-search-open");
+
+  try {
+    globalSearchDialog.showModal();
+  } catch {
+    globalSearchDialog.setAttribute("open", "");
+  }
+  window.requestAnimationFrame?.(() => globalSearchInput.focus());
+
+  if (sentenceDataLoaded && wordDataLoaded) {
+    return;
+  }
+  globalSearchDataLoading = true;
+  globalSearchDialog.setAttribute("aria-busy", "true");
+  renderGlobalSearchResults();
+  Promise.allSettled([ensureSentenceData(), ensureWordData()]).then(() => {
+    globalSearchDataLoading = false;
+    globalSearchDialog.removeAttribute("aria-busy");
+    if (globalSearchDialog.open) {
+      renderGlobalSearchResults();
+    }
+  });
+}
+
+function closeGlobalSearch() {
+  if (globalSearchDialog.open && typeof globalSearchDialog.close === "function") {
+    globalSearchDialog.close();
+    return;
+  }
+  globalSearchDialog.removeAttribute("open");
+  document.body.classList.remove("global-search-open");
+  const restoreFocus = globalSearchRestoreFocus;
+  globalSearchRestoreFocus = null;
+  restoreFocus?.focus?.();
+}
+
+function handleGlobalSearchNavigation(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeGlobalSearch();
+    return;
+  }
+  if (!globalSearchFlatResults.length) {
+    return;
+  }
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    globalSearchActiveIndex = (
+      globalSearchActiveIndex + direction + globalSearchFlatResults.length
+    ) % globalSearchFlatResults.length;
+    syncGlobalSearchActiveResult({ scroll: true });
+    return;
+  }
+  if (event.key === "Home" || event.key === "End") {
+    event.preventDefault();
+    globalSearchActiveIndex = event.key === "Home" ? 0 : globalSearchFlatResults.length - 1;
+    syncGlobalSearchActiveResult({ scroll: true });
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const result = globalSearchFlatResults[globalSearchActiveIndex];
+    if (result) {
+      activateGlobalSearchResult(result);
+    }
+  }
+}
+
+function renderGlobalSearchResults() {
+  const query = globalSearchInput.value.trim();
+  const groups = query
+    ? getGlobalSearchResults(query)
+    : [{ id: "recent", label: "Recent", results: getRecentGlobalSearchResults() }];
+  globalSearchFlatResults = groups.flatMap((group) => group.results);
+  if (globalSearchActiveIndex >= globalSearchFlatResults.length) {
+    globalSearchActiveIndex = Math.max(0, globalSearchFlatResults.length - 1);
+  }
+
+  if (!globalSearchFlatResults.length) {
+    const loading = globalSearchDataLoading && query;
+    globalSearchResults.innerHTML = `
+      <div class="global-search-empty" role="status">
+        ${loading ? `<span class="global-search-loader" aria-hidden="true"></span>` : searchIconMarkup()}
+        <strong>${loading ? "Searching your library" : query ? "No matching study material" : "Your learning library"}</strong>
+        <span>${loading ? "Loading local sentence resources…" : query ? "Try another Chinese word, pinyin, or English phrase." : "Search vocabulary, grammar, and example sentences."}</span>
+      </div>
+    `;
+    globalSearchInput.removeAttribute("aria-activedescendant");
+    return;
+  }
+
+  let resultIndex = 0;
+  globalSearchResults.innerHTML = groups
+    .filter((group) => group.results.length)
+    .map((group) => `
+      <section class="global-search-group" aria-labelledby="global-search-group-${escapeHtml(group.id)}">
+        <div class="global-search-group-heading" id="global-search-group-${escapeHtml(group.id)}">
+          <span>${escapeHtml(group.label)}</span>
+          <small>${group.results.length}</small>
+        </div>
+        <div class="global-search-list">
+          ${group.results.map((result) => {
+            const currentIndex = resultIndex;
+            resultIndex += 1;
+            return buildGlobalSearchResultMarkup(result, currentIndex);
+          }).join("")}
+        </div>
+      </section>
+    `).join("");
+  syncGlobalSearchActiveResult();
+}
+
+function buildGlobalSearchResultMarkup(result, index) {
+  const selected = index === globalSearchActiveIndex;
+  const typeIcon = result.type === "vocabulary"
+    ? `<span class="global-search-result-character chinese-text" lang="zh-CN">${escapeHtml(result.item.zh.slice(0, 1))}</span>`
+    : result.type === "grammar"
+      ? grammarSearchIconMarkup()
+      : sentenceSearchIconMarkup();
+  const title = result.type === "vocabulary"
+    ? `<span class="chinese-text global-search-result-hanzi" lang="zh-CN">${escapeHtml(result.item.zh)}</span>`
+    : result.type === "sentence"
+      ? `<span class="chinese-text global-search-result-hanzi" lang="zh-CN">${escapeHtml(result.item.zh)}</span>`
+    : escapeHtml(result.title);
+  const secondary = result.type === "vocabulary"
+    ? `<span class="global-search-result-pinyin">${buildToneColoredPinyinMarkup(result.item.pinyin || result.item.numeric || "")}</span>`
+    : result.type === "grammar"
+      ? `<span class="chinese-text" lang="zh-CN">${escapeHtml(result.item.pattern)}</span>`
+      : "";
+
+  return `
+    <button
+      class="global-search-result ${selected ? "active" : ""}"
+      type="button"
+      role="option"
+      id="global-search-result-${index}"
+      data-global-search-index="${index}"
+      aria-selected="${selected}">
+      <span class="global-search-result-icon" aria-hidden="true">${typeIcon}</span>
+      <span class="global-search-result-copy">
+        <span class="global-search-result-title">${title}${secondary}</span>
+        <span class="global-search-result-detail">${escapeHtml(result.detail)}</span>
+      </span>
+      <span class="global-search-result-meta">${escapeHtml(result.meta)}</span>
+      <svg class="button-icon global-search-result-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="m9 18 6-6-6-6"></path>
+      </svg>
+    </button>
+  `;
+}
+
+function syncGlobalSearchActiveResult({ scroll = false } = {}) {
+  globalSearchResults.querySelectorAll("[data-global-search-index]").forEach((button) => {
+    const selected = Number(button.dataset.globalSearchIndex) === globalSearchActiveIndex;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
+  const active = globalSearchResults.querySelector(`[data-global-search-index="${globalSearchActiveIndex}"]`);
+  if (!active) {
+    globalSearchInput.removeAttribute("aria-activedescendant");
+    return;
+  }
+  globalSearchInput.setAttribute("aria-activedescendant", active.id);
+  if (scroll) {
+    active.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function getGlobalSearchResults(query, {
+  vocabulary = getAllVocabularyReviewItems(),
+  grammar = GRAMMAR_LESSONS,
+  sentences = SENTENCES,
+  limit = GLOBAL_SEARCH_RESULT_LIMIT,
+} = {}) {
+  const trimmedQuery = String(query || "").trim();
+  const normalizedQuery = normalizeGlobalSearchText(trimmedQuery);
+  if (!trimmedQuery || (!containsChinese(trimmedQuery) && normalizedQuery.length < 2)) {
+    return [
+      { id: "vocabulary", label: "Vocabulary", results: [] },
+      { id: "grammar", label: "Grammar", results: [] },
+      { id: "sentences", label: "Sentences", results: [] },
+    ];
+  }
+
+  const vocabularyResults = rankGlobalSearchItems(vocabulary, (item) => scoreGlobalSearchItem(trimmedQuery, {
+    text: [item.zh, ...(item.meanings || [])],
+    pinyin: [item.pinyin, item.numeric, ...(item.pinyinAlternates || []), ...(item.numericAlternates || [])],
+  }))
+    .slice(0, limit)
+    .map(({ item }) => {
+      const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
+      return {
+        type: "vocabulary",
+        key: reviewItemKey(item),
+        title: item.zh,
+        detail: formatVocabularyMeanings(item),
+        meta: `${meta.levelLabel} · ${meta.partLabel}`,
+        item,
+      };
+    });
+  const grammarResults = rankGlobalSearchItems(grammar, (lesson) => scoreGlobalSearchItem(trimmedQuery, {
+    text: [
+      lesson.title,
+      lesson.category,
+      lesson.pattern,
+      lesson.summary,
+      lesson.structure,
+      lesson.note,
+      ...(lesson.examples || []).flatMap((example) => [example.zh, example.en]),
+    ],
+    pinyin: (lesson.examples || []).map((example) => example.pinyin),
+  }))
+    .slice(0, limit)
+    .map(({ item }) => ({
+      type: "grammar",
+      key: item.id,
+      title: item.title,
+      detail: item.summary,
+      meta: `HSK ${item.level} · ${item.category}`,
+      item,
+    }));
+  const sentenceResults = rankGlobalSearchItems(sentences, (item) => scoreGlobalSearchItem(trimmedQuery, {
+    text: [item.zh, item.en],
+    pinyin: [getSentenceSearchPinyin(item)],
+  }))
+    .slice(0, limit)
+    .map(({ item }) => ({
+      type: "sentence",
+      key: sentenceItemKey(item),
+      title: item.en,
+      detail: item.en,
+      meta: selectedLevelLabel(item.level),
+      item,
+    }));
+
+  return [
+    { id: "vocabulary", label: "Vocabulary", results: vocabularyResults },
+    { id: "grammar", label: "Grammar", results: grammarResults },
+    { id: "sentences", label: "Sentences", results: sentenceResults },
+  ];
+}
+
+function rankGlobalSearchItems(items, getScore) {
+  return (items || [])
+    .map((item, sourceIndex) => ({ item, sourceIndex, score: getScore(item) }))
+    .filter((match) => Number.isFinite(match.score))
+    .sort((a, b) => a.score - b.score || a.sourceIndex - b.sourceIndex);
+}
+
+function scoreGlobalSearchItem(query, { text = [], pinyin = [] } = {}) {
+  const normalizedQuery = normalizeGlobalSearchText(query);
+  const normalizedPinyinQuery = compactPinyin(
+    stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(query)),
+  );
+  let bestScore = Infinity;
+  text.filter(Boolean).forEach((value) => {
+    bestScore = Math.min(bestScore, scoreGlobalSearchValue(normalizedQuery, normalizeGlobalSearchText(value)));
+  });
+  if (normalizedPinyinQuery) {
+    pinyin.filter(Boolean).forEach((value) => {
+      const normalizedValue = compactPinyin(
+        stripPinyinToneAndUmlautMarks(normalizePinyinForCompare(value)),
+      );
+      bestScore = Math.min(bestScore, scoreGlobalSearchValue(normalizedPinyinQuery, normalizedValue) + 1);
+    });
+  }
+  return bestScore;
+}
+
+function scoreGlobalSearchValue(query, value) {
+  if (!query || !value) {
+    return Infinity;
+  }
+  if (value === query) {
+    return 0;
+  }
+  if (value.startsWith(query)) {
+    return 10;
+  }
+  if (value.split(/\s+/).some((part) => part.startsWith(query))) {
+    return 14;
+  }
+  if (value.includes(query)) {
+    return 20;
+  }
+  return Infinity;
+}
+
+function normalizeGlobalSearchText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[’‘`]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getRecentGlobalSearchResults() {
+  let references = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GLOBAL_SEARCH_RECENTS_KEY) || "[]");
+    references = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    references = [];
+  }
+  return references
+    .map(resolveGlobalSearchReference)
+    .filter(Boolean)
+    .slice(0, GLOBAL_SEARCH_RECENT_LIMIT);
+}
+
+function resolveGlobalSearchReference(reference) {
+  if (reference?.type === "vocabulary") {
+    const item = getAllVocabularyReviewItems().find((candidate) => reviewItemKey(candidate) === reference.key);
+    if (!item) return null;
+    const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
+    return {
+      type: "vocabulary",
+      key: reference.key,
+      title: item.zh,
+      detail: formatVocabularyMeanings(item),
+      meta: `${meta.levelLabel} · ${meta.partLabel}`,
+      item,
+    };
+  }
+  if (reference?.type === "grammar") {
+    const item = getGrammarLessonById(reference.key);
+    return item ? {
+      type: "grammar",
+      key: reference.key,
+      title: item.title,
+      detail: item.summary,
+      meta: `HSK ${item.level} · ${item.category}`,
+      item,
+    } : null;
+  }
+  if (reference?.type === "sentence") {
+    const item = SENTENCES.find((candidate) => sentenceItemKey(candidate) === reference.key);
+    return item ? {
+      type: "sentence",
+      key: reference.key,
+      title: item.en,
+      detail: item.en,
+      meta: selectedLevelLabel(item.level),
+      item,
+    } : null;
+  }
+  return null;
+}
+
+function rememberGlobalSearchResult(result) {
+  const nextReference = { type: result.type, key: result.key };
+  let references = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GLOBAL_SEARCH_RECENTS_KEY) || "[]");
+    references = Array.isArray(parsed) ? parsed : [];
+    const next = [
+      nextReference,
+      ...references.filter((reference) => reference?.type !== result.type || reference?.key !== result.key),
+    ].slice(0, GLOBAL_SEARCH_RECENT_LIMIT);
+    localStorage.setItem(GLOBAL_SEARCH_RECENTS_KEY, JSON.stringify(next));
+  } catch {
+    // Recent searches are a convenience; search remains available without storage.
+  }
+}
+
+function activateGlobalSearchResult(result) {
+  if (state.session && !window.confirm("Open this result and end the current session?")) {
+    return;
+  }
+  rememberGlobalSearchResult(result);
+  stopPronunciationRecognition();
+  stopSpeech();
+  const shouldRefreshCurrentView = Boolean(state.session || state.result);
+  state.session = null;
+  state.result = null;
+  state.planSetupOpen = false;
+  state.dataError = "";
+  closeGlobalSearch();
+
+  if (result.type === "vocabulary") {
+    if (shouldRefreshCurrentView) {
+      render();
+    }
+    openVocabularyDetail(result.item, globalSearchTrigger);
+    return;
+  }
+  if (result.type === "grammar") {
+    state.tool = "grammar";
+    state.grammarLevel = result.item.level;
+    state.grammarLessonId = result.item.id;
+  } else if (result.type === "sentence") {
+    state.tool = "drill";
+    state.drillView = "library";
+    state.sentenceLibraryQuery = result.item.zh;
+    state.sentenceLibraryVisibleCount = SENTENCE_LIBRARY_PAGE_SIZE;
+    state.selectedLevels.add(result.item.level);
+  }
+  saveSettings();
+  render();
+  window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+}
+
+function searchIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m20 20-4-4"></path>
+    </svg>
+  `;
+}
+
+function grammarSearchIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H7a3 3 0 0 0-3 3V5.5z"></path>
+      <path d="M8 8h8M8 12h5"></path>
+    </svg>
+  `;
+}
+
+function sentenceSearchIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 4h14v13H9l-4 4V4z"></path>
+      <path d="M9 8h6M9 12h4"></path>
+    </svg>
+  `;
 }
 
 function bindPwaLifecycle() {

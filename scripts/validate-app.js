@@ -184,6 +184,7 @@ window.__tests = {
   getHistorySkillStats,
   getGrammarLessonProgress,
   getGrammarQuestionPool,
+  getGlobalSearchResults,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
   getPracticeStreakDays,
@@ -234,6 +235,7 @@ window.__tests = {
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
+  normalizeGlobalSearchText,
   normalizeLearningBackup,
   normalizePinyinForCompare,
   parsePinyinSyllable,
@@ -341,6 +343,7 @@ const {
   getHistorySkillStats,
   getGrammarLessonProgress,
   getGrammarQuestionPool,
+  getGlobalSearchResults,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
   getPracticeStreakDays,
@@ -391,6 +394,7 @@ const {
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
+  normalizeGlobalSearchText,
   normalizeLearningBackup,
   normalizePinyinForCompare,
   parsePinyinSyllable,
@@ -521,6 +525,51 @@ const sentenceLibraryFixtures = [
   },
 ];
 const allSentenceLevels = new Set(["beginner", "intermediate", "advanced"]);
+const globalSearchFixtureResults = (query, options = {}) => Object.fromEntries(
+  getGlobalSearchResults(query, {
+    sentences: sentenceLibraryFixtures,
+    ...options,
+  }).map((group) => [group.id, group.results]),
+);
+assert(
+  globalSearchFixtureResults("爱").vocabulary[0].item.zh === "爱",
+  "global search should prioritize an exact Chinese vocabulary match",
+);
+assert(
+  globalSearchFixtureResults("nü").vocabulary[0].item.zh === "女",
+  "global search should match tone-insensitive pinyin and accept an umlaut",
+);
+assert(
+  globalSearchFixtureResults("love").vocabulary.some((result) => result.item.zh === "爱"),
+  "global search should find vocabulary by English meaning",
+);
+assert(
+  globalSearchFixtureResults("comparison").grammar[0].item.id === "hsk1-bi",
+  "global search should find grammar by its English category",
+);
+assert(
+  globalSearchFixtureResults("wo ai ni").sentences[0].item.id === "library-love",
+  "global search should find sentences with tone-insensitive pinyin",
+);
+assert(
+  globalSearchFixtureResults("the", { limit: 2 }).sentences.length <= 2,
+  "global search should cap each result group",
+);
+assert(normalizeGlobalSearchText("  NǏ   HǍO  ") === "nǐ hǎo", "global search text normalization should preserve marked pinyin while normalizing spacing");
+assert(
+  indexSource.includes('id="globalSearchTrigger"') && indexSource.includes('id="globalSearchDialog"'),
+  "the app shell should expose a global learning search",
+);
+assert(
+  appSource.includes('event.key.toLowerCase() !== "k"') &&
+    appSource.includes('event.key === "Escape"') &&
+    appSource.includes("activateGlobalSearchResult"),
+  "global search should support keyboard entry, dismissal, and real study destinations",
+);
+assert(
+  stylesSource.includes(".global-search-result") && stylesSource.includes(".global-search-dialog"),
+  "global search should include dedicated responsive command-palette styling",
+);
 assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "love", levels: allSentenceLevels })[0].id === "library-love", "sentence library should search English translations");
 assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "每天", levels: allSentenceLevels })[0].id === "library-running", "sentence library should search Chinese text");
 assert(filterSentenceLibraryItems(sentenceLibraryFixtures, { query: "wo ai ni", levels: allSentenceLevels })[0].id === "library-love", "sentence library should search tone-insensitive pinyin");

@@ -124,6 +124,7 @@ window.__tests = {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildHskRoadmapMarkup,
   buildGrammarPromptMarkup,
   buildGrammarSessionItems,
   buildLearningBackup,
@@ -171,6 +172,8 @@ window.__tests = {
   getHistorySkillStats,
   getGrammarLessonProgress,
   getGrammarQuestionPool,
+  getHskRoadmapData,
+  getHskRoadmapRecommendation,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -265,6 +268,7 @@ const {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildHskRoadmapMarkup,
   buildGrammarPromptMarkup,
   buildGrammarSessionItems,
   buildLearningBackup,
@@ -312,6 +316,8 @@ const {
   getHistorySkillStats,
   getGrammarLessonProgress,
   getGrammarQuestionPool,
+  getHskRoadmapData,
+  getHskRoadmapRecommendation,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -564,7 +570,7 @@ assert(
 localStorageEntries.delete("chineseTrainerHistory");
 const backupStorageSnapshot = new Map(localStorageEntries);
 const backupTimestamp = Date.UTC(2026, 6, 15, 8, 30, 0);
-localStorageEntries.set("chineseTrainerSettings", JSON.stringify({ mode: "writing", voiceSpeed: "slow" }));
+localStorageEntries.set("chineseTrainerSettings", JSON.stringify({ mode: "writing", voiceSpeed: "slow", studyTargetLevel: 2 }));
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "backup-drill", type: "drill", mode: "reading" },
 ]));
@@ -580,10 +586,11 @@ assert(
 );
 assert(
   learningBackup.data.history[0].id === "backup-drill" &&
+    learningBackup.data.settings.studyTargetLevel === 2 &&
     learningBackup.data.reviewProgress["爱::ài"].stage === 2 &&
     learningBackup.data.savedVocabulary[0] === "爱::ài" &&
     learningBackup.data.savedSentences[0] === "library-love",
-  "learning backups should include history, review scheduling, saved words, and saved sentences",
+  "learning backups should include the study target, history, review scheduling, saved words, and saved sentences",
 );
 const normalizedBackup = normalizeLearningBackup({
   ...learningBackup,
@@ -759,6 +766,72 @@ assert(dueFocus.tool === "review" && dueFocus.title.includes("3 vocabulary words
 const dashboardData = getDashboardData(dashboardNow, dashboardHistory);
 assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "grammar", "Today should continue with the first incomplete adaptive activity");
 assert(stylesSource.includes(".dashboard-week-chart") && stylesSource.includes("body[data-tool=\"dashboard\"] .tool-controls"), "Today should have responsive dashboard styling and hide irrelevant global controls");
+const emptyHsk1Roadmap = getHskRoadmapData(1, {
+  history: [],
+  progress: {},
+  now: dashboardNow,
+});
+assert(emptyHsk1Roadmap.vocabularyLevel.totals.total === hsk1VocabularyWords.length, "HSK 1 roadmap should measure only the HSK 1 vocabulary curriculum");
+assert(emptyHsk1Roadmap.lessons.length === 8 && emptyHsk1Roadmap.grammarStrong === 0, "HSK 1 roadmap should include the level's eight grammar patterns");
+assert(emptyHsk1Roadmap.recommendation.type === "review-set" && emptyHsk1Roadmap.recommendation.setId === firstPathSet.id, "a new learner's roadmap should begin with the first vocabulary part");
+const introducedRoadmapProgress = Object.fromEntries(
+  firstPathItems.slice(0, REVIEW_SESSION_LENGTH).map((item) => [
+    reviewItemKey(item),
+    { stage: 1, dueAt: dashboardNow + dashboardDay, attempts: 1, correct: 1 },
+  ]),
+);
+const introducedHsk1Roadmap = getHskRoadmapData(1, {
+  history: [],
+  progress: introducedRoadmapProgress,
+  now: dashboardNow,
+});
+assert(introducedHsk1Roadmap.recommendation.type === "grammar-lesson", "the roadmap should introduce grammar after the learner establishes vocabulary coverage");
+const dueHsk1Roadmap = getHskRoadmapData(1, {
+  history: [],
+  progress: pathProgressFixture,
+  now: reviewNow,
+});
+assert(dueHsk1Roadmap.recommendation.type === "review-set" && dueHsk1Roadmap.recommendation.detail.includes("due"), "due vocabulary should override other roadmap recommendations");
+const benchmarkRoadmap = getHskRoadmapData(1, {
+  history: [
+    { type: "vocabulary", setId: firstPathSet.id, quizMode: "pinyin", highScoreEligible: true },
+    { type: "vocabulary", setId: firstPathSet.id, quizMode: "meaning", highScoreEligible: true },
+    { type: "vocabulary", setId: hsk2VocabularySets[0].id, quizMode: "pinyin", highScoreEligible: true },
+  ],
+  progress: {},
+  now: dashboardNow,
+});
+assert(benchmarkRoadmap.passedBenchmarks.size === 2, "roadmap benchmarks should track Pinyin and Audio separately while excluding other HSK levels");
+const benchmarkReadyProgress = Object.fromEntries(
+  firstPathItems.map((item) => [
+    reviewItemKey(item),
+    { stage: 1, dueAt: dashboardNow + dashboardDay, attempts: 1, correct: 1 },
+  ]),
+);
+const benchmarkReadyHistory = GRAMMAR_LESSONS
+  .filter((lesson) => lesson.level === 1)
+  .map((lesson, index) => ({
+    type: "grammar",
+    completedAt: new Date(dashboardNow - index).toISOString(),
+    answers: [{ lessonId: lesson.id, correct: false }],
+  }));
+const benchmarkReadyRoadmap = getHskRoadmapData(1, {
+  history: benchmarkReadyHistory,
+  progress: benchmarkReadyProgress,
+  now: dashboardNow,
+});
+assert(
+  benchmarkReadyRoadmap.recommendation.type === "quiz-set" &&
+    benchmarkReadyRoadmap.recommendation.setId === firstPathSet.id &&
+    benchmarkReadyRoadmap.recommendation.quizMode === "pinyin",
+  "a fully introduced part should unlock its first missing timed benchmark once grammar practice is balanced",
+);
+const emptyHsk2Roadmap = getHskRoadmapData(2, { history: [], progress: {}, now: dashboardNow });
+assert(emptyHsk2Roadmap.vocabularyLevel.totals.total === hsk2VocabularyWords.length && emptyHsk2Roadmap.level === 2, "HSK 2 roadmap should remain separate from HSK 1 progress");
+const roadmapMarkup = buildHskRoadmapMarkup(introducedHsk1Roadmap);
+assert(roadmapMarkup.includes("HSK mastery roadmap") && roadmapMarkup.includes('data-roadmap-level="2"'), "Today should expose the mastery roadmap and target-level switcher");
+assert(roadmapMarkup.includes('role="progressbar"') && roadmapMarkup.includes('id="continueHskRoadmap"'), "roadmap progress and continuation should be accessible and actionable");
+assert(stylesSource.includes(".dashboard-roadmap-milestone") && stylesSource.includes(".dashboard-roadmap-levels"), "the HSK roadmap should include dedicated responsive styling");
 assert(GRAMMAR_SESSION_LENGTH === 10, "mixed grammar practice should use a focused ten-question session");
 assert(GRAMMAR_LESSONS.length === 16, "Grammar Lab should provide sixteen core HSK 1 and 2 pattern lessons");
 assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 1).length === 8, "Grammar Lab should provide eight HSK 1 patterns");

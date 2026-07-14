@@ -395,6 +395,7 @@ const state = {
   vocabularyLibraryLevel: "all",
   vocabularyLibraryStatus: "all",
   vocabularyLibraryVisibleCount: VOCABULARY_LIBRARY_PAGE_SIZE,
+  studyTargetLevel: 1,
   grammarLevel: 1,
   grammarLessonId: "",
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
@@ -472,6 +473,9 @@ function loadSettings() {
     if ([1, 2].includes(Number(saved.grammarLevel))) {
       state.grammarLevel = Number(saved.grammarLevel);
     }
+    state.studyTargetLevel = [1, 2].includes(Number(saved.studyTargetLevel))
+      ? Number(saved.studyTargetLevel)
+      : state.grammarLevel;
     if (saved.grammarLessonId && GRAMMAR_LESSONS.some((lesson) => lesson.id === saved.grammarLessonId)) {
       state.grammarLessonId = saved.grammarLessonId;
     }
@@ -524,6 +528,7 @@ function saveSettings() {
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
+        studyTargetLevel: state.studyTargetLevel,
         grammarLevel: state.grammarLevel,
         grammarLessonId: state.grammarLessonId,
         mapQuizMode: state.mapQuizMode,
@@ -1265,6 +1270,7 @@ function uploadIconMarkup() {
 
 function renderDashboardHome() {
   const dashboard = getDashboardData();
+  const roadmap = getHskRoadmapData(state.studyTargetLevel);
   const nextActivity = dashboard.nextActivity;
   const goalComplete = dashboard.completedCount >= DASHBOARD_DAILY_GOAL;
   const goalAngle = Math.round(dashboard.goalProgress * 3.6);
@@ -1365,6 +1371,8 @@ function renderDashboardHome() {
         </section>
       </div>
 
+      ${buildHskRoadmapMarkup(roadmap)}
+
       <section class="dashboard-week" aria-labelledby="dashboardWeekHeading">
         <div class="dashboard-section-heading">
           <div>
@@ -1382,6 +1390,26 @@ function renderDashboardHome() {
     button.addEventListener("click", () => {
       launchDashboardActivity(button.dataset.dashboardStart, button.dataset.dashboardMode || "");
     });
+  });
+  document.querySelectorAll("[data-roadmap-level]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const level = Number(button.dataset.roadmapLevel);
+      if (![1, 2].includes(level) || level === state.studyTargetLevel) {
+        return;
+      }
+      state.studyTargetLevel = level;
+      state.grammarLevel = level;
+      state.grammarLessonId = "";
+      const firstTargetSet = VOCABULARY_QUIZ_SETS.find((set) => Number(getVocabularySetMeta(set).levelNumber) === level);
+      if (firstTargetSet) {
+        state.vocabularySetId = firstTargetSet.id;
+      }
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelector("#continueHskRoadmap")?.addEventListener("click", () => {
+    launchHskRoadmapAction(roadmap.recommendation);
   });
 }
 
@@ -1406,6 +1434,297 @@ function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
     pronunciationAccuracy: getDashboardPronunciationAccuracy(history),
     focus: getDashboardFocusInsight(history, review),
   };
+}
+
+function getHskRoadmapData(
+  level = state.studyTargetLevel,
+  {
+    history = loadHistoryRecords(),
+    progress = ensureReviewProgress(),
+    now = Date.now(),
+    sets = VOCABULARY_QUIZ_SETS,
+  } = {},
+) {
+  const targetLevel = [1, 2].includes(Number(level)) ? Number(level) : 1;
+  const vocabularyPath = getVocabularyPathData(progress, now, sets);
+  const vocabularyLevel = vocabularyPath.levels.find((item) => Number(item.levelNumber) === targetLevel) || {
+    label: `HSK ${targetLevel}`,
+    levelNumber: String(targetLevel),
+    parts: [],
+    totals: createVocabularyPathCounts(),
+  };
+  const targetSetIds = new Set(vocabularyLevel.parts.map((part) => part.set.id));
+  const lessons = GRAMMAR_LESSONS
+    .filter((lesson) => lesson.level === targetLevel)
+    .map((lesson) => ({
+      ...lesson,
+      progress: getGrammarLessonProgress(history, lesson.id),
+    }));
+  const benchmarkModes = Object.keys(VOCABULARY_MODES);
+  const passedBenchmarks = new Set(
+    history
+      .filter((record) =>
+        record.type === "vocabulary" &&
+        targetSetIds.has(record.setId) &&
+        benchmarkModes.includes(record.quizMode) &&
+        record.highScoreEligible,
+      )
+      .map((record) => `${record.setId}:${record.quizMode}`),
+  );
+  const grammarStarted = lessons.filter((lesson) => lesson.progress.attempts).length;
+  const grammarStrong = lessons.filter((lesson) => lesson.progress.status === "Strong").length;
+  const benchmarkTotal = vocabularyLevel.parts.length * benchmarkModes.length;
+  const milestones = [
+    {
+      id: "coverage",
+      label: "Vocabulary coverage",
+      current: vocabularyLevel.totals.introduced,
+      total: vocabularyLevel.totals.total,
+      detail: `${vocabularyLevel.totals.introduced} of ${vocabularyLevel.totals.total} words introduced`,
+    },
+    {
+      id: "retention",
+      label: "Strong vocabulary",
+      current: vocabularyLevel.totals.strong,
+      total: vocabularyLevel.totals.total,
+      detail: `${vocabularyLevel.totals.strong} words retained through spaced review`,
+    },
+    {
+      id: "grammar",
+      label: "Grammar patterns",
+      current: grammarStrong,
+      total: lessons.length,
+      detail: `${grammarStrong} of ${lessons.length} core patterns strong`,
+    },
+    {
+      id: "benchmarks",
+      label: "Quiz benchmarks",
+      current: passedBenchmarks.size,
+      total: benchmarkTotal,
+      detail: `${passedBenchmarks.size} of ${benchmarkTotal} Pinyin and Audio benchmarks passed`,
+    },
+  ].map((milestone) => ({
+    ...milestone,
+    percent: getHskRoadmapPercent(milestone.current, milestone.total),
+    status: getHskRoadmapMilestoneStatus(milestone.current, milestone.total),
+  }));
+  const roadmap = {
+    level: targetLevel,
+    levelLabel: vocabularyLevel.label,
+    vocabularyLevel,
+    lessons,
+    grammarStarted,
+    grammarStrong,
+    benchmarkModes,
+    passedBenchmarks,
+    milestones,
+    overallPercent: milestones.length
+      ? Math.round(milestones.reduce((sum, milestone) => sum + milestone.percent, 0) / milestones.length)
+      : 0,
+  };
+  roadmap.recommendation = getHskRoadmapRecommendation(roadmap);
+  return roadmap;
+}
+
+function getHskRoadmapPercent(current, total) {
+  return total > 0 ? Math.min(100, Math.round((Math.max(0, current) / total) * 100)) : 0;
+}
+
+function getHskRoadmapMilestoneStatus(current, total) {
+  if (total > 0 && current >= total) {
+    return "Complete";
+  }
+  return current > 0 ? "In progress" : "Not started";
+}
+
+function getHskRoadmapRecommendation(roadmap) {
+  const parts = roadmap.vocabularyLevel.parts;
+  const duePart = parts.find((part) => part.counts.due > 0);
+  if (duePart) {
+    return {
+      type: "review-set",
+      setId: duePart.set.id,
+      label: "Review due vocabulary",
+      detail: `${duePart.counts.due} due in ${roadmap.levelLabel} · ${duePart.meta.partLabel}`,
+    };
+  }
+
+  const vocabularyTotals = roadmap.vocabularyLevel.totals;
+  const vocabularyPart = parts.find((part) => part.counts.learning > 0) ||
+    parts.find((part) => part.counts.new > 0) ||
+    parts[0];
+  if (!vocabularyTotals.introduced && vocabularyPart) {
+    return {
+      type: "review-set",
+      setId: vocabularyPart.set.id,
+      label: `Begin ${roadmap.levelLabel} vocabulary`,
+      detail: `${vocabularyPart.meta.partLabel} · first 12 words`,
+    };
+  }
+
+  const nextGrammarLesson = roadmap.lessons.find((lesson) => lesson.progress.status !== "Strong");
+  const coverageRatio = vocabularyTotals.total ? vocabularyTotals.introduced / vocabularyTotals.total : 0;
+  const grammarPracticeRatio = roadmap.lessons.length ? roadmap.grammarStarted / roadmap.lessons.length : 1;
+  if (nextGrammarLesson && grammarPracticeRatio <= coverageRatio) {
+    return {
+      type: "grammar-lesson",
+      lessonId: nextGrammarLesson.id,
+      label: "Continue grammar",
+      detail: `${nextGrammarLesson.title} · ${nextGrammarLesson.pattern}`,
+    };
+  }
+
+  const benchmarkPart = parts.find((part) =>
+    part.counts.total > 0 &&
+    part.counts.introduced >= part.counts.total &&
+    roadmap.benchmarkModes.some((mode) => !roadmap.passedBenchmarks.has(`${part.set.id}:${mode}`)),
+  );
+  if (benchmarkPart) {
+    const quizMode = roadmap.benchmarkModes.find((mode) =>
+      !roadmap.passedBenchmarks.has(`${benchmarkPart.set.id}:${mode}`),
+    ) || "pinyin";
+    return {
+      type: "quiz-set",
+      setId: benchmarkPart.set.id,
+      quizMode,
+      label: `Take ${VOCABULARY_MODES[quizMode]?.label || "Vocabulary"} benchmark`,
+      detail: `${roadmap.levelLabel} · ${benchmarkPart.meta.partLabel}`,
+    };
+  }
+
+  if (vocabularyPart && vocabularyTotals.strong < vocabularyTotals.total) {
+    return {
+      type: "review-set",
+      setId: vocabularyPart.set.id,
+      label: "Continue vocabulary path",
+      detail: `${roadmap.levelLabel} · ${vocabularyPart.meta.partLabel}`,
+    };
+  }
+
+  if (nextGrammarLesson) {
+    return {
+      type: "grammar-lesson",
+      lessonId: nextGrammarLesson.id,
+      label: "Strengthen grammar",
+      detail: `${nextGrammarLesson.title} · ${nextGrammarLesson.pattern}`,
+    };
+  }
+
+  const missingBenchmark = parts.flatMap((part) =>
+    roadmap.benchmarkModes.map((mode) => ({ part, mode })),
+  ).find(({ part, mode }) => !roadmap.passedBenchmarks.has(`${part.set.id}:${mode}`));
+  if (missingBenchmark) {
+    return {
+      type: "quiz-set",
+      setId: missingBenchmark.part.set.id,
+      quizMode: missingBenchmark.mode,
+      label: `Take ${VOCABULARY_MODES[missingBenchmark.mode]?.label || "Vocabulary"} benchmark`,
+      detail: `${roadmap.levelLabel} · ${missingBenchmark.part.meta.partLabel}`,
+    };
+  }
+
+  return {
+    type: "review",
+    label: `Maintain ${roadmap.levelLabel}`,
+    detail: "Keep strong words active with spaced review",
+  };
+}
+
+function buildHskRoadmapMarkup(roadmap) {
+  const recommendation = roadmap.recommendation;
+  return `
+    <section class="dashboard-roadmap" aria-labelledby="dashboardRoadmapHeading">
+      <header class="dashboard-roadmap-header">
+        <div>
+          <h3 id="dashboardRoadmapHeading">HSK mastery roadmap</h3>
+          <p>A balanced path across vocabulary coverage, retention, grammar, and timed benchmarks.</p>
+        </div>
+        <div class="dashboard-roadmap-levels" role="group" aria-label="Target HSK level">
+          ${[1, 2].map((level) => `
+            <button type="button" data-roadmap-level="${level}" aria-pressed="${roadmap.level === level}" class="${roadmap.level === level ? "active" : ""}">HSK ${level}</button>
+          `).join("")}
+        </div>
+      </header>
+
+      <div class="dashboard-roadmap-layout">
+        <div class="dashboard-roadmap-summary">
+          <span>Path progress</span>
+          <div class="dashboard-roadmap-score">
+            <strong>${roadmap.overallPercent}%</strong>
+            <small>${escapeHtml(roadmap.levelLabel)}</small>
+          </div>
+          <div class="progress-track" role="progressbar" aria-label="${escapeHtml(roadmap.levelLabel)} path progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${roadmap.overallPercent}">
+            <div style="width:${roadmap.overallPercent}%"></div>
+          </div>
+          <div class="dashboard-roadmap-next">
+            <span>Recommended next</span>
+            <strong>${escapeHtml(recommendation.label)}</strong>
+            <small>${escapeHtml(recommendation.detail)}</small>
+          </div>
+          <button class="primary-btn dashboard-roadmap-continue" type="button" id="continueHskRoadmap">
+            Continue path
+          </button>
+        </div>
+
+        <div class="dashboard-roadmap-milestones">
+          ${roadmap.milestones.map((milestone, index) => `
+            <div class="dashboard-roadmap-milestone ${milestone.status === "Complete" ? "is-complete" : ""}">
+              <span class="dashboard-roadmap-index" aria-hidden="true">${milestone.status === "Complete" ? "✓" : index + 1}</span>
+              <div class="dashboard-roadmap-milestone-copy">
+                <div>
+                  <strong>${escapeHtml(milestone.label)}</strong>
+                  <span>${escapeHtml(milestone.status)}</span>
+                </div>
+                <small>${escapeHtml(milestone.detail)}</small>
+                <div class="progress-track" role="progressbar" aria-label="${escapeHtml(milestone.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${milestone.percent}">
+                  <div style="width:${milestone.percent}%"></div>
+                </div>
+              </div>
+              <strong class="dashboard-roadmap-count">${milestone.current}/${milestone.total}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function launchHskRoadmapAction(action) {
+  if (!action) {
+    return;
+  }
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.session = null;
+  state.result = null;
+  state.dataError = "";
+
+  if (action.type === "review-set") {
+    startVocabularySetReview(action.setId);
+    return;
+  }
+  if (action.type === "grammar-lesson") {
+    const lesson = getGrammarLessonById(action.lessonId);
+    state.tool = "grammar";
+    state.grammarLevel = lesson?.level || state.studyTargetLevel;
+    state.grammarLessonId = action.lessonId || "";
+    saveSettings();
+    render();
+    return;
+  }
+  if (action.type === "quiz-set") {
+    state.tool = "vocabulary";
+    state.vocabularyView = "quiz";
+    state.vocabularySetId = action.setId || state.vocabularySetId;
+    state.vocabularyMode = VOCABULARY_MODES[action.quizMode] ? action.quizMode : "pinyin";
+    saveSettings();
+    render();
+    return;
+  }
+
+  state.tool = "review";
+  saveSettings();
+  startReviewSession();
 }
 
 function buildDashboardPlan(history, review, now = Date.now()) {

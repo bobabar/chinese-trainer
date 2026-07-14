@@ -4947,6 +4947,223 @@ button:focus-visible {
   margin-top: 12px;
 }
 
+.dashboard-roadmap {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dashboard-roadmap-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.dashboard-roadmap-header h3 {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.dashboard-roadmap-header p {
+  max-width: 68ch;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dashboard-roadmap-levels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  flex: 0 0 auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f4f6f8;
+}
+
+.dashboard-roadmap-levels button {
+  min-height: 34px;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted-strong);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dashboard-roadmap-levels button:hover {
+  color: var(--ink);
+}
+
+.dashboard-roadmap-levels button.active {
+  color: #155e75;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.dashboard-roadmap-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 20px;
+}
+
+.dashboard-roadmap-summary {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding-right: 28px;
+  border-right: 1px solid var(--line);
+}
+
+.dashboard-roadmap-summary > span,
+.dashboard-roadmap-next > span {
+  color: #155e75;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.dashboard-roadmap-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-roadmap-score strong {
+  color: var(--ink);
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.dashboard-roadmap-score small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dashboard-roadmap-summary .progress-track,
+.dashboard-roadmap-milestone .progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e8edf1;
+}
+
+.dashboard-roadmap-summary .progress-track > div,
+.dashboard-roadmap-milestone .progress-track > div {
+  height: 100%;
+  border-radius: inherit;
+  background: #1786a0;
+}
+
+.dashboard-roadmap-next {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.dashboard-roadmap-next strong {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.dashboard-roadmap-next small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dashboard-roadmap-continue {
+  min-height: 42px;
+  margin-top: 3px;
+}
+
+.dashboard-roadmap-milestones {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.dashboard-roadmap-milestone {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dashboard-roadmap-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #b9d9df;
+  border-radius: 50%;
+  color: #155e75;
+  background: #f1fafb;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.dashboard-roadmap-milestone.is-complete .dashboard-roadmap-index {
+  border-color: #a9dcc9;
+  color: #147d64;
+  background: #eefaf5;
+}
+
+.dashboard-roadmap-milestone-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.dashboard-roadmap-milestone-copy > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-roadmap-milestone-copy strong {
+  font-size: 13px;
+}
+
+.dashboard-roadmap-milestone-copy span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dashboard-roadmap-milestone-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-roadmap-milestone .progress-track {
+  width: min(100%, 340px);
+  height: 5px;
+}
+
+.dashboard-roadmap-count {
+  min-width: 72px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  text-align: right;
+}
+
 .dashboard-week {
   padding-top: 26px;
 }
@@ -7133,6 +7350,35 @@ td.status-review {
 
   .dashboard-focus-button {
     width: 100%;
+  }
+
+  .dashboard-roadmap-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-roadmap-levels {
+    width: 100%;
+  }
+
+  .dashboard-roadmap-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .dashboard-roadmap-summary {
+    padding-right: 0;
+    padding-bottom: 20px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .dashboard-roadmap-continue {
+    width: 100%;
+  }
+
+  .dashboard-roadmap-count {
+    min-width: 56px;
   }
 
   .dashboard-week-chart {

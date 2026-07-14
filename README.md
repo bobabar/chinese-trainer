@@ -34,6 +34,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 ## Features
 
 - Today turns saved progress into a three-session daily plan, recommends the next activity, and shows a seven-day practice streak and learning snapshot.
+- The HSK mastery roadmap connects vocabulary coverage, spaced retention, grammar strength, and separate Pinyin and Audio benchmarks into a persistent HSK 1 or HSK 2 study target with a direct next action.
 - Learning Progress turns browser history into a 28-day activity view, skill accuracy, personalized focus areas, recurring vocabulary misses, and expandable session review.
 - Versioned learning-data backups protect settings, history, spaced-review scheduling, saved vocabulary, and saved sentences across browsers or devices.
 - The vocabulary word library searches all 1,256 HSK 1 and HSK 2 words by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.

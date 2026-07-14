@@ -857,7 +857,7 @@ function openGlobalSearch({ view = "search" } = {}) {
   globalSearchView = view === "saved" ? "saved" : "search";
   globalSearchInput.value = "";
   globalSearchInput.placeholder = globalSearchView === "saved"
-    ? "Search your saved words and sentences"
+    ? "Search saved material"
     : "Search Chinese, pinyin, or English";
   globalSearchActiveIndex = 0;
   renderGlobalSearchResults();
@@ -997,7 +997,7 @@ function renderGlobalSearchViewControls(notebook = getSavedNotebookData()) {
   });
   globalSearchSavedCount.textContent = String(notebook.total);
   globalSearchInput.placeholder = globalSearchView === "saved"
-    ? "Search your saved words and sentences"
+    ? "Search saved material"
     : "Search Chinese, pinyin, or English";
   globalSearchSavedActions.hidden = globalSearchView !== "saved";
   if (globalSearchView !== "saved") {

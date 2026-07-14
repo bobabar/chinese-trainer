@@ -475,6 +475,62 @@ body[data-tool="vocabulary"] .options-body {
   text-transform: uppercase;
 }
 
+.pwa-access-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 38px;
+}
+
+body[data-tool="vocabulary"] .pwa-access {
+  grid-column: 1 / -1;
+}
+
+.pwa-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.pwa-status::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #94a3b8;
+  content: "";
+}
+
+.pwa-status[data-state="ready"]::before {
+  background: var(--green);
+}
+
+.pwa-status[data-state="offline"]::before {
+  background: #c47a1a;
+}
+
+.pwa-status[data-state="update"]::before {
+  background: var(--theme);
+}
+
+.pwa-action-btn {
+  width: auto;
+  min-height: 34px;
+  gap: 7px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.pwa-action-btn .button-icon {
+  width: 15px;
+  height: 15px;
+}
+
 .check-row {
   display: flex;
   flex-wrap: wrap;

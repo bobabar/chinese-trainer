@@ -333,6 +333,11 @@ let speechRequestId = 0;
 let pronunciationRecognition = null;
 let pronunciationRecognitionRequestId = 0;
 let pronunciationRecordingState = null;
+let deferredPwaInstallPrompt = null;
+let pwaRegistration = null;
+let pwaOfflineReady = false;
+let pwaUpdateRequested = false;
+let pwaReloading = false;
 let CHINESE_WORD_DATA = {};
 let MAX_CHINESE_WORD_LENGTH = 1;
 const sentencePinyinSearchCache = new Map();
@@ -454,6 +459,10 @@ const voiceSpeed = document.querySelector("#voiceSpeed");
 const vocabularyOrder = document.querySelector("#vocabularyOrder");
 const vocabularyHideTranslations = document.querySelector("#vocabularyHideTranslations");
 const pronunciationShowPinyin = document.querySelector("#pronunciationShowPinyin");
+const pwaAccess = document.querySelector("#pwaAccess");
+const pwaStatus = document.querySelector("#pwaStatus");
+const installAppButton = document.querySelector("#installApp");
+const refreshAppButton = document.querySelector("#refreshApp");
 
 function init() {
   if (!app || !levelOptions || !voiceSpeed || !vocabularyOrder || !vocabularyHideTranslations || !pronunciationShowPinyin) {
@@ -465,6 +474,7 @@ function init() {
   syncVocabularyOptionControls();
   bindTopLevelControls();
   bindGlossTooltipAlignment();
+  bindPwaLifecycle();
   loadVoices();
   primeVoicesOnFirstInteraction();
   render();
@@ -666,6 +676,143 @@ function bindTopLevelControls() {
     saveSettings();
     render();
   });
+}
+
+function bindPwaLifecycle() {
+  if (
+    !pwaAccess ||
+    !pwaStatus ||
+    !installAppButton ||
+    !refreshAppButton ||
+    !("serviceWorker" in navigator)
+  ) {
+    return;
+  }
+
+  pwaAccess.hidden = false;
+  updatePwaConnectionStatus();
+
+  window.addEventListener("online", updatePwaConnectionStatus);
+  window.addEventListener("offline", updatePwaConnectionStatus);
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredPwaInstallPrompt = event;
+    if (!isPwaStandalone()) {
+      installAppButton.hidden = false;
+    }
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredPwaInstallPrompt = null;
+    installAppButton.hidden = true;
+    setPwaStatus("Installed · available offline", "ready");
+  });
+
+  installAppButton.addEventListener("click", installPwaApp);
+  refreshAppButton.addEventListener("click", activateWaitingServiceWorker);
+
+  const hadControllerAtLoad = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (pwaUpdateRequested && !pwaReloading) {
+      pwaReloading = true;
+      window.location.reload();
+      return;
+    }
+    if (!hadControllerAtLoad) {
+      pwaOfflineReady = true;
+      updatePwaConnectionStatus();
+    }
+  });
+
+  navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" })
+    .then((registration) => {
+      pwaRegistration = registration;
+      watchServiceWorkerRegistration(registration);
+      if (registration.waiting) {
+        showPwaUpdateReady(registration);
+      }
+      return navigator.serviceWorker.ready;
+    })
+    .then(() => {
+      pwaOfflineReady = true;
+      updatePwaConnectionStatus();
+    })
+    .catch(() => {
+      pwaAccess.hidden = true;
+    });
+}
+
+function watchServiceWorkerRegistration(registration) {
+  registration.addEventListener("updatefound", () => {
+    const installingWorker = registration.installing;
+    if (!installingWorker) {
+      return;
+    }
+    installingWorker.addEventListener("statechange", () => {
+      if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+        showPwaUpdateReady(registration);
+      }
+    });
+  });
+}
+
+function showPwaUpdateReady(registration) {
+  pwaRegistration = registration;
+  refreshAppButton.hidden = false;
+  setPwaStatus("Update ready", "update");
+}
+
+async function installPwaApp() {
+  const prompt = deferredPwaInstallPrompt;
+  if (!prompt) {
+    return;
+  }
+  installAppButton.hidden = true;
+  await prompt.prompt();
+  await prompt.userChoice;
+  deferredPwaInstallPrompt = null;
+  updatePwaConnectionStatus();
+}
+
+function activateWaitingServiceWorker() {
+  const waitingWorker = pwaRegistration?.waiting;
+  if (!waitingWorker) {
+    return;
+  }
+  pwaUpdateRequested = true;
+  refreshAppButton.disabled = true;
+  setPwaStatus("Updating app", "preparing");
+  waitingWorker.postMessage({ type: "SKIP_WAITING" });
+}
+
+function updatePwaConnectionStatus() {
+  if (!pwaStatus) {
+    return;
+  }
+  if (!navigator.onLine) {
+    setPwaStatus("Working offline", "offline");
+    return;
+  }
+  if (refreshAppButton && !refreshAppButton.hidden) {
+    setPwaStatus("Update ready", "update");
+    return;
+  }
+  if (isPwaStandalone()) {
+    setPwaStatus("Installed · available offline", "ready");
+    return;
+  }
+  setPwaStatus(pwaOfflineReady ? "Available offline" : "Preparing offline access", pwaOfflineReady ? "ready" : "preparing");
+}
+
+function setPwaStatus(label, status) {
+  if (!pwaStatus) {
+    return;
+  }
+  pwaStatus.textContent = label;
+  pwaStatus.dataset.state = status;
+}
+
+function isPwaStandalone() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
 }
 
 function bindGlossTooltipAlignment() {

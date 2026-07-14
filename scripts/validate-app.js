@@ -10,6 +10,9 @@ const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
+const serviceWorkerSource = fs.readFileSync(path.join(ROOT, "service-worker.js"), "utf8");
+const buildSiteSource = fs.readFileSync(path.join(ROOT, "scripts/build-site.js"), "utf8");
+const webManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8"));
 const queuedTimers = [];
 const speechCalls = {
   cancel: 0,
@@ -441,6 +444,45 @@ assert(
   drillModeOrder.join("|") === "reading:Reading|writing:Writing|listening:Listening",
   "sentence drill modes should show Reading, Writing, then Listening",
 );
+assert(indexSource.includes('rel="manifest" href="./manifest.webmanifest"'), "the app shell should expose its install manifest");
+assert(indexSource.includes('rel="apple-touch-icon" href="./assets/apple-touch-icon.png"'), "iOS installs should use the polished boba icon");
+assert(indexSource.includes('id="pwaAccess"') && indexSource.includes('id="installApp"') && indexSource.includes('id="refreshApp"'), "Options should expose install and update controls when the browser supports them");
+assert(webManifest.name === "Chinese Trainer" && webManifest.display === "standalone" && webManifest.start_url === "./", "the web manifest should launch Chinese Trainer as a standalone app");
+assert(
+  webManifest.icons.some((icon) => icon.sizes === "192x192" && icon.purpose === "any") &&
+    webManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any") &&
+    webManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"),
+  "the install manifest should provide standard and maskable icons",
+);
+assertPngDimensions(path.join(ROOT, "assets/icon-192.png"), 192, 192, "the 192px app icon should have the declared dimensions");
+assertPngDimensions(path.join(ROOT, "assets/icon-512.png"), 512, 512, "the 512px app icon should have the declared dimensions");
+assertPngDimensions(path.join(ROOT, "assets/icon-maskable-512.png"), 512, 512, "the maskable app icon should have the declared dimensions");
+assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "the iOS app icon should use the standard touch-icon dimensions");
+[
+  "index.html",
+  "styles.css",
+  "app.js",
+  "vocab-data.js",
+  "grammar-data.js",
+  "china-map-data.js",
+  "sentence-data.js",
+  "word-data.js",
+  "manifest.webmanifest",
+  "assets/icon.svg",
+  "assets/icon-192.png",
+  "assets/icon-512.png",
+  "assets/icon-maskable-512.png",
+  "assets/apple-touch-icon.png",
+].forEach((asset) => {
+  assert(serviceWorkerSource.includes(`"./${asset}"`), `${asset} should be available in the offline app shell`);
+});
+assert(serviceWorkerSource.includes("__BUILD_HASH__") && serviceWorkerSource.includes("APP_CACHE_PREFIX"), "offline caches should be rotated by a build-specific version");
+assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWorkerSource.includes("handleNavigationRequest"), "offline navigation should use a network-first app-shell fallback");
+assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
+assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
+assert(appSource.includes('window.addEventListener("beforeinstallprompt"') && appSource.includes('updateViaCache: "none"'), "the app should expose native installation and bypass stale service-worker script caches");
+assert(appSource.includes("showPwaUpdateReady") && appSource.includes('postMessage({ type: "SKIP_WAITING" })'), "new releases should wait for the learner to activate the update");
+assert(stylesSource.includes(".pwa-status") && stylesSource.includes(".pwa-action-btn") && stylesSource.includes('body[data-tool="vocabulary"] .pwa-access'), "install and offline status controls should match the existing Options design and keep a full-width vocabulary row");
 assert(SENTENCE_LIBRARY_PAGE_SIZE === 40, "sentence library should use a focused initial result batch");
 assert(indexSource.includes('class="mode-nav drill-only"'), "sentence modes should remain available while choosing saved-sentence practice");
 const sentenceLibraryFixtures = [
@@ -1952,4 +1994,11 @@ function assertThrows(callback, message) {
     threw = true;
   }
   assert(threw, message);
+}
+
+function assertPngDimensions(filePath, expectedWidth, expectedHeight, message) {
+  const png = fs.readFileSync(filePath);
+  const signature = png.subarray(0, 8).toString("hex");
+  assert(signature === "89504e470d0a1a0a", `${message}: file is not a PNG`);
+  assert(png.readUInt32BE(16) === expectedWidth && png.readUInt32BE(20) === expectedHeight, message);
 }

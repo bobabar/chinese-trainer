@@ -38,6 +38,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - A 20-question HSK 1–2 placement check samples vocabulary and grammar, explains each answer, recommends a starting roadmap, and saves the result for later review.
 - Learning Progress turns browser history into a 28-day activity view, skill accuracy, personalized focus areas, recurring vocabulary misses, and expandable session review.
 - Versioned learning-data backups protect settings, history, spaced-review scheduling, saved vocabulary, and saved sentences across browsers or devices.
+- Installable offline access pre-caches the complete curriculum, sentence bank, word data, and China map, with explicit in-app update control for new releases.
 - The vocabulary word library searches all 1,256 HSK 1 and HSK 2 words by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.
 - The HSK Vocabulary Path organizes the complete corpus by level and part, tracks New, Due, Learning, and Strong words, and launches focused part reviews or matching timed quizzes.
 - Word Study keeps learners in context with review status, audio, dictionary notes, exact-match example sentences, pinyin, Tatoeba attribution, and the existing MDBG link.

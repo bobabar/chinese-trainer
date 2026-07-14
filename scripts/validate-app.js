@@ -97,6 +97,7 @@ window.__tests = {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  DASHBOARD_DAILY_GOAL,
   REVIEW_SESSION_LENGTH,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
@@ -108,6 +109,8 @@ window.__tests = {
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
+  buildDashboardPlan,
+  buildDashboardWeekMarkup,
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHighScoreCelebration,
@@ -129,6 +132,12 @@ window.__tests = {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  getDashboardData,
+  getDashboardFocusInsight,
+  getDashboardPronunciationAccuracy,
+  getDashboardWeek,
+  getPracticeStreakDays,
+  getRecommendedDrillMode,
   formatReviewDueLabel,
   getVocabularySetMeta,
   getCurrentVocabularyRowId,
@@ -148,6 +157,7 @@ window.__tests = {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  isDashboardPlanRecordComplete,
   loadHistoryRecords,
   loadReviewProgress,
   dismissHighScoreCelebration,
@@ -174,6 +184,7 @@ const {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  DASHBOARD_DAILY_GOAL,
   REVIEW_SESSION_LENGTH,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
@@ -185,6 +196,8 @@ const {
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
+  buildDashboardPlan,
+  buildDashboardWeekMarkup,
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHighScoreCelebration,
@@ -206,6 +219,12 @@ const {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  getDashboardData,
+  getDashboardFocusInsight,
+  getDashboardPronunciationAccuracy,
+  getDashboardWeek,
+  getPracticeStreakDays,
+  getRecommendedDrillMode,
   formatReviewDueLabel,
   getVocabularySetMeta,
   getCurrentVocabularyRowId,
@@ -225,6 +244,7 @@ const {
   getSelectedVocabularySet,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
+  isDashboardPlanRecordComplete,
   loadHistoryRecords,
   loadReviewProgress,
   dismissHighScoreCelebration,
@@ -270,8 +290,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|review:Daily Review|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  "global nav should show Today before the learning tools and History",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -318,6 +338,71 @@ localStorageEntries.set("chineseTrainerReviewProgress", JSON.stringify(reviewPro
 const reviewDashboard = getReviewDashboardData(reviewNow);
 assert(reviewDashboard.dueCount === 1, "review dashboard should count words due now");
 assert(reviewDashboard.reviewedToday === 2, "review dashboard should count words reviewed today");
+const dashboardDay = 24 * 60 * 60 * 1000;
+const dashboardNow = Date.parse("2026-07-14T12:00:00+08:00");
+const dashboardHistory = [
+  {
+    type: "review",
+    completedAt: new Date(dashboardNow).toISOString(),
+    total: 12,
+    correct: 10,
+  },
+  {
+    type: "pronunciation",
+    completedAt: new Date(dashboardNow).toISOString(),
+    total: 15,
+    averageScore: 0.8,
+    weaknesses: {
+      tones: [{ label: "Tone 3", count: 4 }],
+      initials: [{ label: "zh", count: 2 }],
+      finals: [],
+    },
+  },
+  {
+    type: "drill",
+    completedAt: new Date(dashboardNow - dashboardDay).toISOString(),
+    mode: "reading",
+    total: 30,
+    correct: 21,
+    averageScore: 0.7,
+  },
+  {
+    type: "drill",
+    completedAt: new Date(dashboardNow - dashboardDay * 2).toISOString(),
+    mode: "writing",
+    total: 30,
+    correct: 27,
+    averageScore: 0.9,
+  },
+  {
+    type: "drill",
+    completedAt: new Date(dashboardNow - dashboardDay * 3).toISOString(),
+    mode: "listening",
+    total: 30,
+    correct: 24,
+    averageScore: 0.8,
+  },
+];
+assert(DASHBOARD_DAILY_GOAL === 3, "Today should use a focused three-activity daily goal");
+assert(state.tool === "dashboard", "new learners should start on the Today dashboard");
+assert(isDashboardPlanRecordComplete(dashboardHistory[0]), "a complete 12-word review should satisfy the daily review activity");
+assert(!isDashboardPlanRecordComplete({ type: "review", total: 2 }), "an early-ended review should not satisfy the daily plan");
+const dashboardPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow);
+assert(dashboardPlan.filter((activity) => activity.completed).length === 2, "Today should recognize completed review and pronunciation activities");
+assert(!dashboardPlan.find((activity) => activity.id === "drill").completed, "a sentence drill from a prior day should remain in today's plan");
+assert(getRecommendedDrillMode(dashboardHistory) === "reading", "Today should recommend the learner's weakest practiced drill mode");
+assert(getPracticeStreakDays(dashboardHistory, dashboardNow) === 4, "practice streaks should count consecutive local calendar days across tools");
+const dashboardWeek = getDashboardWeek(dashboardHistory, dashboardNow);
+assert(dashboardWeek.length === 7 && dashboardWeek.at(-1).count === 2, "weekly activity should include seven days and today's saved sessions");
+assert(buildDashboardWeekMarkup(dashboardWeek).includes("Today"), "weekly activity markup should label the current day clearly");
+assert(Math.abs(getDashboardPronunciationAccuracy(dashboardHistory) - 0.8) < 0.001, "Today should calculate recent pronunciation accuracy");
+const pronunciationFocus = getDashboardFocusInsight(dashboardHistory, { dueCount: 0 });
+assert(pronunciationFocus.title.includes("Tone 3") && pronunciationFocus.tool === "pronunciation", "Today should surface observed pronunciation weaknesses when review is caught up");
+const dueFocus = getDashboardFocusInsight(dashboardHistory, { dueCount: 3 });
+assert(dueFocus.tool === "review" && dueFocus.title.includes("3 vocabulary words"), "due vocabulary should take priority in focus guidance");
+const dashboardData = getDashboardData(dashboardNow, dashboardHistory);
+assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "drill", "Today should continue with the first incomplete activity");
+assert(stylesSource.includes(".dashboard-week-chart") && stylesSource.includes("body[data-tool=\"dashboard\"] .tool-controls"), "Today should have responsive dashboard styling and hide irrelevant global controls");
 const reviewSessionFixture = {
   type: "review",
   items: reviewVocabulary.slice(0, 6).map((item, index) => ({ ...item, reviewMode: index % 2 ? "meaning" : "pinyin" })),

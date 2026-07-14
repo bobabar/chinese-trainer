@@ -2,7 +2,7 @@
   "name": "chinese-trainer",
   "version": "1.0.0",
   "private": true,
-  "description": "A simplified Mandarin trainer for listening, writing, and reading practice.",
+  "description": "An adaptive Mandarin learning app for vocabulary, pronunciation, sentences, and geography.",
   "homepage": "https://brownsugarboba.com/",
   "scripts": {
     "build:vocab-data": "node scripts/build-vocab-data.js",

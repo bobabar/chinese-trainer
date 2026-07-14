@@ -33,9 +33,10 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 ## Features
 
+- Today turns saved progress into a three-session daily plan, recommends the next activity, and shows a seven-day practice streak and learning snapshot.
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
 - Review sessions mix character-to-pinyin recall with audio-to-meaning choices and support keyboard controls.
-- Global navigation between Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History.
+- Global navigation between Today, Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History.
 - Sentence drill navigation for Listening, Writing, and Reading.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.

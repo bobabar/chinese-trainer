@@ -4,6 +4,8 @@ const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const REVIEW_SESSION_LENGTH = 12;
+const DASHBOARD_DAILY_GOAL = 3;
+const DASHBOARD_WEEK_DAYS = 7;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
@@ -51,6 +53,9 @@ const MODES = {
 };
 
 const TOOLS = {
+  dashboard: {
+    label: "Today",
+  },
   vocabulary: {
     label: "Vocabulary Quiz",
   },
@@ -343,7 +348,7 @@ const PLECO_TONE_CLASS_BY_TONE = {
 };
 
 const state = {
-  tool: "drill",
+  tool: "dashboard",
   mode: "reading",
   vocabularyMode: "pinyin",
   vocabularySetId: VOCABULARY_QUIZ_SETS[0]?.id || "",
@@ -390,9 +395,6 @@ function init() {
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    if (saved.tool && TOOLS[saved.tool]) {
-      state.tool = saved.tool;
-    }
     if (saved.mode && MODES[saved.mode]) {
       state.mode = saved.mode;
     }
@@ -453,7 +455,6 @@ function saveSettings() {
       SETTINGS_KEY,
       JSON.stringify({
         settingsVersion: SETTINGS_VERSION,
-        tool: state.tool,
         mode: state.mode,
         vocabularyMode: state.vocabularyMode,
         vocabularySetId: state.vocabularySetId,
@@ -1030,6 +1031,11 @@ function render() {
   }
 
   stopVocabularyTimer();
+  if (state.tool === "dashboard") {
+    renderDashboardHome();
+    return;
+  }
+
   if (state.tool === "history") {
     renderHistoryHome();
     return;
@@ -1120,6 +1126,404 @@ function trashIconMarkup() {
       <path d="M14 11v5"></path>
     </svg>
   `;
+}
+
+function renderDashboardHome() {
+  const dashboard = getDashboardData();
+  const nextActivity = dashboard.nextActivity;
+  const goalComplete = dashboard.completedCount >= DASHBOARD_DAILY_GOAL;
+  const goalAngle = Math.round(dashboard.goalProgress * 3.6);
+  const planRows = dashboard.plan.map((activity, index) => {
+    const statusLabel = activity.completed
+      ? "Complete"
+      : activity.id === nextActivity.id
+        ? "Next"
+        : "Later";
+    return `
+      <div class="dashboard-plan-row ${activity.completed ? "is-complete" : ""} ${activity.id === nextActivity.id ? "is-next" : ""}">
+        <span class="dashboard-plan-index" aria-hidden="true">${activity.completed ? "✓" : index + 1}</span>
+        <div class="dashboard-plan-copy">
+          <strong>${escapeHtml(activity.title)}</strong>
+          <span>${escapeHtml(activity.detail)}</span>
+        </div>
+        <span class="dashboard-plan-status">${statusLabel}</span>
+        <button
+          class="ghost-btn dashboard-plan-button"
+          type="button"
+          data-dashboard-start="${escapeHtml(activity.tool)}"
+          data-dashboard-mode="${escapeHtml(activity.mode || "")}">
+          ${activity.completed ? "Repeat" : "Start"}
+        </button>
+      </div>
+    `;
+  }).join("");
+  const pronunciationMetric = dashboard.pronunciationAccuracy === null
+    ? "Not yet"
+    : `${Math.round(dashboard.pronunciationAccuracy * 100)}%`;
+
+  app.innerHTML = `
+    <section class="workspace-panel dashboard-panel">
+      <header class="dashboard-hero">
+        <div class="dashboard-hero-copy">
+          <p class="dashboard-date">${escapeHtml(formatDashboardDate(dashboard.now))}</p>
+          <h2>${escapeHtml(getDashboardGreeting(dashboard.now))}</h2>
+          <p>${goalComplete
+            ? "Your daily plan is complete. Extra practice now will strengthen what you learned."
+            : "A focused plan built from your vocabulary schedule and recent practice."}</p>
+          <button
+            class="primary-btn shortcut-btn dashboard-primary"
+            type="button"
+            data-dashboard-start="${escapeHtml(nextActivity.tool)}"
+            data-dashboard-mode="${escapeHtml(nextActivity.mode || "")}">
+            <span>${goalComplete ? `Practice ${nextActivity.title}` : `Continue: ${nextActivity.title}`}</span>
+            ${shortcutHint("Enter")}
+          </button>
+        </div>
+        <div class="dashboard-goal" aria-label="${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL} daily activities complete">
+          <div class="dashboard-goal-ring" style="--dashboard-goal-angle: ${goalAngle}deg">
+            <strong>${dashboard.completedCount}/${DASHBOARD_DAILY_GOAL}</strong>
+          </div>
+          <div>
+            <strong>Daily goal</strong>
+            <span>${dashboard.practiceStreak} day streak</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="dashboard-main-grid">
+        <section class="dashboard-section dashboard-plan" aria-labelledby="dashboardPlanHeading">
+          <div class="dashboard-section-heading">
+            <div>
+              <h3 id="dashboardPlanHeading">Today&rsquo;s plan</h3>
+              <p>Three complete sessions make a focused study day.</p>
+            </div>
+            <strong>${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL}</strong>
+          </div>
+          <div class="dashboard-plan-list">${planRows}</div>
+        </section>
+
+        <section class="dashboard-section dashboard-snapshot" aria-labelledby="dashboardSnapshotHeading">
+          <div class="dashboard-section-heading">
+            <div>
+              <h3 id="dashboardSnapshotHeading">Learning snapshot</h3>
+              <p>Progress stored in this browser.</p>
+            </div>
+          </div>
+          <dl class="dashboard-metric-list">
+            <div><dt>Words in review</dt><dd>${dashboard.review.totalTracked}</dd></div>
+            <div><dt>Strong vocabulary</dt><dd>${dashboard.review.strongCount}</dd></div>
+            <div><dt>Pronunciation average</dt><dd>${pronunciationMetric}</dd></div>
+            <div><dt>Sessions this week</dt><dd>${dashboard.sessionsThisWeek}</dd></div>
+          </dl>
+          <div class="dashboard-focus">
+            <span>Focus next</span>
+            <strong>${escapeHtml(dashboard.focus.title)}</strong>
+            <p>${escapeHtml(dashboard.focus.detail)}</p>
+            <button
+              class="secondary-btn dashboard-focus-button"
+              type="button"
+              data-dashboard-start="${escapeHtml(dashboard.focus.tool)}"
+              data-dashboard-mode="${escapeHtml(dashboard.focus.mode || "")}">
+              Practice now
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <section class="dashboard-week" aria-labelledby="dashboardWeekHeading">
+        <div class="dashboard-section-heading">
+          <div>
+            <h3 id="dashboardWeekHeading">Last seven days</h3>
+            <p>${dashboard.sessionsThisWeek ? `${dashboard.sessionsThisWeek} saved sessions across your tools.` : "Complete a session to begin your activity record."}</p>
+          </div>
+          <span>${dashboard.todaySessionCount} today</span>
+        </div>
+        ${buildDashboardWeekMarkup(dashboard.week)}
+      </section>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-dashboard-start]").forEach((button) => {
+    button.addEventListener("click", () => {
+      launchDashboardActivity(button.dataset.dashboardStart, button.dataset.dashboardMode || "");
+    });
+  });
+}
+
+function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
+  const review = getReviewDashboardData(now);
+  const plan = buildDashboardPlan(history, review, now);
+  const completedCount = plan.filter((activity) => activity.completed).length;
+  const week = getDashboardWeek(history, now);
+  const todayKey = localDateKey(now);
+
+  return {
+    now,
+    review,
+    plan,
+    completedCount,
+    goalProgress: Math.min(100, Math.round((completedCount / DASHBOARD_DAILY_GOAL) * 100)),
+    nextActivity: plan.find((activity) => !activity.completed) || plan[0],
+    practiceStreak: getPracticeStreakDays(history, now),
+    week,
+    sessionsThisWeek: week.reduce((sum, day) => sum + day.count, 0),
+    todaySessionCount: history.filter((record) => localDateKey(Date.parse(record.completedAt)) === todayKey).length,
+    pronunciationAccuracy: getDashboardPronunciationAccuracy(history),
+    focus: getDashboardFocusInsight(history, review),
+  };
+}
+
+function buildDashboardPlan(history, review, now = Date.now()) {
+  const todayKey = localDateKey(now);
+  const completedTypes = new Set(
+    history
+      .filter((record) =>
+        localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record),
+      )
+      .map((record) => record.type),
+  );
+  const drillMode = getRecommendedDrillMode(history);
+  const drillLabel = MODES[drillMode]?.label || "Reading";
+  const reviewDetail = review.dueCount
+    ? `${review.dueCount} due ${review.dueCount === 1 ? "word" : "words"} · mixed pinyin and listening`
+    : review.totalTracked
+      ? "12-word retrieval practice to maintain recall"
+      : "Build your adaptive HSK vocabulary baseline";
+
+  return [
+    {
+      id: "review",
+      tool: "review",
+      title: "Daily vocabulary review",
+      detail: reviewDetail,
+      completed: completedTypes.has("review"),
+    },
+    {
+      id: "pronunciation",
+      tool: "pronunciation",
+      title: "Pronunciation practice",
+      detail: "15 short sentences with word-level feedback",
+      completed: completedTypes.has("pronunciation"),
+    },
+    {
+      id: "drill",
+      tool: "drill",
+      mode: drillMode,
+      title: `${drillLabel} sentence drill`,
+      detail: "30 sentences at your selected difficulty",
+      completed: completedTypes.has("drill"),
+    },
+  ];
+}
+
+function isDashboardPlanRecordComplete(record) {
+  const total = Number(record?.total) || 0;
+  if (record?.type === "review") {
+    return total >= REVIEW_SESSION_LENGTH;
+  }
+  if (record?.type === "pronunciation") {
+    return total >= PRONUNCIATION_SESSION_LENGTH;
+  }
+  if (record?.type === "drill") {
+    return total >= SESSION_LENGTH;
+  }
+  return false;
+}
+
+function getRecommendedDrillMode(history) {
+  const modeOrder = ["reading", "writing", "listening"];
+  const stats = modeOrder.map((mode) => {
+    const records = history.filter((record) => record.type === "drill" && record.mode === mode);
+    const total = records.reduce((sum, record) => sum + (Number(record.total) || 0), 0);
+    const correct = records.reduce((sum, record) => sum + (Number(record.correct) || 0), 0);
+    return {
+      mode,
+      sessions: records.length,
+      accuracy: total ? correct / total : null,
+    };
+  });
+  const unpracticed = stats.find((item) => !item.sessions);
+  if (unpracticed) {
+    return unpracticed.mode;
+  }
+  return stats.sort((a, b) => a.accuracy - b.accuracy || a.sessions - b.sessions)[0].mode;
+}
+
+function getPracticeStreakDays(history, now = Date.now()) {
+  const activeDays = new Set(
+    history
+      .map((record) => localDateKey(Date.parse(record.completedAt)))
+      .filter(Boolean),
+  );
+  if (!activeDays.size) {
+    return 0;
+  }
+
+  const cursor = new Date(now);
+  cursor.setHours(0, 0, 0, 0);
+  if (!activeDays.has(localDateKey(cursor.getTime()))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
+  while (activeDays.has(localDateKey(cursor.getTime()))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function getDashboardWeek(history, now = Date.now()) {
+  const days = [];
+  const cursor = new Date(now);
+  cursor.setHours(12, 0, 0, 0);
+
+  for (let offset = DASHBOARD_WEEK_DAYS - 1; offset >= 0; offset -= 1) {
+    const date = new Date(cursor);
+    date.setDate(cursor.getDate() - offset);
+    const dateKey = localDateKey(date.getTime());
+    const count = history.filter((record) => localDateKey(Date.parse(record.completedAt)) === dateKey).length;
+    days.push({
+      dateKey,
+      count,
+      label: offset === 0 ? "Today" : date.toLocaleDateString(undefined, { weekday: "short" }),
+    });
+  }
+
+  return days;
+}
+
+function getDashboardPronunciationAccuracy(history) {
+  const records = history.filter((record) => record.type === "pronunciation" && Number(record.total) > 0).slice(0, 5);
+  const total = records.reduce((sum, record) => sum + (Number(record.total) || 0), 0);
+  if (!total) {
+    return null;
+  }
+  return records.reduce(
+    (sum, record) => sum + (Number(record.averageScore) || 0) * (Number(record.total) || 0),
+    0,
+  ) / total;
+}
+
+function getDashboardFocusInsight(history, review) {
+  if (review.dueCount) {
+    return {
+      title: `${review.dueCount} vocabulary ${review.dueCount === 1 ? "word is" : "words are"} due`,
+      detail: "Retrieval practice is most effective when the scheduled words are reviewed on time.",
+      tool: "review",
+    };
+  }
+
+  const weaknessCounts = new Map();
+  history
+    .filter((record) => record.type === "pronunciation")
+    .slice(0, 5)
+    .forEach((record) => {
+      [
+        ["tone", record.weaknesses?.tones || []],
+        ["initial", record.weaknesses?.initials || []],
+        ["final", record.weaknesses?.finals || []],
+      ].forEach(([kind, items]) => {
+        items.forEach((item) => {
+          const key = `${kind}:${item.label}`;
+          const current = weaknessCounts.get(key) || { kind, label: item.label, count: 0 };
+          current.count += Number(item.count) || 0;
+          weaknessCounts.set(key, current);
+        });
+      });
+    });
+  const pronunciationFocus = [...weaknessCounts.values()]
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))[0];
+  if (pronunciationFocus) {
+    return {
+      title: `Pronunciation focus: ${pronunciationFocus.label}`,
+      detail: `This ${pronunciationFocus.kind} appears most often in words the browser did not recognize.`,
+      tool: "pronunciation",
+    };
+  }
+
+  const drillRecords = history.filter((record) => record.type === "drill" && Number(record.total) > 0);
+  if (drillRecords.length) {
+    const mode = getRecommendedDrillMode(history);
+    return {
+      title: `${MODES[mode]?.label || "Sentence"} needs attention`,
+      detail: "This is your least-practiced or lowest-scoring sentence mode.",
+      tool: "drill",
+      mode,
+    };
+  }
+
+  return {
+    title: "Build your learning baseline",
+    detail: "Start with adaptive vocabulary review so future practice can respond to your results.",
+    tool: "review",
+  };
+}
+
+function buildDashboardWeekMarkup(days) {
+  const maxCount = Math.max(1, ...days.map((day) => day.count));
+  return `
+    <div class="dashboard-week-chart" role="img" aria-label="Saved sessions over the last seven days">
+      ${days.map((day) => {
+        const height = day.count ? Math.max(16, Math.round((day.count / maxCount) * 100)) : 4;
+        return `
+          <div class="dashboard-week-day" aria-label="${escapeHtml(day.label)}: ${day.count} ${day.count === 1 ? "session" : "sessions"}">
+            <span>${day.count || ""}</span>
+            <div><i style="height: ${height}%"></i></div>
+            <strong>${escapeHtml(day.label)}</strong>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function formatDashboardDate(now = Date.now()) {
+  return new Date(now).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function getDashboardGreeting(now = Date.now()) {
+  const hour = new Date(now).getHours();
+  if (hour < 12) {
+    return "Good morning";
+  }
+  if (hour < 18) {
+    return "Good afternoon";
+  }
+  return "Good evening";
+}
+
+function launchDashboardActivity(tool, mode = "") {
+  if (!TOOLS[tool] || tool === "dashboard") {
+    return;
+  }
+
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.tool = tool;
+  state.session = null;
+  state.result = null;
+  state.dataError = "";
+  if (tool === "drill" && MODES[mode]) {
+    state.mode = mode;
+  }
+  saveSettings();
+
+  if (tool === "review") {
+    startReviewSession();
+  } else if (tool === "pronunciation") {
+    startPronunciationSession();
+  } else if (tool === "drill") {
+    startSession();
+  } else {
+    render();
+  }
+
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
 }
 
 function renderModeHome() {
@@ -5296,6 +5700,12 @@ function commitReviewAssessment(session, item, assessment) {
 }
 
 function startActiveSession() {
+  if (state.tool === "dashboard") {
+    const dashboard = getDashboardData();
+    launchDashboardActivity(dashboard.nextActivity.tool, dashboard.nextActivity.mode || "");
+    return;
+  }
+
   if (state.tool === "vocabulary") {
     startVocabularySession();
     return;

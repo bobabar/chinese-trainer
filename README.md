@@ -34,6 +34,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 ## Features
 
 - Today turns saved progress into a three-session daily plan, recommends the next activity, and shows a seven-day practice streak and learning snapshot.
+- Learning Progress turns browser history into a 28-day activity view, skill accuracy, personalized focus areas, recurring vocabulary misses, and expandable session review.
 - The vocabulary word library searches all 1,256 HSK 1 and HSK 2 words by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
 - Review sessions mix character-to-pinyin recall with audio-to-meaning choices and support keyboard controls.

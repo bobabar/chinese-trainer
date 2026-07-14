@@ -6,6 +6,9 @@ const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const REVIEW_SESSION_LENGTH = 12;
 const DASHBOARD_DAILY_GOAL = 3;
 const DASHBOARD_WEEK_DAYS = 7;
+const PROGRESS_ACTIVITY_DAYS = 28;
+const PROGRESS_RECENT_SESSION_LIMIT = 20;
+const PROGRESS_MISTAKE_LIMIT = 6;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
@@ -2671,13 +2674,449 @@ function formatVocabularySetOption(set) {
   return set.label || set.shortLabel || "";
 }
 
+function getProgressSkillDefinitions() {
+  return [
+    { id: "vocabulary", label: "Vocabulary", tool: "review", unit: "words" },
+    { id: "pronunciation", label: "Pronunciation", tool: "pronunciation", unit: "sentences" },
+    { id: "reading", label: "Reading", tool: "drill", mode: "reading", unit: "sentences" },
+    { id: "writing", label: "Writing", tool: "drill", mode: "writing", unit: "sentences" },
+    { id: "listening", label: "Listening", tool: "drill", mode: "listening", unit: "sentences" },
+    { id: "geography", label: "Geography", tool: "map", unit: "locations" },
+  ];
+}
+
+function getHistorySkillStats(history = []) {
+  const skills = new Map(getProgressSkillDefinitions().map((skill) => [skill.id, {
+    ...skill,
+    sessions: 0,
+    attempts: 0,
+    scoreTotal: 0,
+    accuracy: null,
+  }]));
+
+  history.forEach((record) => {
+    const skillId = record.type === "drill"
+      ? record.mode
+      : ["vocabulary", "review"].includes(record.type)
+        ? "vocabulary"
+        : record.type === "map"
+          ? "geography"
+          : record.type;
+    const skill = skills.get(skillId);
+    const attempts = Math.max(0, Number(record.total) || (Array.isArray(record.answers) ? record.answers.length : 0));
+    if (!skill || !attempts) {
+      return;
+    }
+
+    const score = record.type === "pronunciation"
+      ? clamp(Number(record.averageScore) || 0, 0, 1)
+      : clamp((Number(record.correct) || 0) / attempts, 0, 1);
+    skill.sessions += 1;
+    skill.attempts += attempts;
+    skill.scoreTotal += score * attempts;
+  });
+
+  return [...skills.values()].map((skill) => ({
+    ...skill,
+    accuracy: skill.attempts ? skill.scoreTotal / skill.attempts : null,
+  }));
+}
+
+function getHistoryActivityDays(history = [], now = Date.now(), dayCount = PROGRESS_ACTIVITY_DAYS) {
+  const counts = new Map();
+  history.forEach((record) => {
+    const key = localDateKey(Date.parse(record?.completedAt || ""));
+    if (key) {
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  });
+
+  const cursor = new Date(now);
+  cursor.setHours(12, 0, 0, 0);
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = new Date(cursor);
+    date.setDate(cursor.getDate() - (dayCount - index - 1));
+    const dateKey = localDateKey(date.getTime());
+    return {
+      dateKey,
+      count: counts.get(dateKey) || 0,
+      day: date.getDate(),
+      shortLabel: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      fullLabel: date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
+      isToday: dateKey === localDateKey(now),
+    };
+  });
+}
+
+function getProgressPronunciationFocus(history = []) {
+  const totals = new Map();
+  history
+    .filter((record) => record.type === "pronunciation")
+    .slice(0, 10)
+    .forEach((record) => {
+      [
+        ["tone", record.weaknesses?.tones || []],
+        ["initial", record.weaknesses?.initials || []],
+        ["final", record.weaknesses?.finals || []],
+      ].forEach(([kind, items]) => {
+        items.forEach((item) => {
+          if (!item?.label) {
+            return;
+          }
+          const key = `${kind}:${item.label}`;
+          const current = totals.get(key) || { kind, label: item.label, count: 0 };
+          current.count += Number(item.count) || 0;
+          totals.set(key, current);
+        });
+      });
+    });
+
+  return [...totals.values()]
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))[0] || null;
+}
+
+function getVocabularyMistakeStats(history = [], limit = PROGRESS_MISTAKE_LIMIT) {
+  const mistakes = new Map();
+  history
+    .filter((record) => ["vocabulary", "review"].includes(record.type))
+    .slice(0, 50)
+    .forEach((record) => {
+      (record.answers || []).forEach((answer) => {
+        if (answer.correct || !answer.zh || !answer.pinyin) {
+          return;
+        }
+        const item = {
+          zh: answer.zh,
+          pinyin: answer.pinyin,
+          meanings: String(answer.meaning || "")
+            .split(";")
+            .map((meaning) => meaning.trim())
+            .filter(Boolean),
+        };
+        const key = reviewItemKey(item);
+        if (!key) {
+          return;
+        }
+        const current = mistakes.get(key) || {
+          ...item,
+          key,
+          misses: 0,
+          lastMissedAt: record.completedAt || "",
+        };
+        current.misses += 1;
+        if (Date.parse(record.completedAt || "") > Date.parse(current.lastMissedAt || "")) {
+          current.lastMissedAt = record.completedAt;
+        }
+        mistakes.set(key, current);
+      });
+    });
+
+  return [...mistakes.values()]
+    .sort((a, b) => b.misses - a.misses || Date.parse(b.lastMissedAt || "") - Date.parse(a.lastMissedAt || ""))
+    .slice(0, limit);
+}
+
+function getHistoryProgressData(history = [], now = Date.now(), review = { dueCount: 0, strongCount: 0, totalTracked: 0 }) {
+  const activity = getHistoryActivityDays(history, now);
+  const weekKeys = new Set(activity.slice(-7).map((day) => day.dateKey));
+  const weekRecords = history.filter((record) => weekKeys.has(localDateKey(Date.parse(record.completedAt || ""))));
+  const skills = getHistorySkillStats(history);
+  const pronunciationFocus = getProgressPronunciationFocus(history);
+  const vocabularyMistakes = getVocabularyMistakeStats(history);
+  const practicedSkills = skills.filter((skill) => skill.accuracy !== null);
+  const rankedSkills = [...practicedSkills]
+    .sort((a, b) => a.accuracy - b.accuracy || a.attempts - b.attempts);
+  const vocabularyAlreadyPrioritized = Boolean(review.dueCount || !review.totalTracked);
+  const weakestSkill = rankedSkills.find((skill) => !vocabularyAlreadyPrioritized || skill.id !== "vocabulary") || null;
+  const focusItems = [];
+
+  if (review.dueCount) {
+    focusItems.push({
+      id: "due-vocabulary",
+      eyebrow: "Due now",
+      title: `${review.dueCount} ${review.dueCount === 1 ? "word" : "words"} ready for review`,
+      detail: "Keep scheduled vocabulary from slipping out of recall.",
+      tool: "review",
+      actionLabel: "Review now",
+    });
+  } else if (!review.totalTracked) {
+    focusItems.push({
+      id: "vocabulary-baseline",
+      eyebrow: "Start here",
+      title: "Build a vocabulary baseline",
+      detail: "Your first review creates a personalized recall schedule.",
+      tool: "review",
+      actionLabel: "Start review",
+    });
+  }
+
+  if (weakestSkill) {
+    focusItems.push({
+      id: `skill-${weakestSkill.id}`,
+      eyebrow: "Lowest accuracy",
+      title: `${weakestSkill.label} at ${Math.round(weakestSkill.accuracy * 100)}%`,
+      detail: `${weakestSkill.attempts} ${weakestSkill.unit} recorded across ${weakestSkill.sessions} ${weakestSkill.sessions === 1 ? "session" : "sessions"}.`,
+      tool: weakestSkill.tool,
+      mode: weakestSkill.mode || "",
+      actionLabel: `Practice ${weakestSkill.label.toLowerCase()}`,
+    });
+  }
+
+  if (pronunciationFocus && !focusItems.some((item) => item.tool === "pronunciation")) {
+    focusItems.push({
+      id: "pronunciation-focus",
+      eyebrow: "Pronunciation pattern",
+      title: `${pronunciationFocus.label} needs attention`,
+      detail: `This ${pronunciationFocus.kind} appears repeatedly in words that were not recognized.`,
+      tool: "pronunciation",
+      actionLabel: "Practice speaking",
+    });
+  }
+
+  if (vocabularyMistakes.length && !focusItems.some((item) => item.id === "due-vocabulary")) {
+    focusItems.push({
+      id: "vocabulary-mistakes",
+      eyebrow: "Recurring misses",
+      title: `${vocabularyMistakes.length} vocabulary ${vocabularyMistakes.length === 1 ? "word" : "words"} to revisit`,
+      detail: "Save them below to place them in your review queue.",
+      tool: "vocabulary",
+      view: "library",
+      actionLabel: "Open word library",
+    });
+  }
+
+  return {
+    activity,
+    activeDays: activity.filter((day) => day.count).length,
+    weekSessions: weekRecords.length,
+    weekAnswers: weekRecords.reduce((sum, record) => sum + (Number(record.total) || 0), 0),
+    streakDays: getPracticeStreakDays(history, now),
+    skills,
+    focusItems: focusItems.slice(0, 3),
+    pronunciationFocus,
+    vocabularyMistakes,
+  };
+}
+
+function buildProgressActivityMarkup(days) {
+  const maxCount = Math.max(1, ...days.map((day) => day.count));
+  return `
+    <div class="progress-activity-grid" role="img" aria-label="Saved practice sessions over the last 28 days">
+      ${days.map((day) => {
+        const intensity = day.count ? Math.max(1, Math.ceil((day.count / maxCount) * 4)) : 0;
+        const sessionLabel = `${day.count} ${day.count === 1 ? "session" : "sessions"}`;
+        return `
+          <span
+            class="progress-activity-day level-${intensity} ${day.isToday ? "is-today" : ""}"
+            aria-label="${escapeHtml(`${day.fullLabel}: ${sessionLabel}`)}"
+            title="${escapeHtml(`${day.fullLabel}: ${sessionLabel}`)}">
+            <b>${day.day}</b>
+          </span>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildProgressSkillMarkup(skill) {
+  const hasData = skill.accuracy !== null;
+  const percent = hasData ? Math.round(skill.accuracy * 100) : 0;
+  return `
+    <div class="progress-skill-row">
+      <div class="progress-skill-heading">
+        <strong>${escapeHtml(skill.label)}</strong>
+        <span>${hasData ? `${percent}% · ${skill.attempts} ${escapeHtml(skill.unit)}` : "No sessions yet"}</span>
+      </div>
+      <div class="progress-skill-track" aria-label="${escapeHtml(skill.label)} ${hasData ? `${percent}%` : "not started"}">
+        <span style="width: ${percent}%"></span>
+      </div>
+      <button
+        class="ghost-btn progress-skill-action"
+        type="button"
+        data-progress-tool="${escapeHtml(skill.tool)}"
+        data-progress-mode="${escapeHtml(skill.mode || "")}">
+        ${hasData ? "Practice" : "Start"}
+      </button>
+    </div>
+  `;
+}
+
+function buildProgressFocusMarkup(item) {
+  return `
+    <article class="progress-focus-item">
+      <span>${escapeHtml(item.eyebrow)}</span>
+      <strong>${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(item.detail)}</p>
+      <button
+        class="secondary-btn"
+        type="button"
+        data-progress-tool="${escapeHtml(item.tool)}"
+        data-progress-mode="${escapeHtml(item.mode || "")}"
+        data-progress-view="${escapeHtml(item.view || "")}">
+        ${escapeHtml(item.actionLabel)}
+      </button>
+    </article>
+  `;
+}
+
+function buildProgressVocabularyMistakeMarkup(item, savedKeys = new Set()) {
+  const saved = savedKeys.has(item.key);
+  return `
+    <article class="progress-word-row">
+      <button
+        class="icon-btn vocabulary-save-button ${saved ? "active" : ""}"
+        type="button"
+        data-progress-save-word="${escapeHtml(item.key)}"
+        aria-label="${saved ? "Remove" : "Save"} ${escapeHtml(item.zh)} ${saved ? "from" : "to"} saved words"
+        aria-pressed="${saved ? "true" : "false"}"
+        title="${saved ? "Remove from saved words" : "Save for review"}">
+        ${bookmarkIconMarkup(saved)}
+      </button>
+      <div class="progress-word-term">
+        <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+        <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+      </div>
+      <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
+      <span class="progress-word-count">${item.misses} ${item.misses === 1 ? "miss" : "misses"}</span>
+      <button
+        class="icon-btn"
+        type="button"
+        data-progress-audio="${escapeHtml(item.zh)}"
+        aria-label="Play ${escapeHtml(item.zh)}"
+        title="Play word">
+        ${speakerIconMarkup()}
+      </button>
+    </article>
+  `;
+}
+
+function getHistoryRecordPresentation(record) {
+  const typeLabel = record.type === "vocabulary"
+    ? "Vocabulary quiz"
+    : record.type === "review"
+      ? "Daily review"
+      : record.type === "pronunciation"
+        ? "Pronunciation"
+        : record.type === "map"
+          ? "Geography"
+          : "Sentence drill";
+  const modeLabel = record.type === "vocabulary"
+    ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
+    : record.type === "review"
+      ? record.source === "saved" ? "Saved vocabulary" : "Adaptive vocabulary"
+      : record.type === "pronunciation"
+        ? selectedLevelLabels(record.levels)
+      : record.type === "map"
+          ? getSelectedMapQuizMode(record.mapQuizMode).targetMetric
+          : MODES[record.mode]?.label || record.mode;
+  const resultLabel = record.type === "vocabulary"
+    ? buildVocabularyHistoryResultLabel(record)
+    : record.type === "review"
+      ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+      : record.type === "pronunciation"
+        ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
+        : record.type === "map"
+          ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+          : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+  return { typeLabel, modeLabel, resultLabel };
+}
+
+function buildHistorySessionReviewMarkup(record) {
+  const answers = Array.isArray(record.answers) ? record.answers : [];
+  const mistakes = record.type === "pronunciation"
+    ? answers.filter((answer) => (Number(answer.score) || 0) < 0.999 || (answer.missedWords || []).length)
+    : answers.filter((answer) => answer.correct === false);
+  if (!answers.length) {
+    return `<p class="history-session-empty">Answer details are not available for this session.</p>`;
+  }
+  if (!mistakes.length) {
+    return `<p class="history-session-perfect">No mistakes in this session.</p>`;
+  }
+
+  return `
+    <div class="history-mistake-list">
+      ${mistakes.slice(0, 8).map((answer) => {
+        if (["vocabulary", "review"].includes(record.type)) {
+          const item = {
+            zh: answer.zh || "",
+            pinyin: answer.pinyin || "",
+            meanings: String(answer.meaning || "").split(";").map((meaning) => meaning.trim()).filter(Boolean),
+          };
+          return `
+            <div class="history-mistake-row">
+              <div class="history-mistake-word">
+                <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+                <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+              </div>
+              <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
+              <span>Your answer: ${escapeHtml(answer.answer || "No answer")}</span>
+              <button class="icon-btn" type="button" data-progress-audio="${escapeHtml(item.zh)}" aria-label="Play ${escapeHtml(item.zh)}" title="Play word">${speakerIconMarkup()}</button>
+            </div>
+          `;
+        }
+        if (record.type === "pronunciation") {
+          const missed = (answer.missedWords || []).map((word) => word.text).join(" · ");
+          return `
+            <div class="history-mistake-row is-sentence">
+              <strong class="chinese-text" lang="zh-CN">${escapeHtml(answer.zh || "")}</strong>
+              <p>${escapeHtml(answer.en || "")}</p>
+              <span>${missed ? `Missed: ${escapeHtml(missed)}` : `Heard: ${escapeHtml(answer.transcript || "No transcript")}`}</span>
+              <b>${Math.round((Number(answer.score) || 0) * 100)}%</b>
+            </div>
+          `;
+        }
+        if (record.type === "map") {
+          return `
+            <div class="history-mistake-row is-sentence">
+              <strong class="chinese-text" lang="zh-CN">${escapeHtml(answer.prompt || "")}</strong>
+              <p>${escapeHtml(answer.pinyin || "")}</p>
+              <span>Selected: ${escapeHtml(answer.selected || "No answer")}</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="history-mistake-row is-sentence">
+            <strong>${escapeHtml(answer.prompt || "")}</strong>
+            <p>Expected: ${escapeHtml(answer.expected || "")}</p>
+            <span>Your answer: ${escapeHtml(answer.answer || "No answer")}</span>
+          </div>
+        `;
+      }).join("")}
+      ${mistakes.length > 8 ? `<p class="history-mistake-overflow">${mistakes.length - 8} more ${mistakes.length - 8 === 1 ? "mistake" : "mistakes"} in this session</p>` : ""}
+    </div>
+  `;
+}
+
+function buildHistorySessionMarkup(record) {
+  const presentation = getHistoryRecordPresentation(record);
+  return `
+    <details class="history-session-item">
+      <summary>
+        <span class="history-session-date">${escapeHtml(formatHistoryDate(record.completedAt))}</span>
+        <span class="history-session-title">
+          <strong>${escapeHtml(presentation.typeLabel)}</strong>
+          <small>${escapeHtml(presentation.modeLabel)}</small>
+        </span>
+        <span class="history-session-result">${escapeHtml(presentation.resultLabel)}</span>
+        <span class="history-session-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="history-session-review">
+        <div class="history-session-review-heading">
+          <strong>Mistake review</strong>
+          <span>${Array.isArray(record.answers) ? record.answers.length : 0} saved answers</span>
+        </div>
+        ${buildHistorySessionReviewMarkup(record)}
+      </div>
+    </details>
+  `;
+}
+
 function renderHistoryHome() {
   const history = loadHistoryRecords();
-  const drillCount = history.filter((record) => record.type === "drill").length;
-  const quizCount = history.filter((record) => record.type === "vocabulary").length;
-  const reviewCount = history.filter((record) => record.type === "review").length;
-  const pronunciationCount = history.filter((record) => record.type === "pronunciation").length;
-  const mapCount = history.filter((record) => record.type === "map").length;
+  const review = getReviewDashboardData();
+  const progress = getHistoryProgressData(history, Date.now(), review);
+  const savedKeys = loadSavedVocabularyKeys();
+  const mistakeByKey = new Map(progress.vocabularyMistakes.map((item) => [item.key, item]));
   const highScores = getVocabularyHighScoreRecords(history);
   const highScoreRows = highScores.length
     ? highScores.map((record) => `
@@ -2689,16 +3128,23 @@ function renderHistoryHome() {
         </tr>
       `).join("")
     : `<tr><td colspan="4">No completed quiz high scores yet.</td></tr>`;
-  const recentRows = history.length
-    ? history.slice(0, 30).map(buildHistoryRowMarkup).join("")
-    : `<tr><td colspan="5">No saved sessions yet.</td></tr>`;
+  const recentSessions = history.length
+    ? history.slice(0, PROGRESS_RECENT_SESSION_LIMIT).map(buildHistorySessionMarkup).join("")
+    : `
+      <div class="history-empty-state">
+        <strong>No saved sessions yet</strong>
+        <p>Your completed practice will appear here.</p>
+        <button class="primary-btn" type="button" data-progress-tool="review">Start daily review</button>
+      </div>
+    `;
 
   app.innerHTML = `
     <section class="workspace-panel history-panel">
-      <div class="results-header">
+      <div class="results-header progress-header">
         <div>
-          <h2>History</h2>
-          <p>${history.length} saved sessions in this browser.</p>
+          <p class="progress-kicker">Learning record</p>
+          <h2>Learning progress</h2>
+          <p>${history.length ? "Patterns from your saved practice and review schedule." : "Complete a session to begin your learning record."}</p>
         </div>
         <div class="result-actions">
           <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" ${history.length ? "" : "disabled"}>
@@ -2708,42 +3154,97 @@ function renderHistoryHome() {
         </div>
       </div>
 
-      <div class="stat-grid">
-        <div class="stat">
-          <strong>${history.length}</strong>
-          <span>Saved sessions</span>
+      <div class="progress-metric-strip">
+        <div>
+          <span>Current streak</span>
+          <strong>${progress.streakDays}</strong>
+          <small>${progress.streakDays === 1 ? "day" : "days"}</small>
         </div>
-        <div class="stat">
-          <strong>${drillCount}</strong>
-          <span>Sentence drills</span>
+        <div>
+          <span>Last 7 days</span>
+          <strong>${progress.weekSessions}</strong>
+          <small>${progress.weekSessions === 1 ? "session" : "sessions"}</small>
         </div>
-        <div class="stat">
-          <strong>${quizCount}</strong>
-          <span>Quizzes</span>
+        <div>
+          <span>Answers this week</span>
+          <strong>${progress.weekAnswers}</strong>
+          <small>attempted</small>
         </div>
-        <div class="stat">
-          <strong>${reviewCount}</strong>
-          <span>Daily reviews</span>
-        </div>
-        <div class="stat">
-          <strong>${pronunciationCount}</strong>
-          <span>Pronunciation</span>
-        </div>
-        <div class="stat">
-          <strong>${mapCount}</strong>
-          <span>Map quizzes</span>
-        </div>
-        <div class="stat">
-          <strong>${highScores.length}</strong>
-          <span>High scores</span>
+        <div>
+          <span>Strong vocabulary</span>
+          <strong>${review.strongCount}</strong>
+          <small>of ${review.totalTracked} tracked</small>
         </div>
       </div>
 
-      <div class="history-section">
-        <div class="vocab-section-heading">
-          <h3>Vocabulary High Scores</h3>
-          <span>Fastest completed time per mode and set</span>
+      <section class="progress-activity" aria-labelledby="progressActivityHeading">
+        <div class="progress-section-heading">
+          <div>
+            <h3 id="progressActivityHeading">Practice rhythm</h3>
+            <p>${progress.activeDays} active ${progress.activeDays === 1 ? "day" : "days"} in the last four weeks</p>
+          </div>
+          <span>Last 28 days</span>
         </div>
+        ${buildProgressActivityMarkup(progress.activity)}
+      </section>
+
+      <div class="progress-main-grid">
+        <section class="progress-section" aria-labelledby="progressSkillsHeading">
+          <div class="progress-section-heading">
+            <div>
+              <h3 id="progressSkillsHeading">Skills</h3>
+              <p>Accuracy across saved sessions</p>
+            </div>
+          </div>
+          <div class="progress-skill-list">
+            ${progress.skills.map(buildProgressSkillMarkup).join("")}
+          </div>
+        </section>
+
+        <section class="progress-section progress-focus" aria-labelledby="progressFocusHeading">
+          <div class="progress-section-heading">
+            <div>
+              <h3 id="progressFocusHeading">Focus next</h3>
+              <p>Priorities from your recent results</p>
+            </div>
+          </div>
+          <div class="progress-focus-list">
+            ${progress.focusItems.length
+              ? progress.focusItems.map(buildProgressFocusMarkup).join("")
+              : buildProgressFocusMarkup({
+                  eyebrow: "On track",
+                  title: "Keep your practice balanced",
+                  detail: "Complete another session to refresh your recommendations.",
+                  tool: "review",
+                  actionLabel: "Practice now",
+                })}
+          </div>
+        </section>
+      </div>
+
+      ${progress.vocabularyMistakes.length ? `
+        <section class="progress-section progress-words" aria-labelledby="progressWordsHeading">
+          <div class="progress-section-heading">
+            <div>
+              <h3 id="progressWordsHeading">Words to revisit</h3>
+              <p>Most frequently missed across quizzes and reviews</p>
+            </div>
+            <button class="ghost-btn" type="button" id="saveAllProgressWords">Save all</button>
+          </div>
+          <div class="progress-word-list">
+            ${progress.vocabularyMistakes.map((item) => buildProgressVocabularyMistakeMarkup(item, savedKeys)).join("")}
+          </div>
+        </section>
+      ` : ""}
+
+      <details class="progress-disclosure">
+        <summary>
+          <span>
+            <strong>Vocabulary high scores</strong>
+            <small>Fastest completed time per mode and set</small>
+          </span>
+          <b>${highScores.length}</b>
+        </summary>
         <div class="results-table-wrap history-table-wrap" tabindex="0">
           <table>
             <thead>
@@ -2757,28 +3258,18 @@ function renderHistoryHome() {
             <tbody>${highScoreRows}</tbody>
           </table>
         </div>
-      </div>
+      </details>
 
-      <div class="history-section">
-        <div class="vocab-section-heading">
-          <h3>Recent Sessions</h3>
+      <section class="progress-section history-recent" aria-labelledby="recentSessionsHeading">
+        <div class="progress-section-heading">
+          <div>
+            <h3 id="recentSessionsHeading">Recent sessions</h3>
+            <p>Open a session to review its mistakes</p>
+          </div>
           <span>Most recent first</span>
         </div>
-        <div class="results-table-wrap history-table-wrap" tabindex="0">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Mode or set</th>
-                <th>Result</th>
-                <th>Answers</th>
-              </tr>
-            </thead>
-            <tbody>${recentRows}</tbody>
-          </table>
-        </div>
-      </div>
+        <div class="history-session-list">${recentSessions}</div>
+      </section>
     </section>
   `;
 
@@ -2790,36 +3281,46 @@ function renderHistoryHome() {
     clearHistoryRecords();
     render();
   });
+
+  document.querySelectorAll("[data-progress-tool]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.progressTool === "vocabulary" && button.dataset.progressView === "library") {
+        state.tool = "vocabulary";
+        state.vocabularyView = "library";
+        state.session = null;
+        state.result = null;
+        saveSettings();
+        render();
+        return;
+      }
+      launchDashboardActivity(button.dataset.progressTool, button.dataset.progressMode || "");
+    });
+  });
+  document.querySelectorAll("[data-progress-save-word]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = mistakeByKey.get(button.dataset.progressSaveWord);
+      if (item) {
+        toggleSavedVocabularyItem(item);
+        render();
+      }
+    });
+  });
+  document.querySelector("#saveAllProgressWords")?.addEventListener("click", () => {
+    const currentSavedKeys = loadSavedVocabularyKeys();
+    progress.vocabularyMistakes.forEach((item) => {
+      if (!currentSavedKeys.has(item.key)) {
+        toggleSavedVocabularyItem(item);
+      }
+    });
+    render();
+  });
+  document.querySelectorAll("[data-progress-audio]").forEach((button) => {
+    button.addEventListener("click", () => speak(button.dataset.progressAudio, { immediate: true }));
+  });
 }
 
 function buildHistoryRowMarkup(record) {
-  const typeLabel = record.type === "vocabulary"
-    ? "Vocabulary quiz"
-    : record.type === "review"
-      ? "Daily review"
-    : record.type === "pronunciation"
-      ? "Pronunciation"
-      : record.type === "map"
-        ? "Map quiz"
-      : "Sentence drill";
-  const modeLabel = record.type === "vocabulary"
-    ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
-    : record.type === "review"
-      ? record.source === "saved" ? "Saved vocabulary" : "Adaptive vocabulary"
-    : record.type === "pronunciation"
-      ? selectedLevelLabels(record.levels)
-      : record.type === "map"
-        ? `${getSelectedMapQuizMode(record.mapQuizMode).label} locations`
-      : MODES[record.mode]?.label || record.mode;
-  const resultLabel = record.type === "vocabulary"
-    ? buildVocabularyHistoryResultLabel(record)
-    : record.type === "review"
-      ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-    : record.type === "pronunciation"
-      ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
-      : record.type === "map"
-        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-      : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+  const { typeLabel, modeLabel, resultLabel } = getHistoryRecordPresentation(record);
   const answerCount = Array.isArray(record.answers) ? record.answers.length : 0;
 
   return `
@@ -6219,6 +6720,7 @@ async function startSession() {
     index: 0,
     answers: [],
     currentAssessment: null,
+    startedAt: Date.now(),
   };
 
   render();
@@ -6785,6 +7287,9 @@ function buildSessionResult(session) {
     mode: session.mode,
     levels: session.levels,
     answers: session.answers,
+    elapsedSeconds: session.startedAt
+      ? Math.max(0, Math.round((Date.now() - session.startedAt) / 1000))
+      : 0,
   };
 }
 
@@ -6955,6 +7460,7 @@ function buildHistoryRecord(result) {
     total: result.answers.length,
     correct,
     averageScore,
+    elapsedSeconds: result.elapsedSeconds || 0,
     answers: result.answers.map((answer, index) => ({
       index,
       prompt: result.mode === "writing"

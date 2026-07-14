@@ -98,6 +98,7 @@ window.__tests = {
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
+  PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
@@ -114,6 +115,8 @@ window.__tests = {
   buildDashboardWeekMarkup,
   buildHistoryRecord,
   buildHistoryRowMarkup,
+  buildHistorySessionMarkup,
+  buildProgressActivityMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
@@ -139,7 +142,11 @@ window.__tests = {
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
   getDashboardWeek,
+  getHistoryActivityDays,
+  getHistoryProgressData,
+  getHistorySkillStats,
   getPracticeStreakDays,
+  getProgressPronunciationFocus,
   getRecommendedDrillMode,
   formatReviewDueLabel,
   getVocabularySetMeta,
@@ -151,6 +158,7 @@ window.__tests = {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
+  getVocabularyMistakeStats,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -192,6 +200,7 @@ const {
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
+  PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
@@ -208,6 +217,8 @@ const {
   buildDashboardWeekMarkup,
   buildHistoryRecord,
   buildHistoryRowMarkup,
+  buildHistorySessionMarkup,
+  buildProgressActivityMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
@@ -233,7 +244,11 @@ const {
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
   getDashboardWeek,
+  getHistoryActivityDays,
+  getHistoryProgressData,
+  getHistorySkillStats,
   getPracticeStreakDays,
+  getProgressPronunciationFocus,
   getRecommendedDrillMode,
   formatReviewDueLabel,
   getVocabularySetMeta,
@@ -245,6 +260,7 @@ const {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
+  getVocabularyMistakeStats,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -418,6 +434,59 @@ assert(dueFocus.tool === "review" && dueFocus.title.includes("3 vocabulary words
 const dashboardData = getDashboardData(dashboardNow, dashboardHistory);
 assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "drill", "Today should continue with the first incomplete activity");
 assert(stylesSource.includes(".dashboard-week-chart") && stylesSource.includes("body[data-tool=\"dashboard\"] .tool-controls"), "Today should have responsive dashboard styling and hide irrelevant global controls");
+const progressHistory = [
+  ...dashboardHistory,
+  {
+    type: "vocabulary",
+    completedAt: new Date(dashboardNow - dashboardDay).toISOString(),
+    quizMode: "pinyin",
+    setLabel: "HSK 1 · Part 1",
+    total: 2,
+    correct: 1,
+    elapsedSeconds: 45,
+    answers: [
+      { zh: loveEntry.zh, pinyin: loveEntry.pinyin, meaning: "to love", answer: "ai", correct: false },
+      { zh: eightEntry.zh, pinyin: eightEntry.pinyin, meaning: "eight", answer: "ba", correct: true },
+    ],
+  },
+  {
+    type: "review",
+    source: "adaptive",
+    completedAt: new Date(dashboardNow - dashboardDay * 2).toISOString(),
+    total: 1,
+    correct: 0,
+    elapsedSeconds: 12,
+    answers: [
+      { zh: loveEntry.zh, pinyin: loveEntry.pinyin, meaning: "to love", answer: "", correct: false },
+    ],
+  },
+  {
+    type: "map",
+    mapQuizMode: "province",
+    completedAt: new Date(dashboardNow - dashboardDay * 5).toISOString(),
+    total: 34,
+    correct: 30,
+    elapsedSeconds: 90,
+    answers: [],
+  },
+];
+const progressSkills = getHistorySkillStats(progressHistory);
+assert(progressSkills.length === 6, "Learning progress should report every core skill in a stable order");
+assert(Math.abs(progressSkills.find((skill) => skill.id === "reading").accuracy - 0.7) < 0.001, "Learning progress should calculate sentence-mode accuracy");
+assert(progressSkills.find((skill) => skill.id === "vocabulary").attempts === 15, "Learning progress should combine vocabulary quizzes and reviews");
+const progressActivity = getHistoryActivityDays(progressHistory, dashboardNow);
+assert(PROGRESS_ACTIVITY_DAYS === 28 && progressActivity.length === 28, "Learning progress should show a four-week activity window");
+assert(progressActivity.at(-1).count === 2 && progressActivity.at(-1).isToday, "Learning progress activity should count today's sessions");
+assert(buildProgressActivityMarkup(progressActivity).includes("Last") === false && buildProgressActivityMarkup(progressActivity).includes("level-"), "activity markup should encode visible intensity levels");
+assert(getProgressPronunciationFocus(progressHistory).label === "Tone 3", "Learning progress should aggregate pronunciation weaknesses");
+const progressMistakes = getVocabularyMistakeStats(progressHistory);
+assert(progressMistakes[0].zh === loveEntry.zh && progressMistakes[0].misses === 2, "Learning progress should rank repeatedly missed vocabulary");
+const progressData = getHistoryProgressData(progressHistory, dashboardNow, { dueCount: 3, strongCount: 8, totalTracked: 20 });
+assert(progressData.weekSessions === progressHistory.length && progressData.focusItems[0].id === "due-vocabulary", "due review should lead the learner's progress priorities");
+assert(progressData.weekAnswers === 154, "Learning progress should total recent answer volume");
+const progressSessionMarkup = buildHistorySessionMarkup(progressHistory.at(-3));
+assert(progressSessionMarkup.includes("Mistake review") && progressSessionMarkup.includes("to love"), "recent progress sessions should expose answer-level mistake review");
+assert(stylesSource.includes(".progress-metric-strip") && stylesSource.includes(".history-session-item"), "Learning progress should include responsive insight and session-review styling");
 const reviewSessionFixture = {
   type: "review",
   items: reviewVocabulary.slice(0, 6).map((item, index) => ({ ...item, reviewMode: index % 2 ? "meaning" : "pinyin" })),

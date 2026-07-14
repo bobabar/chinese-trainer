@@ -1,6 +1,6 @@
 # Chinese Trainer
 
-A browser-based Chinese learning app with adaptive vocabulary review, pronunciation feedback, sentence drills, geography practice, and vocabulary quizzes.
+A browser-based Chinese learning app with adaptive vocabulary review, contextual grammar practice, pronunciation feedback, sentence drills, geography practice, and vocabulary quizzes.
 
 ## Live Site
 
@@ -43,8 +43,9 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
 - Quiz and sentence results turn missed answers into focused retry sessions, and recent History sessions can relaunch their saved mistakes directly.
 - Review sessions mix character-to-pinyin recall with audio-to-meaning choices and support keyboard controls.
+- Grammar Lab teaches 16 core New HSK 1 and 2 patterns with concise explanations, spoken examples, contextual multiple-choice checks, keyboard controls, focused mistake retries, and separate mastery history.
 - Pronunciation includes a browser speech-recognition session plus a dependable 15-word tone-listening trainer with randomized tone-pattern choices, Pleco colors, keyboard shortcuts, post-answer word reveals, and separate progress history.
-- Global navigation between Today, Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History.
+- Global navigation between Today, Vocabulary Quiz, Daily Review, Grammar Lab, Pronunciation, Geography of China, Sentence Drills, and History.
 - Sentence drill navigation for Reading, Writing, and Listening.
 - Global Beginner, Intermediate, and Advanced difficulty filters.
 - 1,800 sourced sentence pairs: 600 Beginner, 600 Intermediate, and 600 Advanced.

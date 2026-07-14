@@ -3,6 +3,7 @@
 const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const TONE_LISTENING_SESSION_LENGTH = 15;
+const GRAMMAR_SESSION_LENGTH = 10;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const REVIEW_SESSION_LENGTH = 12;
 const DASHBOARD_DAILY_GOAL = 3;
@@ -20,7 +21,7 @@ const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "tone", "map"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "pronunciation", "tone", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -72,6 +73,9 @@ const TOOLS = {
   },
   review: {
     label: "Daily Review",
+  },
+  grammar: {
+    label: "Grammar Lab",
   },
   pronunciation: {
     label: "Pronunciation",
@@ -141,6 +145,9 @@ const RAW_VOCABULARY_QUIZ_SETS = Array.isArray(window.VOCABULARY_QUIZ_SETS)
   ? window.VOCABULARY_QUIZ_SETS
   : [];
 const VOCABULARY_QUIZ_SETS = buildVocabularyQuizSets(RAW_VOCABULARY_QUIZ_SETS);
+const GRAMMAR_LESSONS = Array.isArray(window.GRAMMAR_LESSONS)
+  ? window.GRAMMAR_LESSONS
+  : [];
 const VOCABULARY_ORDER_OPTIONS = {
   random: "Random order",
   list: "List order",
@@ -388,6 +395,8 @@ const state = {
   vocabularyLibraryLevel: "all",
   vocabularyLibraryStatus: "all",
   vocabularyLibraryVisibleCount: VOCABULARY_LIBRARY_PAGE_SIZE,
+  grammarLevel: 1,
+  grammarLessonId: "",
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
   mapShowPinyinNames: false,
   pronunciationView: "speaking",
@@ -460,6 +469,12 @@ function loadSettings() {
     if (saved.mapQuizMode && MAP_QUIZ_MODES[saved.mapQuizMode]) {
       state.mapQuizMode = saved.mapQuizMode;
     }
+    if ([1, 2].includes(Number(saved.grammarLevel))) {
+      state.grammarLevel = Number(saved.grammarLevel);
+    }
+    if (saved.grammarLessonId && GRAMMAR_LESSONS.some((lesson) => lesson.id === saved.grammarLessonId)) {
+      state.grammarLessonId = saved.grammarLessonId;
+    }
     if (typeof saved.mapShowPinyinNames === "boolean") {
       state.mapShowPinyinNames = saved.mapShowPinyinNames;
     }
@@ -509,6 +524,8 @@ function saveSettings() {
         vocabularySetId: state.vocabularySetId,
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
+        grammarLevel: state.grammarLevel,
+        grammarLessonId: state.grammarLessonId,
         mapQuizMode: state.mapQuizMode,
         mapShowPinyinNames: state.mapShowPinyinNames,
         pronunciationView: state.pronunciationView,
@@ -630,6 +647,12 @@ function bindGlossTooltipAlignment() {
 
 function handleSessionShortcut(event) {
   if (event.isComposing || event.altKey) {
+    return;
+  }
+
+  if (isGrammarChoiceShortcut(event)) {
+    event.preventDefault();
+    submitGrammarChoiceByShortcut(event.key);
     return;
   }
 
@@ -757,6 +780,15 @@ function isToneChoiceShortcut(event) {
     !event.ctrlKey &&
     !event.shiftKey &&
     /^[1-5]$/.test(event.key);
+}
+
+function isGrammarChoiceShortcut(event) {
+  return state.session?.type === "grammar" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-4]$/.test(event.key);
 }
 
 function isVocabularyChoiceShortcut(event) {
@@ -1075,6 +1107,8 @@ function render() {
       renderVocabularyResults();
     } else if (state.result.type === "review") {
       renderReviewResults();
+    } else if (state.result.type === "grammar") {
+      renderGrammarResults();
     } else if (state.result.type === "pronunciation") {
       renderPronunciationResults();
     } else if (state.result.type === "tone") {
@@ -1115,6 +1149,11 @@ function render() {
 
   if (state.tool === "review") {
     renderReviewHome();
+    return;
+  }
+
+  if (state.tool === "grammar") {
+    renderGrammarHome();
     return;
   }
 
@@ -1380,6 +1419,7 @@ function buildDashboardPlan(history, review, now = Date.now()) {
   );
   const drillMode = getRecommendedDrillMode(history);
   const drillLabel = MODES[drillMode]?.label || "Reading";
+  const languageActivity = getRecommendedLanguageActivity(history, drillMode, drillLabel, now);
   const reviewDetail = review.dueCount
     ? `${review.dueCount} due ${review.dueCount === 1 ? "word" : "words"} · mixed pinyin and listening`
     : review.totalTracked
@@ -1401,15 +1441,35 @@ function buildDashboardPlan(history, review, now = Date.now()) {
       detail: "15 short sentences with word-level feedback",
       completed: completedTypes.has("pronunciation"),
     },
-    {
-      id: "drill",
-      tool: "drill",
-      mode: drillMode,
-      title: `${drillLabel} sentence drill`,
-      detail: "30 sentences at your selected difficulty",
-      completed: completedTypes.has("drill"),
-    },
+    languageActivity,
   ];
+}
+
+function getRecommendedLanguageActivity(history, drillMode = getRecommendedDrillMode(history), drillLabel = MODES[drillMode]?.label || "Reading", now = Date.now()) {
+  const todayKey = localDateKey(now);
+  const completedGrammarToday = history.some((record) => record.type === "grammar" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
+  const completedDrillToday = history.some((record) => record.type === "drill" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
+  const priorHistory = history.filter((record) => localDateKey(Date.parse(record.completedAt)) !== todayKey);
+  const lastGrammar = priorHistory.find((record) => record.type === "grammar");
+  const lastDrill = priorHistory.find((record) => record.type === "drill");
+  const grammarIsDue = completedGrammarToday || (!completedDrillToday && (!lastGrammar || (lastDrill && Date.parse(lastGrammar.completedAt || "") < Date.parse(lastDrill.completedAt || ""))));
+  if (grammarIsDue) {
+    return {
+      id: "grammar",
+      tool: "grammar",
+      title: "Grammar pattern practice",
+      detail: "10 contextual questions from your current HSK level",
+      completed: completedGrammarToday,
+    };
+  }
+  return {
+    id: "drill",
+    tool: "drill",
+    mode: drillMode,
+    title: `${drillLabel} sentence drill`,
+    detail: "30 sentences at your selected difficulty",
+    completed: completedDrillToday,
+  };
 }
 
 function isDashboardPlanRecordComplete(record) {
@@ -1422,6 +1482,9 @@ function isDashboardPlanRecordComplete(record) {
   }
   if (record?.type === "drill") {
     return total >= SESSION_LENGTH;
+  }
+  if (record?.type === "grammar") {
+    return total >= GRAMMAR_SESSION_LENGTH || record.scope === "lesson";
   }
   return false;
 }
@@ -1615,6 +1678,8 @@ function launchDashboardActivity(tool, mode = "") {
 
   if (tool === "review") {
     startReviewSession();
+  } else if (tool === "grammar") {
+    startGrammarSession();
   } else if (tool === "pronunciation") {
     startActivePronunciationSession();
   } else if (tool === "drill") {
@@ -3770,6 +3835,538 @@ function renderReviewResults() {
   });
 }
 
+function getGrammarLessonById(lessonId) {
+  return GRAMMAR_LESSONS.find((lesson) => lesson.id === lessonId) || null;
+}
+
+function getGrammarLessonProgress(history, lessonId) {
+  const answers = history
+    .filter((record) => record.type === "grammar")
+    .flatMap((record) => record.answers || [])
+    .filter((answer) => answer.lessonId === lessonId);
+  const correct = answers.filter((answer) => answer.correct).length;
+  const accuracy = answers.length ? correct / answers.length : null;
+  const status = !answers.length
+    ? "Not started"
+    : answers.length >= 3 && accuracy >= 0.8
+      ? "Strong"
+      : "Learning";
+  return { attempts: answers.length, correct, accuracy, status };
+}
+
+function getGrammarProgressData(history = loadHistoryRecords()) {
+  const lessons = GRAMMAR_LESSONS.map((lesson) => ({
+    ...lesson,
+    progress: getGrammarLessonProgress(history, lesson.id),
+  }));
+  const answers = history
+    .filter((record) => record.type === "grammar")
+    .flatMap((record) => record.answers || []);
+  return {
+    lessons,
+    started: lessons.filter((lesson) => lesson.progress.attempts).length,
+    strong: lessons.filter((lesson) => lesson.progress.status === "Strong").length,
+    accuracy: answers.length ? answers.filter((answer) => answer.correct).length / answers.length : null,
+    answers: answers.length,
+  };
+}
+
+function renderGrammarHome() {
+  if (state.grammarLessonId) {
+    renderGrammarLesson(getGrammarLessonById(state.grammarLessonId));
+    return;
+  }
+
+  const progress = getGrammarProgressData();
+  const lessons = progress.lessons.filter((lesson) => lesson.level === state.grammarLevel);
+  const levelStrong = lessons.filter((lesson) => lesson.progress.status === "Strong").length;
+  const levelStarted = lessons.filter((lesson) => lesson.progress.attempts).length;
+  const accuracyLabel = progress.accuracy === null ? "Not started" : `${Math.round(progress.accuracy * 100)}%`;
+
+  app.innerHTML = `
+    <section class="workspace-panel grammar-home">
+      <header class="grammar-home-header">
+        <div>
+          <h2>Grammar Lab</h2>
+          <p>Learn the patterns that turn vocabulary into natural sentences, then check your understanding in context.</p>
+        </div>
+        <button class="primary-btn shortcut-btn grammar-mixed-start" type="button" id="startGrammarPractice">
+          <span>Start mixed practice</span>
+          ${shortcutHint("Enter")}
+        </button>
+      </header>
+
+      <div class="grammar-level-switcher" role="group" aria-label="Grammar level">
+        ${[1, 2].map((level) => `
+          <button class="grammar-level-button ${state.grammarLevel === level ? "active" : ""}" type="button" data-grammar-level="${level}" aria-pressed="${state.grammarLevel === level}">
+            <strong>HSK ${level}</strong>
+            <span>${GRAMMAR_LESSONS.filter((lesson) => lesson.level === level).length} core patterns</span>
+          </button>
+        `).join("")}
+      </div>
+
+      <div class="grammar-metric-strip" aria-label="Grammar progress">
+        <div><strong>${levelStarted}/${lessons.length}</strong><span>Patterns practiced</span></div>
+        <div><strong>${levelStrong}</strong><span>Strong patterns</span></div>
+        <div><strong>${accuracyLabel}</strong><span>Overall accuracy</span></div>
+      </div>
+
+      <div class="grammar-list-heading">
+        <div>
+          <h3>HSK ${state.grammarLevel} core patterns</h3>
+          <p>Select a lesson for a concise explanation, examples, and focused practice.</p>
+        </div>
+        <span>${lessons.length} lessons</span>
+      </div>
+
+      <div class="grammar-lesson-list">
+        ${lessons.map((lesson, index) => buildGrammarLessonRow(lesson, index)).join("")}
+      </div>
+
+      <p class="grammar-source-note">
+        Curriculum aligned with the grammar dimension of
+        <a href="https://www.moe.gov.cn/jyb_sjzl/ziliao/A19/202111/t20211118_580755.html" target="_blank" rel="noopener noreferrer">GF 0025-2021</a>.
+      </p>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-grammar-level]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.grammarLevel = Number(button.dataset.grammarLevel) || 1;
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-grammar-lesson]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.grammarLessonId = button.dataset.grammarLesson;
+      saveSettings();
+      render();
+      window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    });
+  });
+  document.querySelector("#startGrammarPractice")?.addEventListener("click", () => startGrammarSession());
+}
+
+function buildGrammarLessonRow(lesson, index) {
+  const progress = lesson.progress || { attempts: 0, accuracy: null, status: "Not started" };
+  const accuracy = progress.accuracy === null ? "New" : `${Math.round(progress.accuracy * 100)}%`;
+  const statusClass = progress.status.toLowerCase().replace(/\s+/g, "-");
+  return `
+    <button class="grammar-lesson-row" type="button" data-grammar-lesson="${escapeHtml(lesson.id)}">
+      <span class="grammar-lesson-index">${index + 1}</span>
+      <span class="grammar-lesson-main">
+        <span class="grammar-lesson-meta">${escapeHtml(lesson.category)}</span>
+        <strong>${escapeHtml(lesson.title)}</strong>
+        <span>${escapeHtml(lesson.summary)}</span>
+      </span>
+      <span class="grammar-lesson-pattern chinese-text" lang="zh-CN">${escapeHtml(lesson.pattern)}</span>
+      <span class="grammar-lesson-progress ${statusClass}">
+        <strong>${escapeHtml(accuracy)}</strong>
+        <span>${escapeHtml(progress.status)}</span>
+      </span>
+      <span class="grammar-lesson-arrow" aria-hidden="true">→</span>
+    </button>
+  `;
+}
+
+function renderGrammarLesson(lesson) {
+  if (!lesson) {
+    state.grammarLessonId = "";
+    saveSettings();
+    renderGrammarHome();
+    return;
+  }
+  const progress = getGrammarLessonProgress(loadHistoryRecords(), lesson.id);
+  const progressLabel = progress.accuracy === null
+    ? "Not practiced yet"
+    : `${Math.round(progress.accuracy * 100)}% across ${progress.attempts} ${progress.attempts === 1 ? "answer" : "answers"}`;
+
+  app.innerHTML = `
+    <section class="workspace-panel grammar-lesson-view">
+      <button class="grammar-back-button" type="button" id="backToGrammar">
+        <span aria-hidden="true">←</span> All HSK ${lesson.level} patterns
+      </button>
+
+      <header class="grammar-lesson-hero">
+        <div class="grammar-lesson-copy">
+          <span>HSK ${lesson.level} · ${escapeHtml(lesson.category)}</span>
+          <h2>${escapeHtml(lesson.title)}</h2>
+          <p>${escapeHtml(lesson.summary)}</p>
+        </div>
+        <div class="grammar-pattern-display">
+          <span>Pattern</span>
+          <strong class="chinese-text" lang="zh-CN">${escapeHtml(lesson.pattern)}</strong>
+          <small>${escapeHtml(progressLabel)}</small>
+        </div>
+      </header>
+
+      <div class="grammar-lesson-body">
+        <section class="grammar-explanation" aria-labelledby="grammarStructureHeading">
+          <div>
+            <span>Structure</span>
+            <h3 id="grammarStructureHeading">${escapeHtml(lesson.structure)}</h3>
+          </div>
+          <p>${escapeHtml(lesson.note)}</p>
+        </section>
+
+        <section class="grammar-example-section" aria-labelledby="grammarExamplesHeading">
+          <div class="grammar-list-heading">
+            <div>
+              <h3 id="grammarExamplesHeading">Examples in context</h3>
+              <p>Listen, read the pattern, and compare the English meaning.</p>
+            </div>
+          </div>
+          <div class="grammar-example-list">
+            ${lesson.examples.map((example, index) => `
+              <article class="grammar-example-row">
+                <span class="grammar-example-index">${index + 1}</span>
+                <div>
+                  <strong class="chinese-text" lang="zh-CN">${escapeHtml(example.zh)}</strong>
+                  <span>${buildToneColoredPinyinMarkup(example.pinyin)}</span>
+                </div>
+                <p>${escapeHtml(example.en)}</p>
+                <button class="icon-btn" type="button" data-grammar-audio="${escapeHtml(example.zh)}" aria-label="Play ${escapeHtml(example.zh)}" title="Play sentence">
+                  ${speakerIconMarkup()}
+                </button>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      </div>
+
+      <footer class="grammar-lesson-footer">
+        <div>
+          <strong>Check this pattern</strong>
+          <span>${lesson.questions.length} focused questions with immediate explanations.</span>
+        </div>
+        <button class="primary-btn shortcut-btn" type="button" id="practiceGrammarLesson">
+          <span>Practice this pattern</span>
+          ${shortcutHint("Enter")}
+        </button>
+      </footer>
+    </section>
+  `;
+
+  document.querySelector("#backToGrammar")?.addEventListener("click", () => {
+    state.grammarLessonId = "";
+    saveSettings();
+    render();
+  });
+  document.querySelector("#practiceGrammarLesson")?.addEventListener("click", () => startGrammarSession(lesson.id));
+  document.querySelectorAll("[data-grammar-audio]").forEach((button) => {
+    button.addEventListener("click", () => speak(button.dataset.grammarAudio, { immediate: true }));
+  });
+}
+
+function getGrammarQuestionPool(lessonId = "", level = state.grammarLevel) {
+  const lessons = lessonId
+    ? GRAMMAR_LESSONS.filter((lesson) => lesson.id === lessonId)
+    : GRAMMAR_LESSONS.filter((lesson) => lesson.level === level);
+  return lessons.flatMap((lesson) => lesson.questions.map((question, questionIndex) => ({
+    ...question,
+    id: `${lesson.id}-${questionIndex + 1}`,
+    lessonId: lesson.id,
+    lessonTitle: lesson.title,
+    lessonPattern: lesson.pattern,
+    level: lesson.level,
+  })));
+}
+
+function buildGrammarSessionItems(lessonId = "", level = state.grammarLevel) {
+  const pool = getGrammarQuestionPool(lessonId, level);
+  const count = lessonId ? pool.length : Math.min(GRAMMAR_SESSION_LENGTH, pool.length);
+  const selected = lessonId
+    ? shuffle(pool)
+    : shuffle([
+        ...shuffle(GRAMMAR_LESSONS.filter((lesson) => lesson.level === level))
+          .map((lesson) => shuffle(pool.filter((question) => question.lessonId === lesson.id))[0])
+          .filter(Boolean),
+        ...shuffle(pool),
+      ].filter((question, index, items) => items.findIndex((candidate) => candidate.id === question.id) === index)).slice(0, count);
+
+  return selected.map((question) => ({
+    ...question,
+    choices: shuffle(question.options).map((text, choiceIndex) => ({
+      id: `${question.id}-choice-${choiceIndex}`,
+      text,
+      correct: text === question.answer,
+      shortcut: String(choiceIndex + 1),
+    })),
+  }));
+}
+
+function startGrammarSession(lessonId = "") {
+  const lesson = lessonId ? getGrammarLessonById(lessonId) : null;
+  const level = lesson?.level || state.grammarLevel;
+  const items = buildGrammarSessionItems(lessonId, level);
+  startGrammarItems(items, {
+    scope: lessonId ? "lesson" : "mixed",
+    lessonId,
+    level,
+  });
+}
+
+function startGrammarItems(items, options = {}) {
+  if (!items.length) {
+    return;
+  }
+  const level = options.level || items[0]?.level || state.grammarLevel;
+  stopSpeech();
+  state.tool = "grammar";
+  state.grammarLevel = level;
+  state.grammarLessonId = options.lessonId || "";
+  state.result = null;
+  state.session = {
+    type: "grammar",
+    scope: options.scope || "mixed",
+    lessonId: options.lessonId || "",
+    level,
+    items,
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  saveSettings();
+  render();
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+}
+
+function buildGrammarPromptMarkup(prompt) {
+  return escapeHtml(prompt).replaceAll("___", '<span class="grammar-blank" aria-label="blank">?</span>');
+}
+
+function renderGrammarSession() {
+  const session = state.session;
+  const item = session.items[session.index];
+  const assessment = session.currentAssessment;
+  const correct = session.answers.filter((answer) => answer.correct).length;
+  const progress = Math.round(((session.index + (assessment ? 1 : 0)) / session.items.length) * 100);
+
+  app.innerHTML = `
+    <section class="workspace-panel grammar-session">
+      <header class="grammar-session-header">
+        <div>
+          <span>${session.scope === "lesson" ? "Focused pattern practice" : `HSK ${session.level} mixed practice`}</span>
+          <strong>${escapeHtml(item.lessonTitle)}</strong>
+        </div>
+        <div class="grammar-session-score"><span>Score</span><strong>${correct}/${session.answers.length}</strong></div>
+        <button class="ghost-btn" type="button" id="endSession">End practice</button>
+      </header>
+      <div class="grammar-session-progress">
+        <div class="progress-track"><div style="width:${progress}%"></div></div>
+        <span>Question ${session.index + 1} of ${session.items.length}</span>
+      </div>
+
+      <div class="grammar-practice-layout">
+        <aside class="grammar-context-panel">
+          <span>Pattern in focus</span>
+          <strong class="chinese-text" lang="zh-CN">${escapeHtml(item.lessonPattern)}</strong>
+          <p>${escapeHtml(getGrammarLessonById(item.lessonId)?.summary || "")}</p>
+        </aside>
+
+        <section class="grammar-question-panel ${assessment ? "is-answered" : ""}">
+          <div class="grammar-question-copy">
+            <span>Choose the best answer</span>
+            <h2 class="chinese-text" lang="zh-CN">${buildGrammarPromptMarkup(item.prompt)}</h2>
+            <p>${escapeHtml(item.translation)}</p>
+          </div>
+
+          <div class="grammar-choice-grid">
+            ${item.choices.map((choice) => buildGrammarChoiceMarkup(choice, assessment)).join("")}
+          </div>
+
+          ${assessment ? buildGrammarFeedbackMarkup(item, assessment) : ""}
+          ${assessment ? `
+            <button class="primary-btn shortcut-btn grammar-next-button" type="button" id="nextQuestion">
+              <span>${session.index + 1 >= session.items.length ? "View results" : "Next question"}</span>
+              ${shortcutHint("Enter")}
+            </button>
+          ` : ""}
+        </section>
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-grammar-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitGrammarChoice(button.dataset.grammarChoiceId));
+  });
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+  document.querySelector("#endSession")?.addEventListener("click", finishSessionEarly);
+}
+
+function buildGrammarChoiceMarkup(choice, assessment) {
+  const selected = assessment?.choiceId === choice.id;
+  const classes = [
+    "choice-option",
+    "grammar-choice-option",
+    selected ? "selected" : "",
+    assessment && choice.correct ? "correct" : "",
+    assessment && selected && !choice.correct ? "incorrect" : "",
+    assessment && selected && choice.correct ? "correct-celebration" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <button class="${classes}" type="button" data-grammar-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
+      <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+      <span class="choice-text chinese-text" lang="zh-CN">${escapeHtml(choice.text)}</span>
+    </button>
+  `;
+}
+
+function buildGrammarFeedbackMarkup(item, assessment) {
+  return `
+    <section class="grammar-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
+      <div>
+        <strong>${assessment.correct ? "Correct" : "Review the pattern"}</strong>
+        <span>Answer: <b class="chinese-text" lang="zh-CN">${escapeHtml(item.answer)}</b></span>
+      </div>
+      <p>${escapeHtml(item.explanation)}</p>
+    </section>
+  `;
+}
+
+function submitGrammarChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "grammar" || session.currentAssessment) {
+    return;
+  }
+  const choice = session.items[session.index]?.choices.find((option) => option.shortcut === shortcut);
+  if (choice) {
+    submitGrammarChoice(choice.id);
+  }
+}
+
+function submitGrammarChoice(choiceId) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "grammar" || !item || session.currentAssessment) {
+    return;
+  }
+  const choice = item.choices.find((option) => option.id === choiceId);
+  if (!choice) {
+    return;
+  }
+  const assessment = {
+    choiceId: choice.id,
+    answer: choice.text,
+    expected: item.answer,
+    correct: choice.correct,
+    score: choice.correct ? 1 : 0,
+  };
+  session.currentAssessment = assessment;
+  session.answers.push({ ...assessment, item, itemIndex: session.index });
+  render();
+}
+
+function getGrammarResultFocus(result) {
+  const stats = new Map();
+  result.answers.forEach((answer) => {
+    const current = stats.get(answer.item.lessonId) || {
+      lesson: getGrammarLessonById(answer.item.lessonId),
+      attempts: 0,
+      correct: 0,
+    };
+    current.attempts += 1;
+    current.correct += answer.correct ? 1 : 0;
+    stats.set(answer.item.lessonId, current);
+  });
+  return [...stats.values()]
+    .map((item) => ({ ...item, accuracy: item.attempts ? item.correct / item.attempts : 0 }))
+    .sort((a, b) => a.accuracy - b.accuracy || b.attempts - a.attempts);
+}
+
+function renderGrammarResults() {
+  const result = state.result;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const accuracy = result.answers.length ? Math.round((correct / result.answers.length) * 100) : 0;
+  const focus = getGrammarResultFocus(result);
+  const needsReview = focus.filter((item) => item.accuracy < 1).slice(0, 3);
+  const rows = result.answers.map((answer, index) => `
+    <tr class="${answer.correct ? "found" : "missed"}">
+      <td>${index + 1}</td>
+      <td>${escapeHtml(answer.item.lessonTitle)}</td>
+      <td class="chinese-text">${buildGrammarPromptMarkup(answer.item.prompt)}</td>
+      <td class="chinese-text">${escapeHtml(answer.answer)}</td>
+      <td class="chinese-text">${escapeHtml(answer.item.answer)}</td>
+      <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Review"}</td>
+    </tr>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel grammar-results">
+      <header class="results-header">
+        <div>
+          <h2>${result.scope === "lesson" ? "Pattern Check Complete" : result.scope === "mistakes" ? "Grammar Mistakes Reviewed" : "Grammar Practice Complete"}</h2>
+          <p>${correct} of ${result.answers.length} correct across ${focus.length} ${focus.length === 1 ? "pattern" : "patterns"}.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Practice again</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to Grammar Lab</button>
+        </div>
+      </header>
+
+      <div class="stat-grid grammar-result-stats">
+        <div class="stat"><strong>${accuracy}%</strong><span>Accuracy</span></div>
+        <div class="stat"><strong>${correct}/${result.answers.length}</strong><span>Correct</span></div>
+        <div class="stat"><strong>${formatTimer(result.elapsedSeconds)}</strong><span>Practice time</span></div>
+      </div>
+
+      <section class="grammar-result-focus" aria-labelledby="grammarFocusHeading">
+        <div class="grammar-list-heading">
+          <div>
+            <h3 id="grammarFocusHeading">${needsReview.length ? "Patterns to revisit" : "Patterns strengthened"}</h3>
+            <p>${needsReview.length ? "Open a lesson to review the explanation and examples." : "Every pattern in this session was answered correctly."}</p>
+          </div>
+        </div>
+        <div class="grammar-result-focus-list">
+          ${(needsReview.length ? needsReview : focus.slice(0, 3)).map((item) => `
+            <button type="button" data-result-grammar-lesson="${escapeHtml(item.lesson?.id || "")}">
+              <span>${escapeHtml(item.lesson?.category || "Pattern")}</span>
+              <strong>${escapeHtml(item.lesson?.title || "Grammar pattern")}</strong>
+              <small>${item.correct}/${item.attempts} correct · ${escapeHtml(item.lesson?.pattern || "")}</small>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+
+      <div class="results-table-wrap" tabindex="0">
+        <table class="grammar-results-table">
+          <thead><tr><th>#</th><th>Pattern</th><th>Question</th><th>Your answer</th><th>Expected</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession")?.addEventListener("click", () => {
+    if (result.scope === "mistakes") {
+      startGrammarItems(result.items, { scope: "mistakes", level: result.level });
+    } else {
+      startGrammarSession(result.lessonId || "");
+    }
+  });
+  document.querySelector("#backToModes")?.addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    state.grammarLessonId = "";
+    saveSettings();
+    render();
+  });
+  document.querySelectorAll("[data-result-grammar-lesson]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.result = null;
+      state.session = null;
+      state.grammarLessonId = button.dataset.resultGrammarLesson;
+      saveSettings();
+      render();
+    });
+  });
+}
+
 function formatVocabularyPathSetName(setId, setLabel = "") {
   const set = VOCABULARY_QUIZ_SETS.find((candidate) => candidate.id === setId) || { id: setId, label: setLabel };
   const meta = getVocabularySetMeta(set);
@@ -3878,6 +4475,7 @@ function formatVocabularySetOption(set) {
 function getProgressSkillDefinitions() {
   return [
     { id: "vocabulary", label: "Vocabulary", tool: "review", unit: "words" },
+    { id: "grammar", label: "Grammar", tool: "grammar", unit: "questions" },
     { id: "pronunciation", label: "Pronunciation", tool: "pronunciation", unit: "sentences" },
     { id: "tone", label: "Tone listening", tool: "pronunciation", mode: "tone", unit: "words" },
     { id: "reading", label: "Reading", tool: "drill", mode: "reading", unit: "sentences" },
@@ -4195,12 +4793,14 @@ function buildProgressVocabularyMistakeMarkup(item, savedKeys = new Set()) {
 function getHistoryRecordPresentation(record) {
   const typeLabel = record.type === "vocabulary"
     ? "Vocabulary quiz"
-    : record.type === "review"
+      : record.type === "review"
       ? record.source === "path"
         ? "HSK path review"
         : record.source === "mistakes"
           ? "Mistake review"
           : "Daily review"
+      : record.type === "grammar"
+        ? "Grammar practice"
       : record.type === "pronunciation"
         ? "Pronunciation"
         : record.type === "tone"
@@ -4210,7 +4810,7 @@ function getHistoryRecordPresentation(record) {
           : "Sentence drill";
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
-    : record.type === "review"
+      : record.type === "review"
       ? record.source === "saved"
         ? "Saved vocabulary"
         : record.source === "path"
@@ -4218,6 +4818,10 @@ function getHistoryRecordPresentation(record) {
           : record.source === "mistakes"
             ? `${record.setLabel || "Vocabulary"} · Targeted retry`
           : "Adaptive vocabulary"
+      : record.type === "grammar"
+        ? record.scope === "lesson"
+          ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
+          : `HSK ${record.level || 1} · Mixed patterns`
       : record.type === "pronunciation"
         ? selectedLevelLabels(record.levels)
       : record.type === "tone"
@@ -4227,8 +4831,10 @@ function getHistoryRecordPresentation(record) {
           : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
-    : record.type === "review"
-      ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+      : record.type === "review"
+        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+      : record.type === "grammar"
+        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
       : record.type === "pronunciation"
         ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
         : record.type === "tone"
@@ -4287,6 +4893,16 @@ function buildHistorySessionReviewMarkup(record) {
               <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
               <span>Your answer: ${escapeHtml(answer.answer || "No answer")}</span>
               <button class="icon-btn" type="button" data-progress-audio="${escapeHtml(item.zh)}" aria-label="Play ${escapeHtml(item.zh)}" title="Play word">${speakerIconMarkup()}</button>
+            </div>
+          `;
+        }
+        if (record.type === "grammar") {
+          return `
+            <div class="history-mistake-row is-sentence is-grammar">
+              <strong class="chinese-text" lang="zh-CN">${buildGrammarPromptMarkup(answer.prompt || "")}</strong>
+              <p>${escapeHtml(answer.lessonTitle || answer.pattern || "Grammar pattern")}</p>
+              <span>Chose ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}</span>
+              <b>${answer.correct ? "Correct" : "Review"}</b>
             </div>
           `;
         }
@@ -4634,6 +5250,11 @@ function renderSession() {
 
   if (state.session?.type === "vocabulary") {
     renderVocabularySession();
+    return;
+  }
+
+  if (state.session?.type === "grammar") {
+    renderGrammarSession();
     return;
   }
 
@@ -8349,6 +8970,11 @@ function startActiveSession() {
     return;
   }
 
+  if (state.tool === "grammar") {
+    startGrammarSession(state.grammarLessonId || "");
+    return;
+  }
+
   if (state.tool === "pronunciation") {
     startActivePronunciationSession();
     return;
@@ -9154,6 +9780,19 @@ function buildSessionResult(session) {
     };
   }
 
+  if (session.type === "grammar") {
+    return {
+      type: "grammar",
+      scope: session.scope || "mixed",
+      lessonId: session.lessonId || "",
+      level: session.level || 1,
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+      total: session.items.length,
+    };
+  }
+
   if (session.type === "pronunciation") {
     const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
     return {
@@ -9260,6 +9899,37 @@ function buildHistoryRecord(result) {
         previousStage: answer.previousStage,
         reviewStage: answer.reviewStage,
         nextDueAt: answer.nextDueAt,
+      })),
+    };
+  }
+
+  if (result.type === "grammar") {
+    const lesson = getGrammarLessonById(result.lessonId);
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    return {
+      id,
+      type: "grammar",
+      scope: result.scope || "mixed",
+      lessonId: result.lessonId || "",
+      lessonTitle: lesson?.title || "",
+      level: result.level || 1,
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        questionId: answer.item.id,
+        lessonId: answer.item.lessonId,
+        lessonTitle: answer.item.lessonTitle,
+        pattern: answer.item.lessonPattern,
+        prompt: answer.item.prompt,
+        translation: answer.item.translation,
+        answer: answer.answer || "",
+        expected: answer.item.answer,
+        explanation: answer.item.explanation,
+        correct: Boolean(answer.correct),
+        score: answer.correct ? 1 : 0,
       })),
     };
   }
@@ -9427,6 +10097,28 @@ function getHistoryMistakeRetryData(record) {
     return null;
   }
 
+  if (record.type === "grammar") {
+    const questionById = new Map(
+      [1, 2].flatMap((level) => getGrammarQuestionPool("", level)).map((question) => [question.id, question]),
+    );
+    const items = mistakes.flatMap((answer) => {
+      const question = questionById.get(answer.questionId);
+      if (!question) {
+        return [];
+      }
+      return [{
+        ...question,
+        choices: shuffle(question.options).map((text, choiceIndex) => ({
+          id: `${question.id}-retry-${choiceIndex}`,
+          text,
+          correct: text === question.answer,
+          shortcut: String(choiceIndex + 1),
+        })),
+      }];
+    });
+    return items.length ? { type: "grammar", items, level: record.level || items[0].level || 1 } : null;
+  }
+
   if (["vocabulary", "review"].includes(record.type)) {
     const itemsByKey = new Map();
     mistakes.forEach((answer) => {
@@ -9481,6 +10173,13 @@ function startHistoryMistakeRetry(record) {
       setId: record.setId || "",
       setLabel: record.setLabel || "Mistakes from History",
     });
+    return;
+  }
+
+  if (retry.type === "grammar") {
+    state.tool = "grammar";
+    saveSettings();
+    startGrammarItems(retry.items, { scope: "mistakes", level: retry.level });
     return;
   }
 

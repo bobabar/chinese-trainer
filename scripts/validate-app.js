@@ -6,6 +6,7 @@ const ROOT = path.resolve(__dirname, "..");
 const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
+const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
@@ -91,6 +92,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
+vm.runInContext(grammarData, context, { filename: "grammar-data.js" });
 vm.runInContext(chinaMapData, context, { filename: "china-map-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
@@ -98,6 +100,8 @@ window.__tests = {
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
+  GRAMMAR_LESSONS,
+  GRAMMAR_SESSION_LENGTH,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   TONE_LISTENING_SESSION_LENGTH,
@@ -120,6 +124,8 @@ window.__tests = {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildGrammarPromptMarkup,
+  buildGrammarSessionItems,
   buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
@@ -163,6 +169,8 @@ window.__tests = {
   getHistoryMistakeRetryData,
   getHistoryProgressData,
   getHistorySkillStats,
+  getGrammarLessonProgress,
+  getGrammarQuestionPool,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -233,6 +241,8 @@ const {
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
   DASHBOARD_DAILY_GOAL,
+  GRAMMAR_LESSONS,
+  GRAMMAR_SESSION_LENGTH,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   TONE_LISTENING_SESSION_LENGTH,
@@ -255,6 +265,8 @@ const {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildGrammarPromptMarkup,
+  buildGrammarSessionItems,
   buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
@@ -298,6 +310,8 @@ const {
   getHistoryMistakeRetryData,
   getHistoryProgressData,
   getHistorySkillStats,
+  getGrammarLessonProgress,
+  getGrammarQuestionPool,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -386,7 +400,7 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
   "global nav should show Today before the learning tools and History",
 );
 assert(
@@ -541,10 +555,11 @@ localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "kept-drill", type: "drill" },
   { id: "kept-review", type: "review" },
   { id: "kept-tone", type: "tone" },
+  { id: "kept-grammar", type: "grammar" },
 ]));
 assert(
-  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone",
-  "history loading should retain tone practice while ignoring records from the retired memory aid",
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone|kept-grammar",
+  "history loading should retain active practice types while ignoring records from the retired memory aid",
 );
 localStorageEntries.delete("chineseTrainerHistory");
 const backupStorageSnapshot = new Map(localStorageEntries);
@@ -725,7 +740,12 @@ assert(isDashboardPlanRecordComplete(dashboardHistory[0]), "a complete 12-word r
 assert(!isDashboardPlanRecordComplete({ type: "review", total: 2 }), "an early-ended review should not satisfy the daily plan");
 const dashboardPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow);
 assert(dashboardPlan.filter((activity) => activity.completed).length === 2, "Today should recognize completed review and pronunciation activities");
-assert(!dashboardPlan.find((activity) => activity.id === "drill").completed, "a sentence drill from a prior day should remain in today's plan");
+assert(dashboardPlan.find((activity) => activity.id === "grammar") && !dashboardPlan.find((activity) => activity.id === "grammar").completed, "Today should introduce grammar when it has not been practiced");
+const completedGrammarPlan = buildDashboardPlan([
+  { type: "grammar", scope: "mixed", completedAt: new Date(dashboardNow).toISOString(), total: 10, correct: 8 },
+  ...dashboardHistory,
+], { dueCount: 0, totalTracked: 20 }, dashboardNow);
+assert(completedGrammarPlan.find((activity) => activity.id === "grammar")?.completed, "Today should retain a completed grammar activity instead of changing the plan after the session");
 assert(getRecommendedDrillMode(dashboardHistory) === "reading", "Today should recommend the learner's weakest practiced drill mode");
 assert(getPracticeStreakDays(dashboardHistory, dashboardNow) === 4, "practice streaks should count consecutive local calendar days across tools");
 const dashboardWeek = getDashboardWeek(dashboardHistory, dashboardNow);
@@ -737,8 +757,50 @@ assert(pronunciationFocus.title.includes("Tone 3") && pronunciationFocus.tool ==
 const dueFocus = getDashboardFocusInsight(dashboardHistory, { dueCount: 3 });
 assert(dueFocus.tool === "review" && dueFocus.title.includes("3 vocabulary words"), "due vocabulary should take priority in focus guidance");
 const dashboardData = getDashboardData(dashboardNow, dashboardHistory);
-assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "drill", "Today should continue with the first incomplete activity");
+assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "grammar", "Today should continue with the first incomplete adaptive activity");
 assert(stylesSource.includes(".dashboard-week-chart") && stylesSource.includes("body[data-tool=\"dashboard\"] .tool-controls"), "Today should have responsive dashboard styling and hide irrelevant global controls");
+assert(GRAMMAR_SESSION_LENGTH === 10, "mixed grammar practice should use a focused ten-question session");
+assert(GRAMMAR_LESSONS.length === 16, "Grammar Lab should provide sixteen core HSK 1 and 2 pattern lessons");
+assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 1).length === 8, "Grammar Lab should provide eight HSK 1 patterns");
+assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 2).length === 8, "Grammar Lab should provide eight HSK 2 patterns");
+assert(
+  GRAMMAR_LESSONS.every((lesson) => lesson.examples.length === 3 && lesson.questions.length === 3),
+  "every grammar lesson should include three contextual examples and three checks",
+);
+assert(
+  GRAMMAR_LESSONS.flatMap((lesson) => lesson.questions).every((question) => question.options.length === 4 && new Set(question.options).size === 4 && question.options.includes(question.answer)),
+  "grammar checks should provide four unique choices including exactly one expected answer",
+);
+const grammarMixedItems = buildGrammarSessionItems("", 1);
+assert(grammarMixedItems.length === 10 && new Set(grammarMixedItems.map((item) => item.id)).size === 10, "mixed grammar practice should select ten distinct questions");
+assert(grammarMixedItems.every((item) => item.level === 1 && item.choices.length === 4), "mixed grammar practice should stay within the selected HSK level and build four choices");
+const firstGrammarLesson = GRAMMAR_LESSONS[0];
+const focusedGrammarItems = buildGrammarSessionItems(firstGrammarLesson.id, 1);
+assert(focusedGrammarItems.length === 3 && focusedGrammarItems.every((item) => item.lessonId === firstGrammarLesson.id), "focused grammar checks should contain only the selected pattern");
+assert(buildGrammarPromptMarkup("他___老师。").includes("grammar-blank") && !buildGrammarPromptMarkup("他___老师。").includes("___"), "grammar prompts should render a clear accessible blank");
+const grammarResultFixture = {
+  type: "grammar",
+  scope: "lesson",
+  lessonId: firstGrammarLesson.id,
+  level: 1,
+  answers: focusedGrammarItems.map((item, index) => ({
+    item,
+    answer: index ? item.answer : item.choices.find((choice) => !choice.correct).text,
+    correct: index > 0,
+    score: index > 0 ? 1 : 0,
+  })),
+  elapsedSeconds: 24,
+};
+const grammarHistoryRecord = buildHistoryRecord(grammarResultFixture);
+assert(grammarHistoryRecord.type === "grammar" && grammarHistoryRecord.correct === 2 && grammarHistoryRecord.total === 3, "grammar history should retain focused practice scores");
+assert(buildHistoryRowMarkup(grammarHistoryRecord).includes("Grammar practice"), "History should label grammar sessions clearly");
+assert(buildHistorySessionMarkup(grammarHistoryRecord).includes("expected"), "grammar history should expose answer-level mistake review");
+assert(getHistoryMistakeRetryData(grammarHistoryRecord)?.type === "grammar", "History should reconstruct missed grammar questions for focused retry");
+assert(buildHistorySessionMarkup(grammarHistoryRecord).includes("Review 1 mistake"), "grammar History should offer exact mistake retry");
+assert(getHistorySkillStats([grammarHistoryRecord]).find((skill) => skill.id === "grammar").accuracy === 2 / 3, "Learning progress should track grammar accuracy separately");
+assert(getGrammarLessonProgress([grammarHistoryRecord], firstGrammarLesson.id).status === "Learning", "grammar lesson progress should distinguish learning patterns");
+assert(isDashboardPlanRecordComplete(grammarHistoryRecord), "a completed focused grammar check should satisfy the adaptive language activity");
+assert(stylesSource.includes(".grammar-lesson-list") && stylesSource.includes(".grammar-practice-layout"), "Grammar Lab should include first-class responsive lesson and practice styling");
 const progressHistory = [
   ...dashboardHistory,
   {
@@ -776,7 +838,7 @@ const progressHistory = [
   },
 ];
 const progressSkills = getHistorySkillStats(progressHistory);
-assert(progressSkills.length === 7, "Learning progress should report every core skill in a stable order");
+assert(progressSkills.length === 8, "Learning progress should report every core skill in a stable order");
 assert(Math.abs(progressSkills.find((skill) => skill.id === "reading").accuracy - 0.7) < 0.001, "Learning progress should calculate sentence-mode accuracy");
 assert(progressSkills.find((skill) => skill.id === "vocabulary").attempts === 15, "Learning progress should combine vocabulary quizzes and reviews");
 const progressActivity = getHistoryActivityDays(progressHistory, dashboardNow);

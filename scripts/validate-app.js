@@ -126,6 +126,8 @@ window.__tests = {
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
+  buildVocabularyDetailDialog,
+  buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -138,6 +140,7 @@ window.__tests = {
   formatVocabularyChoiceText,
   formatVocabularySetOption,
   filterVocabularyLibraryItems,
+  findVocabularyExamples,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
@@ -159,6 +162,7 @@ window.__tests = {
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
   getVocabularyMistakeStats,
+  getVocabularyDetailProgress,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -170,6 +174,7 @@ window.__tests = {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
+  highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
   loadSavedVocabularyKeys,
@@ -228,6 +233,8 @@ const {
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
+  buildVocabularyDetailDialog,
+  buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
@@ -240,6 +247,7 @@ const {
   formatVocabularyChoiceText,
   formatVocabularySetOption,
   filterVocabularyLibraryItems,
+  findVocabularyExamples,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
@@ -261,6 +269,7 @@ const {
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
   getVocabularyMistakeStats,
+  getVocabularyDetailProgress,
   getMapQuizPool,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
@@ -272,6 +281,7 @@ const {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
+  highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
   loadSavedVocabularyKeys,
@@ -539,6 +549,7 @@ localStorageEntries.delete("chineseTrainerReviewProgress");
 assert(VOCABULARY_LIBRARY_PAGE_SIZE === 80, "the vocabulary library should render a focused initial batch");
 assert(reviewVocabulary.every((item) => item.level), "vocabulary library entries should retain their HSK level");
 const libraryWoman = reviewVocabulary.find((item) => item.zh === "女");
+const libraryLove = reviewVocabulary.find((item) => item.zh === "爱");
 const libraryFatherResults = filterVocabularyLibraryItems(reviewVocabulary, { query: "father" });
 assert(libraryFatherResults.some((item) => item.zh === "爸" || item.zh === "爸爸"), "library search should match English meanings");
 assert(filterVocabularyLibraryItems(reviewVocabulary, { query: "nu" })[0]?.zh === "女", "exact tone-free pinyin matches should rank ahead of definition substrings");
@@ -560,7 +571,27 @@ const libraryRow = buildVocabularyLibraryRow(libraryWoman, {
   saved: true,
   status: { id: "strong", label: "Strong" },
 });
-assert(libraryRow.includes("mdbg.net") && libraryRow.includes("data-vocabulary-audio-key") && libraryRow.includes("aria-pressed=\"true\""), "library rows should include dictionary, audio, and saved-word controls");
+assert(libraryRow.includes("mdbg.net") && libraryRow.includes("data-vocabulary-audio-key") && libraryRow.includes("data-vocabulary-study-key") && libraryRow.includes("aria-pressed=\"true\""), "library rows should include dictionary, study, audio, and saved-word controls");
+const wordDetailSentences = [
+  { id: "short-beginner", level: "beginner", zh: "我爱你。", en: "I love you.", sourceId: 101 },
+  { id: "long-beginner", level: "beginner", zh: "他真的很爱她。", en: "He really loves her.", sourceId: 102 },
+  { id: "short-intermediate", level: "intermediate", zh: "他爱她。", en: "He loves her.", sourceId: 103 },
+  { id: "longer-word", level: "beginner", zh: "她很可爱。", en: "She is lovely.", sourceId: 104 },
+];
+const wordDetailExamples = findVocabularyExamples(libraryLove, wordDetailSentences, 2);
+assert(wordDetailExamples.map((sentence) => sentence.id).join("|") === "short-beginner|long-beginner", "word study should rank concise level-appropriate examples first");
+assert(!wordDetailExamples.some((sentence) => sentence.id === "longer-word"), "word study should not treat a shared character inside a longer word as an exact vocabulary example");
+assert(highlightVocabularyTermMarkup("我爱你。", "爱").includes('<mark class="word-detail-highlight">爱</mark>'), "word study should highlight the target term inside examples");
+const detailProgress = getVocabularyDetailProgress(libraryWoman, libraryStatusProgress, reviewNow);
+assert(detailProgress.status.id === "strong" && detailProgress.attempts === 0, "word study should reflect the learner's current review status");
+const wordDetailDialog = buildVocabularyDetailDialog(libraryWoman, {
+  progress: libraryStatusProgress,
+  savedKeys: savedLibraryKeys,
+  now: reviewNow,
+});
+assert(wordDetailDialog.includes("Word study") && wordDetailDialog.includes("Open in MDBG") && wordDetailDialog.includes("Saved for review"), "word study should retain dictionary access and saved-review controls");
+const wordExampleMarkup = buildVocabularyExampleMarkup(wordDetailSentences[0], libraryLove, 0);
+assert(wordExampleMarkup.includes("Tatoeba") && wordExampleMarkup.includes("data-word-example-audio") && wordExampleMarkup.includes("word-detail-highlight"), "word study examples should include source attribution, playback, and highlighting");
 localStorageEntries.delete("chineseTrainerSavedVocabulary");
 localStorageEntries.delete("chineseTrainerReviewProgress");
 assert(toggleSavedVocabularyItem(libraryWoman, reviewNow), "saving a library word should return its saved state");
@@ -571,7 +602,7 @@ assert(!toggleSavedVocabularyItem(libraryWoman, reviewNow), "toggling a saved wo
 assert(!loadSavedVocabularyKeys().size, "removed saved words should leave the saved list");
 const savedReviewHistory = buildHistoryRecord({ type: "review", source: "saved", answers: [], elapsedSeconds: 4 });
 assert(savedReviewHistory.source === "saved" && buildHistoryRowMarkup(savedReviewHistory).includes("Saved vocabulary"), "History should distinguish saved-word review sessions");
-assert(stylesSource.includes(".vocabulary-library-row") && stylesSource.includes(".vocabulary-view-switcher"), "the word library should include dedicated responsive styling");
+assert(stylesSource.includes(".vocabulary-library-row") && stylesSource.includes(".vocabulary-view-switcher") && stylesSource.includes(".word-detail-dialog"), "the word library and study dialog should include dedicated responsive styling");
 localStorageEntries.delete("chineseTrainerSavedVocabulary");
 localStorageEntries.delete("chineseTrainerReviewProgress");
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");

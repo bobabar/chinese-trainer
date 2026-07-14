@@ -2023,14 +2023,24 @@ function buildVocabularyLibraryRow(item, { saved = false, status = { id: "new", 
         <span>${escapeHtml(`${meta.levelLabel} · ${meta.partLabel}`)}</span>
         <strong class="is-${escapeHtml(status.id)}">${escapeHtml(status.label)}</strong>
       </div>
-      <button
-        class="icon-btn vocabulary-library-audio"
-        type="button"
-        data-vocabulary-audio-key="${escapeHtml(key)}"
-        aria-label="Play ${escapeHtml(item.zh)}"
-        title="Play word">
-        ${speakerIconMarkup()}
-      </button>
+      <div class="vocabulary-library-actions">
+        <button
+          class="icon-btn vocabulary-library-study"
+          type="button"
+          data-vocabulary-study-key="${escapeHtml(key)}"
+          aria-label="Study ${escapeHtml(item.zh)}"
+          title="Study word">
+          ${bookOpenIconMarkup()}
+        </button>
+        <button
+          class="icon-btn vocabulary-library-audio"
+          type="button"
+          data-vocabulary-audio-key="${escapeHtml(key)}"
+          aria-label="Play ${escapeHtml(item.zh)}"
+          title="Play word">
+          ${speakerIconMarkup()}
+        </button>
+      </div>
     </article>
   `;
 }
@@ -2082,6 +2092,14 @@ function bindVocabularyLibraryInteractions(itemByKey) {
       const item = itemByKey.get(button.dataset.vocabularyAudioKey);
       if (item) {
         speak(item.zh, { immediate: true });
+      }
+    });
+  });
+  document.querySelectorAll("[data-vocabulary-study-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = itemByKey.get(button.dataset.vocabularyStudyKey);
+      if (item) {
+        openVocabularyDetail(item, button);
       }
     });
   });
@@ -2257,6 +2275,15 @@ function speakerIconMarkup() {
   `;
 }
 
+function bookOpenIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3.5 5.5A3.5 3.5 0 0 1 7 2h5v17H7a3.5 3.5 0 0 0-3.5 3V5.5z"></path>
+      <path d="M20.5 5.5A3.5 3.5 0 0 0 17 2h-5v17h5a3.5 3.5 0 0 1 3.5 3V5.5z"></path>
+    </svg>
+  `;
+}
+
 function searchIconMarkup() {
   return `
     <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -2273,6 +2300,328 @@ function closeIconMarkup() {
       <path d="M18 6L6 18"></path>
     </svg>
   `;
+}
+
+function externalLinkIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M14 4h6v6"></path>
+      <path d="M20 4l-9 9"></path>
+      <path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"></path>
+    </svg>
+  `;
+}
+
+function getVocabularyDetailProgress(item, progress = loadReviewProgress(), now = Date.now()) {
+  const record = progress[reviewItemKey(item)] || null;
+  const status = getVocabularyLibraryStatus(item, progress, now);
+  const attempts = Number(record?.attempts) || 0;
+  const correct = Number(record?.correct) || 0;
+  return {
+    record,
+    status,
+    attempts,
+    accuracy: attempts ? correct / attempts : null,
+  };
+}
+
+function findVocabularyExamples(item, sentences = SENTENCES, limit = 5) {
+  const word = String(item?.zh || "").trim();
+  if (!word || !Array.isArray(sentences) || !sentences.length || limit <= 0) {
+    return [];
+  }
+
+  hydrateWordDataFromWindow();
+
+  const levelNumber = getVocabularySetMeta({
+    id: item.setId,
+    label: item.setLabel,
+    level: item.level,
+  }).levelNumber;
+  const levelPriority = levelNumber === "2"
+    ? { intermediate: 0, beginner: 1, advanced: 2 }
+    : { beginner: 0, intermediate: 1, advanced: 2 };
+  return sentences
+    .filter((sentence) => {
+      const text = String(sentence?.zh || "");
+      if (!text.includes(word)) {
+        return false;
+      }
+      if (!wordDataLoaded) {
+        return true;
+      }
+      return tokenizeAnnotatedChinese(text).some((token) => token.type === "word" && token.text === word);
+    })
+    .sort((a, b) =>
+      (levelPriority[a.level] ?? 3) - (levelPriority[b.level] ?? 3) ||
+      String(a.zh || "").length - String(b.zh || "").length ||
+      String(a.id || "").localeCompare(String(b.id || "")),
+    )
+    .slice(0, limit);
+}
+
+function highlightVocabularyTermMarkup(text, term) {
+  const source = String(text || "");
+  const target = String(term || "");
+  if (!target || !source.includes(target)) {
+    return escapeHtml(source);
+  }
+
+  const parts = [];
+  let cursor = 0;
+  while (cursor < source.length) {
+    const index = source.indexOf(target, cursor);
+    if (index < 0) {
+      parts.push(escapeHtml(source.slice(cursor)));
+      break;
+    }
+    parts.push(escapeHtml(source.slice(cursor, index)));
+    parts.push(`<mark class="word-detail-highlight">${escapeHtml(target)}</mark>`);
+    cursor = index + target.length;
+  }
+  return parts.join("");
+}
+
+function buildVocabularyExamplePinyinMarkup(text, target) {
+  hydrateWordDataFromWindow();
+  return tokenizeAnnotatedChinese(String(text || ""))
+    .map((token) => {
+      if (token.type !== "word") {
+        return `<span class="annotation-pinyin-punctuation">${escapeHtml(token.text)}</span>`;
+      }
+      const isTarget = token.text.includes(target);
+      return `<span class="annotation-pinyin-word ${isTarget ? "is-target" : ""}">${escapeHtml(token.entry.pinyin || "")}</span>`;
+    })
+    .join("");
+}
+
+function buildVocabularyExampleMarkup(sentence, item, index = 0) {
+  const sourceLink = sentence.sourceId
+    ? `
+      <a href="https://tatoeba.org/en/sentences/show/${encodeURIComponent(sentence.sourceId)}" target="_blank" rel="noopener noreferrer">
+        Tatoeba ${externalLinkIconMarkup()}
+      </a>
+    `
+    : "";
+  return `
+    <article class="word-detail-example">
+      <div class="word-detail-example-heading">
+        <span>Example ${index + 1}</span>
+        <span>${escapeHtml(LEVELS.find((level) => level.id === sentence.level)?.label || sentence.level || "")}</span>
+      </div>
+      <p class="word-detail-example-zh chinese-text" lang="zh-CN">${highlightVocabularyTermMarkup(sentence.zh, item.zh)}</p>
+      <p class="word-detail-example-pinyin">${buildVocabularyExamplePinyinMarkup(sentence.zh, item.zh)}</p>
+      <p class="word-detail-example-en">${escapeHtml(sentence.en || "")}</p>
+      <footer>
+        ${sourceLink}
+        <button
+          class="icon-btn"
+          type="button"
+          data-word-example-audio="${escapeHtml(sentence.zh)}"
+          aria-label="Play example ${index + 1}"
+          title="Play sentence">
+          ${speakerIconMarkup()}
+        </button>
+      </footer>
+    </article>
+  `;
+}
+
+function buildVocabularyDetailDialog(item, {
+  progress = loadReviewProgress(),
+  savedKeys = loadSavedVocabularyKeys(),
+  now = Date.now(),
+} = {}) {
+  const key = reviewItemKey(item);
+  const saved = savedKeys.has(key);
+  const detailProgress = getVocabularyDetailProgress(item, progress, now);
+  const meta = getVocabularySetMeta({ id: item.setId, label: item.setLabel, level: item.level });
+  const accuracyLabel = detailProgress.accuracy === null
+    ? "Not reviewed"
+    : `${Math.round(detailProgress.accuracy * 100)}% recall`;
+  return `
+    <dialog class="word-detail-dialog" id="vocabularyWordDetail" data-word-detail-key="${escapeHtml(key)}" aria-labelledby="wordDetailTitle">
+      <div class="word-detail-shell">
+        <header class="word-detail-header">
+          <div>
+            <span>${escapeHtml(`${meta.levelLabel} · ${meta.partLabel}`)}</span>
+            <h2 id="wordDetailTitle">Word study</h2>
+          </div>
+          <button class="icon-btn" type="button" data-word-detail-close aria-label="Close word study" title="Close">
+            ${closeIconMarkup()}
+          </button>
+        </header>
+
+        <div class="word-detail-hero">
+          <div class="word-detail-identity">
+            <div class="word-detail-character-row">
+              <strong class="chinese-text" lang="zh-CN">${escapeHtml(item.zh)}</strong>
+              <button class="icon-btn word-detail-audio" type="button" data-word-detail-audio aria-label="Play ${escapeHtml(item.zh)}" title="Play word">
+                ${speakerIconMarkup()}
+              </button>
+            </div>
+            <p>${buildToneColoredPinyinMarkup(item.pinyin)}</p>
+          </div>
+          <p class="word-detail-meaning">${escapeHtml(formatVocabularyMeanings(item))}</p>
+        </div>
+
+        <dl class="word-detail-metrics">
+          <div>
+            <dt>Review status</dt>
+            <dd class="word-detail-status is-${escapeHtml(detailProgress.status.id)}">${escapeHtml(detailProgress.status.label)}</dd>
+          </div>
+          <div>
+            <dt>Attempts</dt>
+            <dd>${detailProgress.attempts}</dd>
+          </div>
+          <div>
+            <dt>Recall</dt>
+            <dd>${escapeHtml(accuracyLabel)}</dd>
+          </div>
+        </dl>
+
+        <div class="word-detail-actions">
+          <button
+            class="secondary-btn icon-label-btn ${saved ? "active" : ""}"
+            type="button"
+            data-word-detail-save
+            aria-pressed="${saved ? "true" : "false"}">
+            ${bookmarkIconMarkup(saved)}
+            <span>${saved ? "Saved for review" : "Save for review"}</span>
+          </button>
+          <a class="ghost-btn icon-label-btn" href="${escapeHtml(buildMdbgWordUrl(item))}" target="_blank" rel="noopener noreferrer">
+            ${externalLinkIconMarkup()}
+            <span>Open in MDBG</span>
+          </a>
+        </div>
+
+        <section class="word-detail-section" aria-labelledby="wordDetailDictionaryHeading">
+          <div class="word-detail-section-heading">
+            <h3 id="wordDetailDictionaryHeading">Dictionary notes</h3>
+          </div>
+          <div id="wordDetailDictionary" class="word-detail-loading" aria-live="polite">
+            <span></span><span></span>
+          </div>
+        </section>
+
+        <section class="word-detail-section" aria-labelledby="wordDetailExamplesHeading">
+          <div class="word-detail-section-heading">
+            <h3 id="wordDetailExamplesHeading">Example sentences</h3>
+            <span id="wordDetailExampleCount"></span>
+          </div>
+          <div id="wordDetailExamples" class="word-detail-loading" aria-live="polite">
+            <span></span><span></span><span></span>
+          </div>
+        </section>
+      </div>
+    </dialog>
+  `;
+}
+
+function updateVocabularyDetailSaveControls(dialog, item, saved) {
+  const detailButton = dialog.querySelector("[data-word-detail-save]");
+  if (detailButton) {
+    detailButton.classList.toggle("active", saved);
+    detailButton.setAttribute("aria-pressed", String(saved));
+    detailButton.innerHTML = `${bookmarkIconMarkup(saved)}<span>${saved ? "Saved for review" : "Save for review"}</span>`;
+  }
+
+  const listButton = document.querySelector(`[data-vocabulary-save-key="${cssEscape(reviewItemKey(item))}"]`);
+  if (listButton) {
+    listButton.classList.toggle("active", saved);
+    listButton.setAttribute("aria-pressed", String(saved));
+    listButton.setAttribute("aria-label", `${saved ? "Remove" : "Save"} ${item.zh} ${saved ? "from" : "to"} saved words`);
+    listButton.title = saved ? "Remove from saved words" : "Save for review";
+    listButton.innerHTML = bookmarkIconMarkup(saved);
+  }
+}
+
+async function hydrateVocabularyDetailResources(dialog, item) {
+  const [sentenceResult, wordResult] = await Promise.allSettled([
+    ensureSentenceData(),
+    ensureWordData(),
+  ]);
+  if (!dialog.isConnected || dialog.dataset.wordDetailKey !== reviewItemKey(item)) {
+    return;
+  }
+
+  const dictionary = dialog.querySelector("#wordDetailDictionary");
+  if (dictionary) {
+    dictionary.classList.remove("word-detail-loading");
+    const entry = wordResult.status === "fulfilled" ? CHINESE_WORD_DATA[item.zh] : null;
+    dictionary.innerHTML = entry?.gloss
+      ? `<p>${escapeHtml(entry.gloss)}</p>`
+      : `<p class="word-detail-unavailable">No additional dictionary note is available for this word.</p>`;
+  }
+
+  const examplesElement = dialog.querySelector("#wordDetailExamples");
+  const countElement = dialog.querySelector("#wordDetailExampleCount");
+  if (examplesElement) {
+    examplesElement.classList.remove("word-detail-loading");
+    const examples = sentenceResult.status === "fulfilled"
+      ? findVocabularyExamples(item, SENTENCES)
+      : [];
+    if (countElement) {
+      countElement.textContent = examples.length ? `${examples.length} from the sentence bank` : "";
+    }
+    examplesElement.innerHTML = examples.length
+      ? `<div class="word-detail-example-list">${examples.map((sentence, index) => buildVocabularyExampleMarkup(sentence, item, index)).join("")}</div>`
+      : `<p class="word-detail-unavailable">No matching example is available in the local sentence bank.</p>`;
+    examplesElement.querySelectorAll("[data-word-example-audio]").forEach((button) => {
+      button.addEventListener("click", () => speak(button.dataset.wordExampleAudio, { immediate: true }));
+    });
+  }
+}
+
+function openVocabularyDetail(item, trigger = null) {
+  const existing = document.querySelector("#vocabularyWordDetail");
+  if (existing) {
+    existing.close?.();
+    existing.remove();
+  }
+
+  app.insertAdjacentHTML("beforeend", buildVocabularyDetailDialog(item));
+  const dialog = document.querySelector("#vocabularyWordDetail");
+  if (!dialog) {
+    return;
+  }
+
+  const closeDialog = () => {
+    if (dialog.open) {
+      dialog.close();
+    } else {
+      dialog.remove();
+      trigger?.focus?.();
+    }
+  };
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    trigger?.focus?.();
+  }, { once: true });
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      closeDialog();
+    }
+  });
+  dialog.querySelector("[data-word-detail-close]")?.addEventListener("click", closeDialog);
+  dialog.querySelector("[data-word-detail-audio]")?.addEventListener("click", () => speak(item.zh, { immediate: true }));
+  dialog.querySelector("[data-word-detail-save]")?.addEventListener("click", () => {
+    const saved = toggleSavedVocabularyItem(item);
+    updateVocabularyDetailSaveControls(dialog, item, saved);
+    const status = getVocabularyLibraryStatus(item, loadReviewProgress());
+    const statusElement = dialog.querySelector(".word-detail-status");
+    if (statusElement) {
+      statusElement.className = `word-detail-status is-${status.id}`;
+      statusElement.textContent = status.label;
+    }
+  });
+
+  try {
+    dialog.showModal();
+  } catch {
+    dialog.setAttribute("open", "");
+  }
+  hydrateVocabularyDetailResources(dialog, item);
 }
 
 function renderReviewHome() {

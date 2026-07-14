@@ -7381,6 +7381,12 @@ td.status-review {
     min-width: 56px;
   }
 
+  .dashboard-roadmap-milestone-copy small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
   .dashboard-week-chart {
     grid-template-columns: repeat(7, minmax(28px, 1fr));
     gap: 4px;

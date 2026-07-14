@@ -105,6 +105,16 @@ body[data-tool="vocabulary"] {
   --theme-rule: rgba(15, 118, 110, 0.12);
 }
 
+body[data-tool="review"] {
+  --theme: #147d64;
+  --theme-hover: #0f684f;
+  --theme-soft: #eefaf5;
+  --theme-border: #a9dcc9;
+  --theme-focus: rgba(20, 125, 100, 0.18);
+  --theme-wash: rgba(20, 125, 100, 0.08);
+  --theme-rule: rgba(20, 125, 100, 0.12);
+}
+
 body[data-tool="pronunciation"] {
   --theme: #0e7490;
   --theme-hover: #155e75;
@@ -275,8 +285,8 @@ p {
 }
 
 .tool-nav {
-  grid-template-columns: repeat(5, minmax(94px, 1fr));
-  width: min(800px, 100%);
+  grid-template-columns: repeat(6, minmax(94px, 1fr));
+  width: min(920px, 100%);
 }
 
 .tool-tab {
@@ -558,6 +568,10 @@ body[data-tool="vocabulary"] .options-body {
 
   body[data-tool="vocabulary"] .tool-controls::before {
     content: "Vocabulary Quiz";
+  }
+
+  body[data-tool="review"] .tool-controls::before {
+    content: "Daily Review";
   }
 
   body[data-tool="pronunciation"] .tool-controls::before {
@@ -3232,6 +3246,367 @@ td.status-review {
   background: #fff8f4;
 }
 
+.review-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.review-streak {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 7px;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.review-streak strong {
+  color: var(--theme);
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.review-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.review-metrics > div {
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.review-metrics > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.review-metrics strong,
+.review-metrics span {
+  display: block;
+}
+
+.review-metrics strong {
+  color: var(--ink);
+  font-size: 27px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.review-metrics span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.review-home-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  gap: 0;
+  margin-top: 22px;
+}
+
+.review-start-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 16px 28px 16px 0;
+  border-right: 1px solid var(--line);
+}
+
+.review-eyebrow,
+.review-section-heading span,
+.review-session-header > div:first-child span {
+  color: var(--theme);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.review-start-panel h3 {
+  margin-top: 8px;
+  font-size: 23px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.review-start-panel p {
+  max-width: 42ch;
+  margin-top: 10px;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.review-start-btn {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 22px;
+}
+
+.review-quiz-link {
+  width: 100%;
+  margin-top: 9px;
+}
+
+.review-queue-panel {
+  min-width: 0;
+  padding: 16px 0 16px 28px;
+}
+
+.review-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+}
+
+.review-section-heading h3 {
+  margin-top: 3px;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.review-section-heading > strong {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.review-word-list {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.review-word-row {
+  display: grid;
+  grid-template-columns: 28px minmax(112px, 0.45fr) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 57px;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-word-rank {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.review-word-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+.review-word-identity strong {
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.review-word-identity span,
+.review-word-meaning {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-word-identity span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.review-word-meaning {
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.review-word-state {
+  min-width: 62px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.review-word-state.is-due {
+  color: var(--red);
+}
+
+.review-word-state.is-new {
+  color: var(--theme);
+}
+
+.review-session {
+  padding: 0;
+  overflow: hidden;
+}
+
+.review-session-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 22px;
+  min-height: 82px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-session-header > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.review-session-header > div:first-child strong {
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.review-session-score {
+  display: grid;
+  padding-right: 22px;
+  border-right: 1px solid var(--line);
+  text-align: right;
+}
+
+.review-session-score span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.review-session-score strong {
+  margin-top: 3px;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.review-progress-row {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-practice-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+  min-height: 430px;
+}
+
+.review-prompt-panel {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 22px;
+  min-width: 0;
+  padding: 34px;
+  border-right: 1px solid var(--line);
+  background: #f8fbfa;
+  text-align: center;
+}
+
+.review-prompt-word {
+  color: var(--ink);
+  font-size: 72px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.review-prompt-panel .audio-sentence {
+  justify-content: center;
+}
+
+.review-prompt-panel .audio-revealed-word {
+  font-size: 52px;
+}
+
+.review-response-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+}
+
+.review-response-panel:not(.is-answered) {
+  justify-content: center;
+}
+
+.review-answer-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.review-choice-grid {
+  gap: 10px;
+}
+
+.review-feedback {
+  margin-top: 2px;
+}
+
+.review-answer-reveal {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.review-answer-reveal > strong,
+.review-answer-reveal > strong a {
+  color: var(--ink);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.review-answer-reveal > span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.review-answer-reveal p,
+.review-answer-note {
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.review-answer-note {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.review-next-btn {
+  width: 100%;
+  min-height: 50px;
+  margin-top: auto;
+}
+
+.review-results-table {
+  min-width: 980px;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     padding: 14px;
@@ -3265,6 +3640,28 @@ td.status-review {
 
   .mode-heading {
     display: grid;
+  }
+
+  .review-home-grid,
+  .review-practice-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .review-start-panel {
+    padding-right: 0;
+    padding-bottom: 24px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .review-queue-panel {
+    padding: 24px 0 0;
+  }
+
+  .review-prompt-panel {
+    min-height: 300px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
 }
@@ -3327,6 +3724,126 @@ td.status-review {
     min-height: 44px;
     padding: 0 6px;
     font-size: 13px;
+  }
+
+  .review-heading {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .review-streak {
+    justify-self: start;
+    padding: 0;
+    border-left: 0;
+  }
+
+  .review-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 14px;
+  }
+
+  .review-metrics > div {
+    padding: 12px;
+  }
+
+  .review-metrics > div:nth-child(3) {
+    border-left: 0;
+  }
+
+  .review-metrics > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .review-home-grid {
+    margin-top: 14px;
+  }
+
+  .review-start-panel {
+    padding-top: 10px;
+  }
+
+  .review-word-row {
+    grid-template-columns: 22px minmax(105px, 0.72fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    min-height: 54px;
+  }
+
+  .review-word-identity {
+    grid-template-columns: auto;
+    gap: 3px;
+  }
+
+  .review-word-identity strong {
+    font-size: 22px;
+  }
+
+  .review-word-identity span,
+  .review-word-meaning {
+    font-size: 11px;
+  }
+
+  .review-word-state {
+    min-width: 44px;
+    font-size: 9px;
+  }
+
+  .review-session {
+    padding: 0;
+  }
+
+  .review-session-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .review-session-header > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .review-session-score {
+    padding-right: 0;
+    border-right: 0;
+    text-align: left;
+  }
+
+  .review-session-header .ghost-btn {
+    width: auto;
+  }
+
+  .review-progress-row {
+    padding: 10px 12px;
+  }
+
+  .review-prompt-panel {
+    min-height: 210px;
+    padding: 22px 14px;
+  }
+
+  .review-prompt-word {
+    font-size: 52px;
+  }
+
+  .review-prompt-panel .audio-revealed-word {
+    font-size: 40px;
+  }
+
+  .review-response-panel {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .review-answer-form {
+    grid-template-columns: 1fr;
+  }
+
+  .review-answer-reveal {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .review-answer-reveal p {
+    grid-column: 1 / -1;
   }
 
   .task-preview,

@@ -3,12 +3,16 @@
 const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
+const REVIEW_SESSION_LENGTH = 12;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
 const RETIRED_MEMORY_PROGRESS_KEY = "chineseTrainerMemoryProgress";
+const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "pronunciation", "map"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "map"]);
+const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
@@ -49,6 +53,9 @@ const MODES = {
 const TOOLS = {
   vocabulary: {
     label: "Vocabulary Quiz",
+  },
+  review: {
+    label: "Daily Review",
   },
   pronunciation: {
     label: "Pronunciation",
@@ -575,6 +582,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isReviewChoiceShortcut(event)) {
+    event.preventDefault();
+    submitReviewChoiceByShortcut(event.key);
+    return;
+  }
+
   if (isVocabularyChoiceShortcut(event)) {
     event.preventDefault();
     submitVocabularyChoiceByShortcut(event.key);
@@ -615,6 +628,17 @@ function handleSessionShortcut(event) {
 
   if (state.session.currentAssessment) {
     nextQuestion();
+    return;
+  }
+
+  if (state.session.type === "review") {
+    const current = state.session.items[state.session.index];
+    if (current?.reviewMode === "pinyin") {
+      const input = document.querySelector("#reviewAnswer");
+      if (input) {
+        submitReviewPinyin(input.value);
+      }
+    }
     return;
   }
 
@@ -660,6 +684,10 @@ function sessionUsesAudioPrompt(session) {
     return true;
   }
 
+  if (session?.type === "review") {
+    return session.items?.[session.index]?.reviewMode === "meaning";
+  }
+
   return session?.type === "vocabulary"
     ? session.quizMode === "meaning"
     : session?.mode === "listening";
@@ -668,6 +696,17 @@ function sessionUsesAudioPrompt(session) {
 function isVocabularyChoiceShortcut(event) {
   return state.session?.type === "vocabulary" &&
     state.session.quizMode === "meaning" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-5]$/.test(event.key);
+}
+
+function isReviewChoiceShortcut(event) {
+  const current = state.session?.items?.[state.session.index];
+  return state.session?.type === "review" &&
+    current?.reviewMode === "meaning" &&
     !state.session.currentAssessment &&
     !event.metaKey &&
     !event.ctrlKey &&
@@ -968,6 +1007,8 @@ function render() {
     stopVocabularyTimer();
     if (state.result.type === "vocabulary") {
       renderVocabularyResults();
+    } else if (state.result.type === "review") {
+      renderReviewResults();
     } else if (state.result.type === "pronunciation") {
       renderPronunciationResults();
     } else if (state.result.type === "map") {
@@ -996,6 +1037,11 @@ function render() {
 
   if (state.tool === "vocabulary") {
     renderVocabularyHome();
+    return;
+  }
+
+  if (state.tool === "review") {
+    renderReviewHome();
     return;
   }
 
@@ -1394,6 +1440,308 @@ function renderVocabularyHome() {
   document.querySelector("#startVocabularySession").addEventListener("click", startVocabularySession);
 }
 
+function renderReviewHome() {
+  const dashboard = getReviewDashboardData();
+  const queuePreview = dashboard.queue.slice(0, 6);
+  const startLabel = dashboard.totalTracked
+    ? dashboard.dueCount
+      ? `Review ${Math.min(REVIEW_SESSION_LENGTH, dashboard.queue.length)} due words`
+      : "Start a practice review"
+    : "Start baseline review";
+
+  app.innerHTML = `
+    <section class="workspace-panel review-home">
+      <div class="mode-heading review-heading">
+        <div>
+          <h2>Daily Review</h2>
+          <p>A focused queue that adapts to your vocabulary quiz answers.</p>
+        </div>
+        <span class="review-streak" aria-label="${dashboard.streakDays} day review streak">
+          <strong>${dashboard.streakDays}</strong>
+          <span>day streak</span>
+        </span>
+      </div>
+
+      <div class="review-metrics" aria-label="Review progress">
+        <div>
+          <strong>${dashboard.dueCount}</strong>
+          <span>Due now</span>
+        </div>
+        <div>
+          <strong>${dashboard.learningCount}</strong>
+          <span>Learning</span>
+        </div>
+        <div>
+          <strong>${dashboard.strongCount}</strong>
+          <span>Strong</span>
+        </div>
+        <div>
+          <strong>${dashboard.reviewedToday}</strong>
+          <span>Reviewed today</span>
+        </div>
+      </div>
+
+      <div class="review-home-grid">
+        <section class="review-start-panel">
+          <span class="review-eyebrow">Today</span>
+          <h3>${dashboard.dueCount ? `${dashboard.dueCount} words are ready` : dashboard.totalTracked ? "You are caught up" : "Build your baseline"}</h3>
+          <p>${dashboard.totalTracked
+            ? "The queue starts with due words, then adds new vocabulary to keep each session useful."
+            : "Your first round samples HSK 1 vocabulary. Future rounds prioritize words you miss in quizzes and reviews."}</p>
+          <button class="primary-btn shortcut-btn review-start-btn" type="button" id="startReviewSession" ${dashboard.queue.length ? "" : "disabled"}>
+            <span>${startLabel}</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn review-quiz-link" type="button" id="openVocabularyQuiz">Open Vocabulary Quiz</button>
+        </section>
+
+        <section class="review-queue-panel" aria-labelledby="reviewQueueHeading">
+          <div class="review-section-heading">
+            <div>
+              <span>Up next</span>
+              <h3 id="reviewQueueHeading">Review queue</h3>
+            </div>
+            <strong>${Math.min(REVIEW_SESSION_LENGTH, dashboard.queue.length)} next</strong>
+          </div>
+          <div class="review-word-list">
+            ${queuePreview.map((entry, index) => buildReviewQueueRowMarkup(entry, index)).join("")}
+          </div>
+        </section>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#startReviewSession")?.addEventListener("click", startReviewSession);
+  document.querySelector("#openVocabularyQuiz").addEventListener("click", () => {
+    state.tool = "vocabulary";
+    state.result = null;
+    saveSettings();
+    render();
+  });
+}
+
+function buildReviewQueueRowMarkup(entry, index) {
+  return `
+    <div class="review-word-row">
+      <span class="review-word-rank">${index + 1}</span>
+      <div class="review-word-identity">
+        <strong class="chinese-text" lang="zh-CN">${escapeHtml(entry.item.zh)}</strong>
+        <span>${buildToneColoredPinyinMarkup(entry.item.pinyin)}</span>
+      </div>
+      <span class="review-word-meaning">${escapeHtml(formatVocabularyChoiceText(entry.item))}</span>
+      <span class="review-word-state ${entry.statusClass}">${escapeHtml(entry.statusLabel)}</span>
+    </div>
+  `;
+}
+
+function renderReviewSession() {
+  const session = state.session;
+  const current = session.items[session.index];
+  const assessment = session.currentAssessment;
+  const correctCount = session.answers.filter((answer) => answer.correct).length;
+  const progressPercent = Math.round((session.answers.length / session.items.length) * 100);
+  const isPinyin = current.reviewMode === "pinyin";
+  const nextLabel = session.index + 1 >= session.items.length ? "View results" : "Next word";
+  const promptMarkup = isPinyin
+    ? `<p class="review-prompt-word chinese-text" lang="zh-CN">${escapeHtml(current.zh)}</p>`
+    : buildVocabularyPromptMarkup(current, "meaning", assessment);
+
+  app.innerHTML = `
+    <section class="workspace-panel review-session">
+      <div class="review-session-header">
+        <div>
+          <span>Daily Review</span>
+          <strong>${isPinyin ? "Character to pinyin" : "Listen for the meaning"}</strong>
+        </div>
+        <div class="review-session-score">
+          <span>Score</span>
+          <strong>${correctCount}/${session.items.length}</strong>
+        </div>
+        <button class="ghost-btn" type="button" id="endSession">End review</button>
+      </div>
+
+      <div class="progress-row review-progress-row">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+        <span class="progress-label">Word ${session.index + 1} of ${session.items.length}</span>
+      </div>
+
+      <div class="review-practice-layout">
+        <div class="review-prompt-panel">
+          <span class="sentence-label">${isPinyin ? "Chinese word" : "Audio word"}</span>
+          ${promptMarkup}
+        </div>
+
+        <div class="review-response-panel ${assessment ? "is-answered" : ""}">
+          ${isPinyin
+            ? buildReviewPinyinResponseMarkup(current, assessment)
+            : buildReviewMeaningResponseMarkup(session, current, assessment)}
+          ${assessment ? buildReviewFeedbackMarkup(current, assessment) : ""}
+          ${assessment ? `
+            <button class="primary-btn shortcut-btn review-next-btn" type="button" id="nextQuestion">
+              <span>${nextLabel}</span>
+              ${shortcutHint("Enter")}
+            </button>
+          ` : ""}
+        </div>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
+  document.querySelector("#playAudio")?.addEventListener("click", () => speak(current.zh, { immediate: true }));
+
+  if (assessment) {
+    document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
+    return;
+  }
+
+  if (isPinyin) {
+    const form = document.querySelector("#reviewAnswerForm");
+    const input = document.querySelector("#reviewAnswer");
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitReviewPinyin(input.value);
+    });
+    if (!isTouchLikeDevice()) {
+      input.focus();
+    }
+    return;
+  }
+
+  document.querySelectorAll("[data-review-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitReviewChoice(button.dataset.reviewChoiceId));
+  });
+}
+
+function buildReviewPinyinResponseMarkup(item, assessment) {
+  return `
+    <form class="review-answer-form" id="reviewAnswerForm">
+      <label class="field">
+        <span>Pinyin answer</span>
+        <input
+          id="reviewAnswer"
+          class="answer-input"
+          type="text"
+          lang="en"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          enterkeyhint="done"
+          placeholder="Type pinyin; tone marks are optional"
+          value="${assessment ? escapeHtml(assessment.answer) : ""}"
+          ${assessment ? "disabled" : ""}
+        >
+      </label>
+      ${assessment ? "" : `
+        <button class="secondary-btn shortcut-btn" type="submit">
+          <span>Check answer</span>
+          ${shortcutHint("Enter")}
+        </button>
+      `}
+    </form>
+  `;
+}
+
+function buildReviewMeaningResponseMarkup(session, current, assessment) {
+  const choices = getReviewChoiceSet(session, session.index);
+  return `
+    <div class="choice-grid review-choice-grid" role="group" aria-label="Meaning choices">
+      ${choices.map((choice) => {
+        const selected = assessment?.choiceId === choice.id;
+        const classes = [
+          "choice-option",
+          selected ? "selected" : "",
+          assessment && choice.correct ? "correct" : "",
+          assessment && selected && !choice.correct ? "incorrect" : "",
+          assessment && selected && choice.correct ? "correct-celebration" : "",
+        ].filter(Boolean).join(" ");
+        return `
+          <button class="${classes}" type="button" data-review-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
+            <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+            <span class="choice-text">${escapeHtml(choice.text)}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildReviewFeedbackMarkup(item, assessment) {
+  return `
+    <section class="feedback review-feedback ${assessment.correct ? "good correct-celebration" : "review"}" role="status" aria-live="polite">
+      <div class="feedback-title">
+        <strong>${assessment.correct ? "Correct" : "Review this word"}</strong>
+        <span>${escapeHtml(formatReviewDueLabel(assessment.nextDueAt, assessment.correct))}</span>
+      </div>
+      <div class="review-answer-reveal">
+        <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+        <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+        <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
+      </div>
+      ${assessment.correct ? "" : `<p class="review-answer-note">Your answer: ${escapeHtml(assessment.answer || "No answer")}</p>`}
+    </section>
+  `;
+}
+
+function renderReviewResults() {
+  const result = state.result;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const strengthened = result.answers.filter((answer) => answer.reviewStage > answer.previousStage).length;
+  const dashboard = getReviewDashboardData();
+  const rows = result.answers.map((answer, index) => `
+    <tr class="${answer.correct ? "found" : "missed"}">
+      <td>${index + 1}</td>
+      <td class="chinese-text">${buildVocabularyWordLink(answer.item)}</td>
+      <td>${buildToneColoredPinyinMarkup(answer.item.pinyin)}</td>
+      <td>${answer.reviewMode === "pinyin" ? "Pinyin" : "Audio meaning"}</td>
+      <td>${escapeHtml(formatVocabularyMeanings(answer.item))}</td>
+      <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Review"}</td>
+      <td>${escapeHtml(formatReviewDueLabel(answer.nextDueAt, answer.correct))}</td>
+    </tr>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel review-results">
+      <div class="results-header">
+        <div>
+          <h2>Daily Review Complete</h2>
+          <p>${correct} of ${result.answers.length} correct in ${formatTimer(result.elapsedSeconds)}.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Start another review</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to review</button>
+        </div>
+      </div>
+
+      <div class="stat-grid review-result-metrics">
+        <div class="stat"><strong>${correct}/${result.answers.length}</strong><span>Correct</span></div>
+        <div class="stat"><strong>${strengthened}</strong><span>Strengthened</span></div>
+        <div class="stat"><strong>${dashboard.dueCount}</strong><span>Still due</span></div>
+        <div class="stat"><strong>${formatTimer(result.elapsedSeconds)}</strong><span>Review time</span></div>
+      </div>
+
+      <div class="results-table-wrap vocab-table-wrap" tabindex="0">
+        <table class="vocab-table review-results-table">
+          <thead><tr><th>#</th><th>Word</th><th>Pinyin</th><th>Prompt</th><th>Meaning</th><th>Status</th><th>Next review</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession").addEventListener("click", startReviewSession);
+  document.querySelector("#backToModes").addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    render();
+  });
+}
+
 function buildVocabularySetPicker(selectedSetId) {
   if (!VOCABULARY_QUIZ_SETS.length) {
     return "";
@@ -1490,6 +1838,7 @@ function renderHistoryHome() {
   const history = loadHistoryRecords();
   const drillCount = history.filter((record) => record.type === "drill").length;
   const quizCount = history.filter((record) => record.type === "vocabulary").length;
+  const reviewCount = history.filter((record) => record.type === "review").length;
   const pronunciationCount = history.filter((record) => record.type === "pronunciation").length;
   const mapCount = history.filter((record) => record.type === "map").length;
   const highScores = getVocabularyHighScoreRecords(history);
@@ -1534,6 +1883,10 @@ function renderHistoryHome() {
         <div class="stat">
           <strong>${quizCount}</strong>
           <span>Quizzes</span>
+        </div>
+        <div class="stat">
+          <strong>${reviewCount}</strong>
+          <span>Daily reviews</span>
         </div>
         <div class="stat">
           <strong>${pronunciationCount}</strong>
@@ -1605,6 +1958,8 @@ function renderHistoryHome() {
 function buildHistoryRowMarkup(record) {
   const typeLabel = record.type === "vocabulary"
     ? "Vocabulary quiz"
+    : record.type === "review"
+      ? "Daily review"
     : record.type === "pronunciation"
       ? "Pronunciation"
       : record.type === "map"
@@ -1612,6 +1967,8 @@ function buildHistoryRowMarkup(record) {
       : "Sentence drill";
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
+    : record.type === "review"
+      ? "Adaptive vocabulary"
     : record.type === "pronunciation"
       ? selectedLevelLabels(record.levels)
       : record.type === "map"
@@ -1619,6 +1976,8 @@ function buildHistoryRowMarkup(record) {
       : MODES[record.mode]?.label || record.mode;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
+    : record.type === "review"
+      ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
     : record.type === "pronunciation"
       ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
       : record.type === "map"
@@ -1647,6 +2006,11 @@ function buildVocabularyHistoryResultLabel(record) {
 }
 
 function renderSession() {
+  if (state.session?.type === "review") {
+    renderReviewSession();
+    return;
+  }
+
   if (state.session?.type === "vocabulary") {
     renderVocabularySession();
     return;
@@ -4573,9 +4937,372 @@ function dismissHighScoreCelebration() {
   }, 3800);
 }
 
+function getAllVocabularyReviewItems() {
+  const seen = new Set();
+  const items = [];
+
+  VOCABULARY_QUIZ_SETS.forEach((set) => {
+    (set.words || []).forEach((item) => {
+      const key = reviewItemKey(item);
+      if (!key || seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      items.push({
+        ...item,
+        reviewKey: key,
+        setId: set.id,
+        setLabel: set.label,
+      });
+    });
+  });
+
+  return items;
+}
+
+function reviewItemKey(item) {
+  const zh = String(item?.zh || "").trim();
+  const pinyin = normalizePinyinForCompare(item?.pinyin || "");
+  return zh && pinyin ? `${zh}|${pinyin}` : "";
+}
+
+function loadReviewProgress() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REVIEW_PROGRESS_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveReviewProgress(progress) {
+  try {
+    localStorage.setItem(REVIEW_PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // Review scheduling remains usable for the current session if browser storage is unavailable.
+  }
+}
+
+function ensureReviewProgress() {
+  const progress = loadReviewProgress();
+  if (Object.keys(progress).length) {
+    return progress;
+  }
+
+  const vocabularyByKey = new Map(getAllVocabularyReviewItems().map((item) => [reviewItemKey(item), item]));
+  const history = loadHistoryRecords()
+    .filter((record) => record.type === "vocabulary")
+    .sort((a, b) => Date.parse(a.completedAt || 0) - Date.parse(b.completedAt || 0));
+
+  history.forEach((record) => {
+    (record.answers || []).forEach((answer) => {
+      const key = reviewItemKey(answer);
+      const sourceItem = vocabularyByKey.get(key) || {
+        zh: answer.zh,
+        pinyin: answer.pinyin,
+        meanings: String(answer.meaning || "").split(";").map((meaning) => meaning.trim()).filter(Boolean),
+      };
+      if (!key || !sourceItem.zh || !sourceItem.pinyin) {
+        return;
+      }
+
+      applyReviewAttempt(progress, sourceItem, Boolean(answer.correct), {
+        mode: record.quizMode,
+        now: Date.parse(record.completedAt || "") || Date.now(),
+      });
+    });
+  });
+
+  if (Object.keys(progress).length) {
+    saveReviewProgress(progress);
+  }
+  return progress;
+}
+
+function applyReviewAttempt(progress, item, correct, { mode = "pinyin", now = Date.now() } = {}) {
+  const key = reviewItemKey(item);
+  if (!key) {
+    return null;
+  }
+
+  const previous = progress[key] || {};
+  const previousStage = clamp(Number(previous.stage) || 0, 0, REVIEW_INTERVAL_DAYS.length - 1);
+  const nextStage = correct
+    ? Math.min(REVIEW_INTERVAL_DAYS.length - 1, previousStage + 1)
+    : 0;
+  const intervalDays = correct ? REVIEW_INTERVAL_DAYS[nextStage] : 0;
+  const nextRecord = {
+    key,
+    zh: item.zh,
+    pinyin: item.pinyin,
+    meanings: getVocabularyMeaningCandidates(item),
+    setId: item.setId || previous.setId || "",
+    setLabel: item.setLabel || previous.setLabel || "",
+    stage: nextStage,
+    dueAt: now + intervalDays * DAY_IN_MS,
+    lastReviewedAt: now,
+    lastMode: mode,
+    attempts: (Number(previous.attempts) || 0) + 1,
+    correct: (Number(previous.correct) || 0) + (correct ? 1 : 0),
+    streak: correct ? (Number(previous.streak) || 0) + 1 : 0,
+    lapses: (Number(previous.lapses) || 0) + (correct ? 0 : 1),
+  };
+  progress[key] = nextRecord;
+
+  return {
+    previousStage,
+    reviewStage: nextStage,
+    nextDueAt: nextRecord.dueAt,
+    record: nextRecord,
+  };
+}
+
+function updateReviewProgressFromVocabularyResult(result) {
+  if (result?.type !== "vocabulary") {
+    return;
+  }
+
+  const progress = ensureReviewProgress();
+  const now = Date.now();
+  if (result.quizMode === "pinyin") {
+    const foundIds = new Set(result.foundIds || []);
+    const missedIds = new Set(result.missedIds || []);
+    result.items.forEach((item, index) => {
+      const id = vocabularyItemId(item, index);
+      if (!foundIds.has(id) && !missedIds.has(id)) {
+        return;
+      }
+      applyReviewAttempt(progress, item, foundIds.has(id), { mode: "pinyin", now });
+    });
+  } else {
+    (result.answers || []).forEach((answer) => {
+      const item = answer.item || result.items?.[answer.itemIndex];
+      if (item) {
+        applyReviewAttempt(progress, item, Boolean(answer.correct), { mode: "meaning", now });
+      }
+    });
+  }
+  saveReviewProgress(progress);
+}
+
+function buildReviewQueue(progress = ensureReviewProgress(), now = Date.now(), vocabulary = getAllVocabularyReviewItems()) {
+  const due = [];
+  const unseen = [];
+  const upcoming = [];
+
+  vocabulary.forEach((item, sourceIndex) => {
+    const record = progress[reviewItemKey(item)];
+    if (!record) {
+      unseen.push({ item, record: null, sourceIndex, statusLabel: "New", statusClass: "is-new" });
+      return;
+    }
+
+    if ((Number(record.dueAt) || 0) <= now) {
+      due.push({ item, record, sourceIndex, statusLabel: "Due", statusClass: "is-due" });
+      return;
+    }
+
+    upcoming.push({
+      item,
+      record,
+      sourceIndex,
+      statusLabel: formatReviewDueLabel(record.dueAt, true, now),
+      statusClass: "is-upcoming",
+    });
+  });
+
+  due.sort((a, b) =>
+    (Number(b.record?.lapses) || 0) - (Number(a.record?.lapses) || 0) ||
+    (Number(a.record?.dueAt) || 0) - (Number(b.record?.dueAt) || 0) ||
+    a.sourceIndex - b.sourceIndex,
+  );
+  upcoming.sort((a, b) =>
+    (Number(a.record?.dueAt) || Infinity) - (Number(b.record?.dueAt) || Infinity) ||
+    a.sourceIndex - b.sourceIndex,
+  );
+
+  return [...due, ...unseen, ...upcoming];
+}
+
+function getReviewDashboardData(now = Date.now()) {
+  const progress = ensureReviewProgress();
+  const records = Object.values(progress);
+  const queue = buildReviewQueue(progress, now);
+  const today = localDateKey(now);
+
+  return {
+    queue,
+    totalTracked: records.length,
+    dueCount: records.filter((record) => (Number(record.dueAt) || 0) <= now).length,
+    learningCount: records.filter((record) => (Number(record.stage) || 0) < 4).length,
+    strongCount: records.filter((record) => (Number(record.stage) || 0) >= 4).length,
+    reviewedToday: records.filter((record) => localDateKey(record.lastReviewedAt) === today).length,
+    streakDays: getReviewStreakDays(records, now),
+  };
+}
+
+function getReviewStreakDays(records, now = Date.now()) {
+  const activeDays = new Set(records.map((record) => localDateKey(record.lastReviewedAt)).filter(Boolean));
+  if (!activeDays.size) {
+    return 0;
+  }
+
+  let cursor = new Date(now);
+  cursor.setHours(0, 0, 0, 0);
+  if (!activeDays.has(localDateKey(cursor.getTime()))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
+  while (activeDays.has(localDateKey(cursor.getTime()))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function localDateKey(timestamp) {
+  const date = new Date(Number(timestamp));
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatReviewDueLabel(timestamp, correct = true, now = Date.now()) {
+  if (!correct || !timestamp || timestamp <= now) {
+    return "Due now";
+  }
+
+  const days = Math.max(1, Math.round((timestamp - now) / DAY_IN_MS));
+  return days === 1 ? "Tomorrow" : `In ${days} days`;
+}
+
+function chooseReviewMode(record, index) {
+  if (record?.lastMode === "pinyin") {
+    return "meaning";
+  }
+  if (record?.lastMode === "meaning") {
+    return "pinyin";
+  }
+  return index % 2 === 0 ? "pinyin" : "meaning";
+}
+
+function startReviewSession() {
+  const dashboard = getReviewDashboardData();
+  const selected = dashboard.queue.slice(0, REVIEW_SESSION_LENGTH);
+  if (!selected.length) {
+    return;
+  }
+
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.result = null;
+  state.session = {
+    type: "review",
+    items: selected.map((entry, index) => ({
+      ...entry.item,
+      reviewMode: chooseReviewMode(entry.record, index),
+    })),
+    index: 0,
+    answers: [],
+    choiceSets: new Map(),
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  render();
+  if (state.session.items[0].reviewMode === "meaning") {
+    speak(state.session.items[0].zh, { immediate: true });
+  }
+}
+
+function getReviewChoiceSet(session, index) {
+  if (session?.type !== "review" || index < 0 || index >= session.items.length) {
+    return [];
+  }
+  if (!(session.choiceSets instanceof Map)) {
+    session.choiceSets = new Map();
+  }
+  if (!session.choiceSets.has(index)) {
+    session.choiceSets.set(index, buildVocabularyChoiceSet(session, index));
+  }
+  return session.choiceSets.get(index);
+}
+
+function submitReviewPinyin(answer) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "review" || item?.reviewMode !== "pinyin" || session.currentAssessment) {
+    return;
+  }
+  const trimmed = String(answer || "").trim();
+  if (!trimmed) {
+    return;
+  }
+  commitReviewAssessment(session, item, {
+    ...assessVocabularyAnswer(trimmed, item, "pinyin"),
+    reviewMode: "pinyin",
+  });
+}
+
+function submitReviewChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "review" || session.currentAssessment) {
+    return;
+  }
+  const choice = getReviewChoiceSet(session, session.index).find((option) => option.shortcut === shortcut);
+  if (choice) {
+    submitReviewChoice(choice.id);
+  }
+}
+
+function submitReviewChoice(choiceId) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "review" || item?.reviewMode !== "meaning" || session.currentAssessment) {
+    return;
+  }
+  const choice = getReviewChoiceSet(session, session.index).find((option) => option.id === choiceId);
+  if (!choice) {
+    return;
+  }
+  commitReviewAssessment(session, item, {
+    quizMode: "meaning",
+    reviewMode: "meaning",
+    answer: choice.text,
+    choiceId: choice.id,
+    score: choice.correct ? 1 : 0,
+    correct: choice.correct,
+  });
+}
+
+function commitReviewAssessment(session, item, assessment) {
+  const progress = ensureReviewProgress();
+  const schedule = applyReviewAttempt(progress, item, assessment.correct, {
+    mode: assessment.reviewMode,
+    now: Date.now(),
+  });
+  saveReviewProgress(progress);
+  const completedAssessment = {
+    ...assessment,
+    previousStage: schedule?.previousStage || 0,
+    reviewStage: schedule?.reviewStage || 0,
+    nextDueAt: schedule?.nextDueAt || Date.now(),
+  };
+  session.currentAssessment = completedAssessment;
+  session.answers.push({ ...completedAssessment, item, itemIndex: session.index });
+  render();
+}
+
 function startActiveSession() {
   if (state.tool === "vocabulary") {
     startVocabularySession();
+    return;
+  }
+
+  if (state.tool === "review") {
+    startReviewSession();
     return;
   }
 
@@ -4970,6 +5697,26 @@ function nextQuestion() {
   const session = state.session;
   const sessionLength = session.items.length;
 
+  if (session.type === "review") {
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      stopSpeech();
+      render();
+      return;
+    }
+
+    session.index += 1;
+    session.currentAssessment = null;
+    render();
+    if (session.items[session.index].reviewMode === "meaning") {
+      speak(session.items[session.index].zh, { immediate: true });
+    }
+    return;
+  }
+
   if (session.type === "vocabulary") {
     const nextIndex = selectNextVocabularyRowAfter(session, session.index);
     if (nextIndex < 0) {
@@ -5059,6 +5806,22 @@ function nextQuestion() {
 
 function finishSessionEarly() {
   const session = state.session;
+  if (session?.type === "review") {
+    if (!session.answers.length) {
+      state.session = null;
+      stopSpeech();
+      render();
+      return;
+    }
+    const result = buildSessionResult(session);
+    state.result = result;
+    saveHistoryResult(result);
+    state.session = null;
+    stopSpeech();
+    render();
+    return;
+  }
+
   if (session?.type === "vocabulary") {
     finishVocabularySession("ended");
     return;
@@ -5102,6 +5865,16 @@ function finishVocabularySession(reason) {
 }
 
 function buildSessionResult(session) {
+  if (session.type === "review") {
+    return {
+      type: "review",
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+      total: session.items.length,
+    };
+  }
+
   if (session.type === "vocabulary") {
     const elapsedSeconds = Math.min(
       session.timeLimitSeconds,
@@ -5159,6 +5932,9 @@ function buildSessionResult(session) {
 
 function saveHistoryResult(result) {
   try {
+    if (result.type === "vocabulary") {
+      updateReviewProgressFromVocabularyResult(result);
+    }
     const history = loadHistoryRecords();
     const record = buildHistoryRecord(result);
     saveHistoryRecords([record, ...history].slice(0, HISTORY_LIMIT));
@@ -5188,6 +5964,31 @@ function markVocabularyHighScoreResult(result) {
 function buildHistoryRecord(result) {
   const completedAt = new Date().toISOString();
   const id = `${completedAt}-${Math.random().toString(36).slice(2, 9)}`;
+
+  if (result.type === "review") {
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    return {
+      id,
+      type: "review",
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        zh: answer.item.zh,
+        pinyin: answer.item.pinyin,
+        meaning: formatVocabularyMeanings(answer.item),
+        reviewMode: answer.reviewMode,
+        answer: answer.answer || "",
+        correct: answer.correct,
+        score: answer.score,
+        previousStage: answer.previousStage,
+        reviewStage: answer.reviewStage,
+        nextDueAt: answer.nextDueAt,
+      })),
+    };
+  }
 
   if (result.type === "vocabulary") {
     const stats = getVocabularyResultStats(result);
@@ -5345,6 +6146,7 @@ function saveHistoryRecords(records) {
 
 function clearHistoryRecords() {
   localStorage.removeItem(HISTORY_KEY);
+  localStorage.removeItem(REVIEW_PROGRESS_KEY);
 }
 
 function getVocabularyResultStats(result) {

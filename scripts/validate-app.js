@@ -97,20 +97,25 @@ window.__tests = {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  REVIEW_SESSION_LENGTH,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  applyReviewAttempt,
   buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
+  buildHistoryRowMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildReviewFeedbackMarkup,
+  buildReviewQueue,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
@@ -124,6 +129,7 @@ window.__tests = {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  formatReviewDueLabel,
   getVocabularySetMeta,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
@@ -133,6 +139,9 @@ window.__tests = {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getMapQuizPool,
+  getAllVocabularyReviewItems,
+  getReviewChoiceSet,
+  getReviewDashboardData,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
   formatTimer,
@@ -140,12 +149,14 @@ window.__tests = {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   loadHistoryRecords,
+  loadReviewProgress,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
   purgeRetiredMemoryData,
+  reviewItemKey,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -155,6 +166,7 @@ window.__tests = {
   state,
   stopSpeech,
   trashIconMarkup,
+  updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
 };`, context, { filename: "app.js" });
 
@@ -162,20 +174,25 @@ const {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  REVIEW_SESSION_LENGTH,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  applyReviewAttempt,
   buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
   buildFeedbackMarkup,
   buildHistoryRecord,
+  buildHistoryRowMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildReviewFeedbackMarkup,
+  buildReviewQueue,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
   buildVocabularyChoiceMarkup,
@@ -189,6 +206,7 @@ const {
   findVocabularyGuessMatches,
   formatVocabularyChoiceText,
   formatVocabularySetOption,
+  formatReviewDueLabel,
   getVocabularySetMeta,
   getCurrentVocabularyRowId,
   getSelectedVocabularyIndex,
@@ -198,6 +216,9 @@ const {
   getVocabularyPinyinAnsweredCount,
   getVocabularyResultStats,
   getMapQuizPool,
+  getAllVocabularyReviewItems,
+  getReviewChoiceSet,
+  getReviewDashboardData,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
   formatTimer,
@@ -205,12 +226,14 @@ const {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   loadHistoryRecords,
+  loadReviewProgress,
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
   purgeRetiredMemoryData,
+  reviewItemKey,
   scoreEnglish,
   scorePinyin,
   scoreVocabularyMeaning,
@@ -220,6 +243,7 @@ const {
   state,
   stopSpeech,
   trashIconMarkup,
+  updateReviewProgressFromVocabularyResult,
   vocabularyItemId,
 } =
   context.window.__tests;
@@ -246,8 +270,8 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
-  "global nav should show Vocabulary Quiz, Pronunciation, Geography of China, Sentence Drills, and History in order",
+  toolNavOrder.join("|") === "vocabulary:Vocabulary Quiz|review:Daily Review|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  "global nav should show Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History in order",
 );
 assert(
   toolNavButtons.every((match) => match[2].includes("tool-tab-icon")),
@@ -261,18 +285,88 @@ localStorageEntries.set("chineseTrainerMemoryProgress", JSON.stringify({ ren: { 
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "retired-memory", type: "memory" },
   { id: "kept-drill", type: "drill" },
+  { id: "kept-review", type: "review" },
 ]));
 assert(
-  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill",
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review",
   "history loading should ignore records from retired tools",
 );
 purgeRetiredMemoryData();
 assert(!localStorageEntries.has("chineseTrainerMemoryProgress"), "retired memory progress should be removed from browser storage");
 assert(
-  JSON.parse(localStorageEntries.get("chineseTrainerHistory")).map((record) => record.id).join("|") === "kept-drill",
+  JSON.parse(localStorageEntries.get("chineseTrainerHistory")).map((record) => record.id).join("|") === "kept-drill|kept-review",
   "retired memory sessions should be removed from browser history",
 );
 localStorageEntries.delete("chineseTrainerHistory");
+const reviewVocabulary = getAllVocabularyReviewItems();
+const reviewNow = Date.UTC(2026, 6, 14, 2, 0, 0);
+assert(REVIEW_SESSION_LENGTH === 12, "daily review should use a focused 12-word session");
+assert(reviewVocabulary.length === hsk1VocabularyWords.length + hsk2VocabularyWords.length, "daily review should cover the full HSK 1 and HSK 2 vocabulary pool");
+assert(new Set(reviewVocabulary.map(reviewItemKey)).size === reviewVocabulary.length, "daily review vocabulary keys should be unique");
+const reviewProgressFixture = {};
+const firstReviewSchedule = applyReviewAttempt(reviewProgressFixture, reviewVocabulary[0], true, { mode: "pinyin", now: reviewNow });
+assert(firstReviewSchedule.reviewStage === 1, "a correct new review should advance to stage one");
+assert(firstReviewSchedule.nextDueAt === reviewNow + 24 * 60 * 60 * 1000, "stage one should schedule the word for tomorrow");
+const missedReviewSchedule = applyReviewAttempt(reviewProgressFixture, reviewVocabulary[1], false, { mode: "meaning", now: reviewNow });
+assert(missedReviewSchedule.reviewStage === 0 && missedReviewSchedule.nextDueAt === reviewNow, "a missed review should return the word to the due queue");
+const reviewQueue = buildReviewQueue(reviewProgressFixture, reviewNow, reviewVocabulary.slice(0, 4));
+assert(reviewItemKey(reviewQueue[0].item) === reviewItemKey(reviewVocabulary[1]), "due review words should be prioritized ahead of new and upcoming words");
+assert(reviewQueue[0].statusLabel === "Due" && reviewQueue.some((entry) => entry.statusLabel === "New"), "review queue should distinguish due and new words");
+assert(formatReviewDueLabel(reviewNow, false, reviewNow) === "Due now", "missed words should clearly show that they are immediately due");
+assert(formatReviewDueLabel(reviewNow + 24 * 60 * 60 * 1000, true, reviewNow) === "Tomorrow", "one-day review intervals should use a clear tomorrow label");
+localStorageEntries.set("chineseTrainerReviewProgress", JSON.stringify(reviewProgressFixture));
+const reviewDashboard = getReviewDashboardData(reviewNow);
+assert(reviewDashboard.dueCount === 1, "review dashboard should count words due now");
+assert(reviewDashboard.reviewedToday === 2, "review dashboard should count words reviewed today");
+const reviewSessionFixture = {
+  type: "review",
+  items: reviewVocabulary.slice(0, 6).map((item, index) => ({ ...item, reviewMode: index % 2 ? "meaning" : "pinyin" })),
+  index: 1,
+  answers: [],
+  choiceSets: new Map(),
+  currentAssessment: null,
+};
+const reviewChoices = getReviewChoiceSet(reviewSessionFixture, 1);
+assert(reviewChoices.length === 5 && reviewChoices.filter((choice) => choice.correct).length === 1, "audio review prompts should offer five choices with one correct answer");
+assert(reviewChoices.map((choice) => choice.shortcut).join("") === "12345", "review choices should expose keyboard shortcuts one through five");
+assert(sessionUsesAudioPrompt(reviewSessionFixture), "audio review prompts should support the shared replay shortcut");
+reviewSessionFixture.index = 0;
+assert(!sessionUsesAudioPrompt(reviewSessionFixture), "pinyin review prompts should not trigger audio automatically");
+const reviewFeedback = buildReviewFeedbackMarkup(reviewVocabulary[0], {
+  answer: "ren",
+  correct: true,
+  nextDueAt: reviewNow + 24 * 60 * 60 * 1000,
+});
+assert(reviewFeedback.includes("Correct") && reviewFeedback.includes("Tomorrow"), "review feedback should show the answer outcome and next interval");
+const reviewHistoryRecord = buildHistoryRecord({
+  type: "review",
+  answers: [{
+    item: reviewVocabulary[0],
+    answer: "ren",
+    correct: true,
+    score: 1,
+    reviewMode: "pinyin",
+    previousStage: 0,
+    reviewStage: 1,
+    nextDueAt: reviewNow + 24 * 60 * 60 * 1000,
+  }],
+  elapsedSeconds: 18,
+});
+assert(reviewHistoryRecord.type === "review" && reviewHistoryRecord.correct === 1, "daily review runs should create review history records");
+assert(reviewHistoryRecord.answers[0].reviewStage === 1, "review history should retain scheduling outcomes");
+assert(buildHistoryRowMarkup(reviewHistoryRecord).includes("Daily review"), "History should label adaptive review runs clearly");
+assert(stylesSource.includes(".review-practice-layout"), "daily review should include a dedicated responsive practice layout");
+localStorageEntries.set("chineseTrainerReviewProgress", "{}");
+updateReviewProgressFromVocabularyResult({
+  type: "vocabulary",
+  quizMode: "pinyin",
+  items: [reviewVocabulary[0]],
+  foundIds: [vocabularyItemId(reviewVocabulary[0], 0)],
+  missedIds: [],
+  answers: [],
+});
+assert(loadReviewProgress()[reviewItemKey(reviewVocabulary[0])].stage === 1, "completed vocabulary answers should feed the adaptive review schedule");
+localStorageEntries.delete("chineseTrainerReviewProgress");
 assert(CHINA_PROVINCES.length === 34, "map quiz should include 34 provincial-level region targets");
 assert(CHINA_CITIES.length === 34, "map quiz should include 34 city pin targets");
 assert(CHINA_MAP_ITEMS.length === CHINA_PROVINCES.length + CHINA_CITIES.length, "map quiz pool should combine provinces and cities");

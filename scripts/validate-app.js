@@ -102,6 +102,10 @@ window.__tests = {
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
+  PLACEMENT_GRAMMAR_PER_LEVEL,
+  PLACEMENT_SESSION_LENGTH,
+  PLACEMENT_VOCABULARY,
+  PLACEMENT_VOCABULARY_PER_LEVEL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   TONE_LISTENING_SESSION_LENGTH,
@@ -132,6 +136,9 @@ window.__tests = {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
+  buildPlacementChoiceMarkup,
+  buildPlacementFeedbackMarkup,
+  buildPlacementSessionItems,
   buildPronunciationSentenceMarkup,
   buildPronunciationViewSwitcher,
   buildDrillViewSwitcher,
@@ -191,6 +198,9 @@ window.__tests = {
   getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
+  getPlacementRecommendation,
+  getPlacementResultStats,
+  getPlacementVocabularyPool,
   getMissedSentenceDrillItems,
   getMissedVocabularyReviewItems,
   getAllVocabularyReviewItems,
@@ -246,6 +256,10 @@ const {
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
+  PLACEMENT_GRAMMAR_PER_LEVEL,
+  PLACEMENT_SESSION_LENGTH,
+  PLACEMENT_VOCABULARY,
+  PLACEMENT_VOCABULARY_PER_LEVEL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
   TONE_LISTENING_SESSION_LENGTH,
@@ -276,6 +290,9 @@ const {
   buildHighScoreCelebration,
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
+  buildPlacementChoiceMarkup,
+  buildPlacementFeedbackMarkup,
+  buildPlacementSessionItems,
   buildPronunciationSentenceMarkup,
   buildPronunciationViewSwitcher,
   buildDrillViewSwitcher,
@@ -335,6 +352,9 @@ const {
   getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
+  getPlacementRecommendation,
+  getPlacementResultStats,
+  getPlacementVocabularyPool,
   getMissedSentenceDrillItems,
   getMissedVocabularyReviewItems,
   getAllVocabularyReviewItems,
@@ -562,9 +582,10 @@ localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "kept-review", type: "review" },
   { id: "kept-tone", type: "tone" },
   { id: "kept-grammar", type: "grammar" },
+  { id: "kept-placement", type: "placement" },
 ]));
 assert(
-  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone|kept-grammar",
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone|kept-grammar|kept-placement",
   "history loading should retain active practice types while ignoring records from the retired memory aid",
 );
 localStorageEntries.delete("chineseTrainerHistory");
@@ -832,6 +853,71 @@ const roadmapMarkup = buildHskRoadmapMarkup(introducedHsk1Roadmap);
 assert(roadmapMarkup.includes("HSK mastery roadmap") && roadmapMarkup.includes('data-roadmap-level="2"'), "Today should expose the mastery roadmap and target-level switcher");
 assert(roadmapMarkup.includes('role="progressbar"') && roadmapMarkup.includes('id="continueHskRoadmap"'), "roadmap progress and continuation should be accessible and actionable");
 assert(stylesSource.includes(".dashboard-roadmap-milestone") && stylesSource.includes(".dashboard-roadmap-levels"), "the HSK roadmap should include dedicated responsive styling");
+assert(PLACEMENT_SESSION_LENGTH === 20, "the level check should be short enough to complete while sampling both HSK levels");
+assert(PLACEMENT_VOCABULARY_PER_LEVEL === 6 && PLACEMENT_GRAMMAR_PER_LEVEL === 4, "the level check should balance six vocabulary and four grammar questions per level");
+assert(Object.values(PLACEMENT_VOCABULARY).every((pool) => pool.length === 12), "each HSK level should have a varied placement vocabulary pool");
+const placementVocabularyPools = [1, 2].map((level) => getPlacementVocabularyPool(level));
+assert(placementVocabularyPools.every((pool) => pool.length === 12 && pool.every((item) => item.pinyin)), "every curated placement word should resolve to sourced HSK vocabulary and pinyin");
+const placementItems = buildPlacementSessionItems();
+assert(placementItems.length === PLACEMENT_SESSION_LENGTH && new Set(placementItems.map((item) => item.id)).size === PLACEMENT_SESSION_LENGTH, "the level check should build twenty unique questions");
+[1, 2].forEach((level) => {
+  const levelItems = placementItems.filter((item) => item.level === level);
+  const vocabularyItems = levelItems.filter((item) => item.kind === "vocabulary");
+  const grammarItems = levelItems.filter((item) => item.kind === "grammar");
+  assert(levelItems.length === 10 && vocabularyItems.length === 6 && grammarItems.length === 4, `HSK ${level} placement should contain six vocabulary and four grammar questions`);
+  assert(new Set(grammarItems.map((item) => item.lessonId)).size === 4, `HSK ${level} placement grammar should sample four distinct patterns`);
+});
+assert(
+  placementItems.every((item) => item.choices.length === 4 && new Set(item.choices.map((choice) => choice.text)).size === 4 && item.choices.filter((choice) => choice.correct).length === 1),
+  "every placement question should provide four unique choices with exactly one correct answer",
+);
+const buildPlacementFixture = (hsk1Correct, hsk2Correct) => {
+  const levelOffsets = { 1: 0, 2: 0 };
+  return {
+    type: "placement",
+    items: placementItems,
+    elapsedSeconds: 145,
+    answers: placementItems.map((item, itemIndex) => {
+      const levelIndex = levelOffsets[item.level];
+      levelOffsets[item.level] += 1;
+      const correct = levelIndex < (item.level === 1 ? hsk1Correct : hsk2Correct);
+      const choice = correct ? item.choices.find((option) => option.correct) : item.choices.find((option) => !option.correct);
+      return {
+        item,
+        itemIndex,
+        choiceId: choice.id,
+        answer: choice.text,
+        expected: item.answer,
+        correct,
+        score: correct ? 1 : 0,
+      };
+    }),
+  };
+};
+const hsk1FoundationPlacement = buildPlacementFixture(6, 10);
+const hsk2ReadyPlacement = buildPlacementFixture(7, 6);
+const hsk2ConsolidationPlacement = buildPlacementFixture(7, 7);
+assert(getPlacementRecommendation(hsk1FoundationPlacement).band === "HSK 1 foundation", "sub-70% HSK 1 performance should recommend rebuilding the HSK 1 foundation");
+assert(getPlacementRecommendation(hsk2ReadyPlacement).band === "Ready for HSK 2", "a secure HSK 1 result with weaker HSK 2 performance should recommend starting HSK 2");
+assert(getPlacementRecommendation(hsk2ConsolidationPlacement).band === "HSK 2 consolidation", "70% or better at both levels should recommend HSK 2 consolidation");
+const placementStats = getPlacementResultStats(hsk2ReadyPlacement);
+assert(placementStats.levels[1].correct === 7 && placementStats.levels[2].correct === 6, "placement results should preserve separate HSK 1 and HSK 2 scores");
+assert(placementStats.skills.vocabulary.total === 12 && placementStats.skills.grammar.total === 8, "placement results should preserve separate vocabulary and grammar totals");
+const firstPlacementItem = placementItems[0];
+const firstPlacementChoice = firstPlacementItem.choices[0];
+assert(buildPlacementChoiceMarkup(firstPlacementItem, firstPlacementChoice, null).includes(`data-placement-choice-id="${firstPlacementChoice.id}"`), "placement choices should expose clickable keyboard-matched controls");
+assert(buildPlacementFeedbackMarkup(firstPlacementItem, { correct: false }).includes("Review this one"), "placement feedback should explain incorrect answers immediately");
+const placementHistoryRecord = buildHistoryRecord(hsk2ReadyPlacement);
+assert(placementHistoryRecord.type === "placement" && placementHistoryRecord.recommendedLevel === 2 && placementHistoryRecord.correct === 13, "History should retain the placement score and recommended roadmap");
+assert(placementHistoryRecord.answers.length === 20 && placementHistoryRecord.answers.every((answer) => answer.expected), "placement history should retain exact answer review data");
+assert(buildHistoryRowMarkup(placementHistoryRecord).includes("Level check") && buildHistoryRowMarkup(placementHistoryRecord).includes("HSK 2 recommended"), "History should identify level checks and their recommendation");
+assert(buildHistorySessionMarkup(placementHistoryRecord).includes("expected"), "placement History should explain missed vocabulary and grammar questions");
+const placementRoadmap = getHskRoadmapData(2, { history: [placementHistoryRecord], progress: {}, now: dashboardNow });
+const placementRoadmapMarkup = buildHskRoadmapMarkup(placementRoadmap);
+assert(placementRoadmap.latestPlacement?.recommendedLevel === 2 && placementRoadmapMarkup.includes("Retake level check"), "Today should surface the latest placement and offer a retake");
+assert(stylesSource.includes(".placement-session") && stylesSource.includes(".placement-results") && stylesSource.includes(".dashboard-placement-control"), "the placement check should include dedicated desktop and responsive styling");
+assert(appSource.includes("scrollPlacementFeedbackIntoView()") && appSource.includes("scrollPlacementQuestionIntoView()"), "placement answers should keep feedback and the next prompt in view on compact screens");
+assert(appSource.includes('aria-label="Level check progress"'), "placement progress should expose an accessible progressbar label");
 assert(GRAMMAR_SESSION_LENGTH === 10, "mixed grammar practice should use a focused ten-question session");
 assert(GRAMMAR_LESSONS.length === 16, "Grammar Lab should provide sixteen core HSK 1 and 2 pattern lessons");
 assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 1).length === 8, "Grammar Lab should provide eight HSK 1 patterns");
@@ -874,6 +960,7 @@ assert(getHistorySkillStats([grammarHistoryRecord]).find((skill) => skill.id ===
 assert(getGrammarLessonProgress([grammarHistoryRecord], firstGrammarLesson.id).status === "Learning", "grammar lesson progress should distinguish learning patterns");
 assert(isDashboardPlanRecordComplete(grammarHistoryRecord), "a completed focused grammar check should satisfy the adaptive language activity");
 assert(stylesSource.includes(".grammar-lesson-list") && stylesSource.includes(".grammar-practice-layout"), "Grammar Lab should include first-class responsive lesson and practice styling");
+assert(stylesSource.includes("animation: correct-highlight") && !stylesSource.includes("animation: correct-pop"), "success feedback should avoid transform-based compositor animations that can leave black artifacts");
 const progressHistory = [
   ...dashboardHistory,
   {

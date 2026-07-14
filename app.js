@@ -4,6 +4,9 @@ const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const TONE_LISTENING_SESSION_LENGTH = 15;
 const GRAMMAR_SESSION_LENGTH = 10;
+const PLACEMENT_SESSION_LENGTH = 20;
+const PLACEMENT_VOCABULARY_PER_LEVEL = 6;
+const PLACEMENT_GRAMMAR_PER_LEVEL = 4;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const REVIEW_SESSION_LENGTH = 12;
 const DASHBOARD_DAILY_GOAL = 3;
@@ -21,7 +24,7 @@ const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "pronunciation", "tone", "map"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -104,6 +107,37 @@ const VOCABULARY_MODES = {
     promptLabel: "Audio word",
     answerPlaceholder: "Type the English meaning",
   },
+};
+
+const PLACEMENT_VOCABULARY = {
+  1: [
+    { zh: "人", meaning: "person" },
+    { zh: "学校", meaning: "school" },
+    { zh: "喜欢", meaning: "to like" },
+    { zh: "朋友", meaning: "friend" },
+    { zh: "今天", meaning: "today" },
+    { zh: "工作", meaning: "to work; job" },
+    { zh: "医生", meaning: "doctor" },
+    { zh: "觉得", meaning: "to think; feel" },
+    { zh: "电影", meaning: "movie" },
+    { zh: "机场", meaning: "airport" },
+    { zh: "介绍", meaning: "to introduce" },
+    { zh: "回答", meaning: "to answer" },
+  ],
+  2: [
+    { zh: "安静", meaning: "quiet" },
+    { zh: "安全", meaning: "safe" },
+    { zh: "办法", meaning: "method; solution" },
+    { zh: "报名", meaning: "to register" },
+    { zh: "必须", meaning: "must" },
+    { zh: "便宜", meaning: "inexpensive" },
+    { zh: "参加", meaning: "to participate" },
+    { zh: "成绩", meaning: "result; grade" },
+    { zh: "出发", meaning: "to set out" },
+    { zh: "打算", meaning: "to plan" },
+    { zh: "地铁", meaning: "subway" },
+    { zh: "复习", meaning: "to review" },
+  ],
 };
 
 const ACCEPTANCE_THRESHOLD = 0.7;
@@ -655,6 +689,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isPlacementChoiceShortcut(event)) {
+    event.preventDefault();
+    submitPlacementChoiceByShortcut(event.key);
+    return;
+  }
+
   if (isGrammarChoiceShortcut(event)) {
     event.preventDefault();
     submitGrammarChoiceByShortcut(event.key);
@@ -789,6 +829,15 @@ function isToneChoiceShortcut(event) {
 
 function isGrammarChoiceShortcut(event) {
   return state.session?.type === "grammar" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-4]$/.test(event.key);
+}
+
+function isPlacementChoiceShortcut(event) {
+  return state.session?.type === "placement" &&
     !state.session.currentAssessment &&
     !event.metaKey &&
     !event.ctrlKey &&
@@ -1114,6 +1163,8 @@ function render() {
       renderReviewResults();
     } else if (state.result.type === "grammar") {
       renderGrammarResults();
+    } else if (state.result.type === "placement") {
+      renderPlacementResults();
     } else if (state.result.type === "pronunciation") {
       renderPronunciationResults();
     } else if (state.result.type === "tone") {
@@ -1397,17 +1448,11 @@ function renderDashboardHome() {
       if (![1, 2].includes(level) || level === state.studyTargetLevel) {
         return;
       }
-      state.studyTargetLevel = level;
-      state.grammarLevel = level;
-      state.grammarLessonId = "";
-      const firstTargetSet = VOCABULARY_QUIZ_SETS.find((set) => Number(getVocabularySetMeta(set).levelNumber) === level);
-      if (firstTargetSet) {
-        state.vocabularySetId = firstTargetSet.id;
-      }
-      saveSettings();
+      setStudyTargetLevel(level);
       render();
     });
   });
+  document.querySelector("#startPlacementCheck")?.addEventListener("click", startPlacementSession);
   document.querySelector("#continueHskRoadmap")?.addEventListener("click", () => {
     launchHskRoadmapAction(roadmap.recommendation);
   });
@@ -1461,6 +1506,9 @@ function getHskRoadmapData(
       progress: getGrammarLessonProgress(history, lesson.id),
     }));
   const benchmarkModes = Object.keys(VOCABULARY_MODES);
+  const latestPlacement = history
+    .filter((record) => record.type === "placement")
+    .sort((a, b) => Date.parse(b.completedAt || "") - Date.parse(a.completedAt || ""))[0] || null;
   const passedBenchmarks = new Set(
     history
       .filter((record) =>
@@ -1517,6 +1565,7 @@ function getHskRoadmapData(
     grammarStrong,
     benchmarkModes,
     passedBenchmarks,
+    latestPlacement,
     milestones,
     overallPercent: milestones.length
       ? Math.round(milestones.reduce((sum, milestone) => sum + milestone.percent, 0) / milestones.length)
@@ -1535,6 +1584,20 @@ function getHskRoadmapMilestoneStatus(current, total) {
     return "Complete";
   }
   return current > 0 ? "In progress" : "Not started";
+}
+
+function setStudyTargetLevel(level) {
+  const targetLevel = [1, 2].includes(Number(level)) ? Number(level) : 1;
+  state.studyTargetLevel = targetLevel;
+  state.grammarLevel = targetLevel;
+  state.grammarLessonId = "";
+  const firstTargetSet = VOCABULARY_QUIZ_SETS.find((set) =>
+    Number(getVocabularySetMeta(set).levelNumber) === targetLevel,
+  );
+  if (firstTargetSet) {
+    state.vocabularySetId = firstTargetSet.id;
+  }
+  saveSettings();
 }
 
 function getHskRoadmapRecommendation(roadmap) {
@@ -1639,10 +1702,16 @@ function buildHskRoadmapMarkup(roadmap) {
           <h3 id="dashboardRoadmapHeading">HSK mastery roadmap</h3>
           <p>A balanced path across vocabulary coverage, retention, grammar, and timed benchmarks.</p>
         </div>
-        <div class="dashboard-roadmap-levels" role="group" aria-label="Target HSK level">
-          ${[1, 2].map((level) => `
-            <button type="button" data-roadmap-level="${level}" aria-pressed="${roadmap.level === level}" class="${roadmap.level === level ? "active" : ""}">HSK ${level}</button>
-          `).join("")}
+        <div class="dashboard-roadmap-controls">
+          <div class="dashboard-roadmap-levels" role="group" aria-label="Target HSK level">
+            ${[1, 2].map((level) => `
+              <button type="button" data-roadmap-level="${level}" aria-pressed="${roadmap.level === level}" class="${roadmap.level === level ? "active" : ""}">HSK ${level}</button>
+            `).join("")}
+          </div>
+          <div class="dashboard-placement-control">
+            <button class="ghost-btn dashboard-placement-start" type="button" id="startPlacementCheck">${roadmap.latestPlacement ? "Retake level check" : "Check my level"}</button>
+            ${roadmap.latestPlacement ? `<small>Last result: HSK ${roadmap.latestPlacement.recommendedLevel || 1}</small>` : ""}
+          </div>
         </div>
       </header>
 
@@ -1725,6 +1794,368 @@ function launchHskRoadmapAction(action) {
   state.tool = "review";
   saveSettings();
   startReviewSession();
+}
+
+function getPlacementVocabularyPool(level, vocabulary = getAllVocabularyReviewItems()) {
+  const targetLevel = Number(level) || 1;
+  const itemByZh = new Map(
+    vocabulary
+      .filter((item) => Number(getVocabularySetMeta(item).levelNumber) === targetLevel)
+      .map((item) => [item.zh, item]),
+  );
+  return (PLACEMENT_VOCABULARY[targetLevel] || []).flatMap((definition) => {
+    const item = itemByZh.get(definition.zh);
+    return item ? [{ ...definition, pinyin: item.pinyin }] : [];
+  });
+}
+
+function buildPlacementSessionItems() {
+  const items = [];
+  [1, 2].forEach((level) => {
+    const vocabularyPool = getPlacementVocabularyPool(level);
+    shuffle(vocabularyPool).slice(0, PLACEMENT_VOCABULARY_PER_LEVEL).forEach((entry) => {
+      const options = shuffle([
+        entry.meaning,
+        ...shuffle(vocabularyPool.filter((candidate) => candidate.zh !== entry.zh))
+          .slice(0, 3)
+          .map((candidate) => candidate.meaning),
+      ]);
+      items.push({
+        id: `placement-vocabulary-${level}-${entry.zh}`,
+        kind: "vocabulary",
+        level,
+        prompt: entry.zh,
+        translation: "Choose the closest English meaning.",
+        pinyin: entry.pinyin,
+        answer: entry.meaning,
+        options,
+        explanation: `${entry.zh} (${entry.pinyin}) means ${entry.meaning}.`,
+      });
+    });
+
+    shuffle(GRAMMAR_LESSONS.filter((lesson) => lesson.level === level))
+      .slice(0, PLACEMENT_GRAMMAR_PER_LEVEL)
+      .forEach((lesson) => {
+        const question = shuffle(lesson.questions)[0];
+        items.push({
+          id: `placement-grammar-${question ? `${lesson.id}-${lesson.questions.indexOf(question) + 1}` : lesson.id}`,
+          kind: "grammar",
+          level,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          lessonPattern: lesson.pattern,
+          prompt: question?.prompt || "",
+          translation: question?.translation || "",
+          answer: question?.answer || "",
+          options: [...(question?.options || [])],
+          explanation: question?.explanation || lesson.summary,
+        });
+      });
+  });
+
+  return shuffle(items).map((item, itemIndex) => ({
+    ...item,
+    choices: shuffle(item.options).map((text, choiceIndex) => ({
+      id: `${item.id}-choice-${itemIndex}-${choiceIndex}`,
+      text,
+      correct: text === item.answer,
+      shortcut: String(choiceIndex + 1),
+    })),
+  }));
+}
+
+function startPlacementSession() {
+  const items = buildPlacementSessionItems();
+  if (items.length !== PLACEMENT_SESSION_LENGTH) {
+    state.dataError = "The placement question bank could not be loaded.";
+    render();
+    return;
+  }
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.tool = "dashboard";
+  state.dataError = "";
+  state.result = null;
+  state.session = {
+    type: "placement",
+    items,
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  render();
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+}
+
+function renderPlacementSession() {
+  const session = state.session;
+  const item = session.items[session.index];
+  const assessment = session.currentAssessment;
+  const correct = session.answers.filter((answer) => answer.correct).length;
+  const progress = Math.round(((session.index + (assessment ? 1 : 0)) / session.items.length) * 100);
+  const prompt = item.kind === "grammar"
+    ? buildGrammarPromptMarkup(item.prompt)
+    : escapeHtml(item.prompt);
+
+  app.innerHTML = `
+    <section class="workspace-panel placement-session">
+      <header class="placement-session-header">
+        <div>
+          <span>Quick level check</span>
+          <strong>${item.kind === "grammar" ? "Grammar in context" : "Vocabulary recognition"}</strong>
+        </div>
+        <div class="placement-session-score"><span>Score</span><strong>${correct}/${session.answers.length}</strong></div>
+        <button class="ghost-btn" type="button" id="exitPlacementCheck">Exit check</button>
+      </header>
+      <div class="placement-session-progress">
+        <div class="progress-track" role="progressbar" aria-label="Level check progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><div style="width:${progress}%"></div></div>
+        <span>Question ${session.index + 1} of ${session.items.length}</span>
+      </div>
+
+      <section class="placement-question-panel ${assessment ? "is-answered" : ""}">
+        <div class="placement-question-copy">
+          <span>${item.kind === "grammar" ? "Choose the best answer" : "What does this word mean?"}</span>
+          <h2 class="chinese-text ${item.kind === "vocabulary" ? "is-vocabulary" : ""}" lang="zh-CN">${prompt}</h2>
+          <p>${escapeHtml(item.translation)}</p>
+        </div>
+
+        <div class="placement-choice-grid">
+          ${item.choices.map((choice) => buildPlacementChoiceMarkup(item, choice, assessment)).join("")}
+        </div>
+
+        ${assessment ? buildPlacementFeedbackMarkup(item, assessment) : ""}
+        ${assessment ? `
+          <button class="primary-btn shortcut-btn placement-next-button" type="button" id="nextQuestion">
+            <span>${session.index + 1 >= session.items.length ? "View results" : "Next question"}</span>
+            ${shortcutHint("Enter")}
+          </button>
+        ` : ""}
+      </section>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-placement-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitPlacementChoice(button.dataset.placementChoiceId));
+  });
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+  document.querySelector("#exitPlacementCheck")?.addEventListener("click", () => {
+    state.session = null;
+    render();
+  });
+}
+
+function buildPlacementChoiceMarkup(item, choice, assessment) {
+  const selected = assessment?.choiceId === choice.id;
+  const classes = [
+    "choice-option",
+    "placement-choice-option",
+    selected ? "selected" : "",
+    assessment && choice.correct ? "correct" : "",
+    assessment && selected && !choice.correct ? "incorrect" : "",
+    assessment && selected && choice.correct ? "correct-celebration" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <button class="${classes}" type="button" data-placement-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
+      <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+      <span class="choice-text ${item.kind === "grammar" ? "chinese-text" : ""}" ${item.kind === "grammar" ? 'lang="zh-CN"' : ""}>${escapeHtml(choice.text)}</span>
+    </button>
+  `;
+}
+
+function buildPlacementFeedbackMarkup(item, assessment) {
+  return `
+    <section class="placement-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
+      <div>
+        <strong>${assessment.correct ? "Correct" : "Review this one"}</strong>
+        <span>Answer: <b class="${item.kind === "grammar" ? "chinese-text" : ""}">${escapeHtml(item.answer)}</b></span>
+      </div>
+      ${item.kind === "vocabulary" ? `<p class="tone-pinyin">${buildToneColoredPinyinMarkup(item.pinyin)}</p>` : ""}
+      <p>${escapeHtml(item.explanation)}</p>
+    </section>
+  `;
+}
+
+function submitPlacementChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "placement" || session.currentAssessment) {
+    return;
+  }
+  const choice = session.items[session.index]?.choices.find((option) => option.shortcut === shortcut);
+  if (choice) {
+    submitPlacementChoice(choice.id);
+  }
+}
+
+function submitPlacementChoice(choiceId) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "placement" || !item || session.currentAssessment) {
+    return;
+  }
+  const choice = item.choices.find((option) => option.id === choiceId);
+  if (!choice) {
+    return;
+  }
+  const assessment = {
+    choiceId: choice.id,
+    answer: choice.text,
+    expected: item.answer,
+    correct: choice.correct,
+    score: choice.correct ? 1 : 0,
+  };
+  session.currentAssessment = assessment;
+  session.answers.push({ ...assessment, item, itemIndex: session.index });
+  render();
+  scrollPlacementFeedbackIntoView();
+}
+
+function scrollPlacementFeedbackIntoView() {
+  window.setTimeout(() => {
+    document.querySelector("#nextQuestion")?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+  }, 0);
+}
+
+function scrollPlacementQuestionIntoView() {
+  window.setTimeout(() => {
+    document.querySelector(".placement-question-copy")?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+  }, 0);
+}
+
+function getPlacementResultStats(result) {
+  const answers = result?.answers || [];
+  const buildStats = (items) => {
+    const correct = items.filter((answer) => answer.correct).length;
+    return {
+      correct,
+      total: items.length,
+      accuracy: items.length ? correct / items.length : 0,
+    };
+  };
+  return {
+    total: buildStats(answers),
+    levels: {
+      1: buildStats(answers.filter((answer) => answer.item.level === 1)),
+      2: buildStats(answers.filter((answer) => answer.item.level === 2)),
+    },
+    skills: {
+      vocabulary: buildStats(answers.filter((answer) => answer.item.kind === "vocabulary")),
+      grammar: buildStats(answers.filter((answer) => answer.item.kind === "grammar")),
+    },
+  };
+}
+
+function getPlacementRecommendation(result) {
+  const stats = getPlacementResultStats(result);
+  if (stats.levels[1].accuracy < 0.7) {
+    return {
+      level: 1,
+      band: "HSK 1 foundation",
+      summary: "Build reliable HSK 1 vocabulary and core sentence patterns before moving up.",
+    };
+  }
+  if (stats.levels[2].accuracy >= 0.7) {
+    return {
+      level: 2,
+      band: "HSK 2 consolidation",
+      summary: "You recognize much of HSK 2. Focus on retention, speed, and accurate use in context.",
+    };
+  }
+  return {
+    level: 2,
+    band: "Ready for HSK 2",
+    summary: "Your HSK 1 foundation is ready. Start building HSK 2 vocabulary and grammar.",
+  };
+}
+
+function renderPlacementResults() {
+  const result = state.result;
+  const stats = getPlacementResultStats(result);
+  const recommendation = getPlacementRecommendation(result);
+  const rows = result.answers.map((answer, index) => {
+    const item = answer.item;
+    const prompt = item.kind === "grammar"
+      ? buildGrammarPromptMarkup(item.prompt)
+      : `${escapeHtml(item.prompt)} <small>${buildToneColoredPinyinMarkup(item.pinyin)}</small>`;
+    return `
+      <tr class="${answer.correct ? "found" : "missed"}">
+        <td>${index + 1}</td>
+        <td>HSK ${item.level} ${item.kind === "grammar" ? "Grammar" : "Vocabulary"}</td>
+        <td class="chinese-text">${prompt}</td>
+        <td>${escapeHtml(answer.answer)}</td>
+        <td>${escapeHtml(item.answer)}</td>
+        <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Wrong"}</td>
+      </tr>
+    `;
+  }).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel placement-results">
+      <header class="results-header">
+        <div>
+          <h2>Level check complete</h2>
+          <p>${stats.total.correct} of ${stats.total.total} correct across vocabulary and grammar.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn" type="button" id="retakePlacement">Retake check</button>
+          <button class="ghost-btn" type="button" id="backFromPlacement">Back to Today</button>
+        </div>
+      </header>
+
+      <section class="placement-recommendation">
+        <div>
+          <span>Recommended roadmap</span>
+          <h3>${escapeHtml(recommendation.band)}</h3>
+          <p>${escapeHtml(recommendation.summary)}</p>
+        </div>
+        <button class="primary-btn" type="button" id="applyPlacementResult">Use HSK ${recommendation.level} roadmap</button>
+      </section>
+
+      <div class="placement-result-stats">
+        ${[
+          ["HSK 1", stats.levels[1]],
+          ["HSK 2", stats.levels[2]],
+          ["Vocabulary", stats.skills.vocabulary],
+          ["Grammar", stats.skills.grammar],
+        ].map(([label, item]) => `
+          <div>
+            <span>${label}</span>
+            <strong>${Math.round(item.accuracy * 100)}%</strong>
+            <small>${item.correct}/${item.total} correct</small>
+            <div class="progress-track"><div style="width:${Math.round(item.accuracy * 100)}%"></div></div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="placement-results-heading">
+        <div>
+          <h3>Answer review</h3>
+          <p>This short check estimates where to start. Your roadmap continues adapting as you practice.</p>
+        </div>
+      </div>
+      <div class="results-table-wrap" tabindex="0">
+        <table class="placement-results-table">
+          <thead><tr><th>#</th><th>Area</th><th>Question</th><th>Your answer</th><th>Expected</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#applyPlacementResult")?.addEventListener("click", () => {
+    setStudyTargetLevel(recommendation.level);
+    state.result = null;
+    state.session = null;
+    state.tool = "dashboard";
+    render();
+  });
+  document.querySelector("#retakePlacement")?.addEventListener("click", startPlacementSession);
+  document.querySelector("#backFromPlacement")?.addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    state.tool = "dashboard";
+    render();
+  });
 }
 
 function buildDashboardPlan(history, review, now = Date.now()) {
@@ -5120,6 +5551,8 @@ function getHistoryRecordPresentation(record) {
           : "Daily review"
       : record.type === "grammar"
         ? "Grammar practice"
+      : record.type === "placement"
+        ? "Level check"
       : record.type === "pronunciation"
         ? "Pronunciation"
         : record.type === "tone"
@@ -5141,6 +5574,8 @@ function getHistoryRecordPresentation(record) {
         ? record.scope === "lesson"
           ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
           : `HSK ${record.level || 1} · Mixed patterns`
+      : record.type === "placement"
+        ? "HSK 1–2 · Vocabulary and grammar"
       : record.type === "pronunciation"
         ? selectedLevelLabels(record.levels)
       : record.type === "tone"
@@ -5154,6 +5589,8 @@ function getHistoryRecordPresentation(record) {
         ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
       : record.type === "grammar"
         ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
+      : record.type === "placement"
+        ? `HSK ${record.recommendedLevel || 1} recommended · ${record.correct}/${record.total} correct`
       : record.type === "pronunciation"
         ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
         : record.type === "tone"
@@ -5179,6 +5616,29 @@ function buildHistorySessionReviewMarkup(record) {
   return `
     <div class="history-mistake-list">
       ${mistakes.slice(0, 8).map((answer) => {
+        if (record.type === "placement") {
+          if (answer.kind === "vocabulary") {
+            return `
+              <div class="history-mistake-row">
+                <div class="history-mistake-word">
+                  <strong class="chinese-text" lang="zh-CN">${escapeHtml(answer.prompt || "")}</strong>
+                  <span>${buildToneColoredPinyinMarkup(answer.pinyin || "")}</span>
+                </div>
+                <p>HSK ${answer.level || 1} vocabulary</p>
+                <span>Chose ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}</span>
+                <button class="icon-btn" type="button" data-progress-audio="${escapeHtml(answer.prompt || "")}" aria-label="Play ${escapeHtml(answer.prompt || "word")}" title="Play word">${speakerIconMarkup()}</button>
+              </div>
+            `;
+          }
+          return `
+            <div class="history-mistake-row is-sentence is-grammar">
+              <strong class="chinese-text" lang="zh-CN">${buildGrammarPromptMarkup(answer.prompt || "")}</strong>
+              <p>HSK ${answer.level || 1} · ${escapeHtml(answer.lessonTitle || answer.pattern || "Grammar")}</p>
+              <span>Chose ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}</span>
+              <b>Review</b>
+            </div>
+          `;
+        }
         if (record.type === "tone") {
           const item = {
             zh: answer.zh || "",
@@ -5574,6 +6034,11 @@ function renderSession() {
 
   if (state.session?.type === "grammar") {
     renderGrammarSession();
+    return;
+  }
+
+  if (state.session?.type === "placement") {
+    renderPlacementSession();
     return;
   }
 
@@ -9961,6 +10426,23 @@ function nextQuestion() {
     return;
   }
 
+  if (session.type === "placement") {
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      render();
+      return;
+    }
+
+    session.index += 1;
+    session.currentAssessment = null;
+    render();
+    scrollPlacementQuestionIntoView();
+    return;
+  }
+
   if (session.type === "map") {
     if (session.index + 1 >= sessionLength) {
       const result = buildSessionResult(session);
@@ -10064,6 +10546,16 @@ function finishVocabularySession(reason) {
 }
 
 function buildSessionResult(session) {
+  if (session.type === "placement") {
+    return {
+      type: "placement",
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+      total: session.items.length,
+    };
+  }
+
   if (session.type === "review") {
     return {
       type: "review",
@@ -10193,6 +10685,42 @@ function markVocabularyHighScoreResult(result) {
 function buildHistoryRecord(result) {
   const completedAt = new Date().toISOString();
   const id = `${completedAt}-${Math.random().toString(36).slice(2, 9)}`;
+
+  if (result.type === "placement") {
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    const recommendation = getPlacementRecommendation(result);
+    const stats = getPlacementResultStats(result);
+    return {
+      id,
+      type: "placement",
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      recommendedLevel: recommendation.level,
+      recommendationBand: recommendation.band,
+      levelScores: {
+        1: { correct: stats.levels[1].correct, total: stats.levels[1].total },
+        2: { correct: stats.levels[2].correct, total: stats.levels[2].total },
+      },
+      answers: result.answers.map((answer, index) => ({
+        index,
+        questionId: answer.item.id,
+        kind: answer.item.kind,
+        level: answer.item.level,
+        prompt: answer.item.prompt,
+        translation: answer.item.translation,
+        pinyin: answer.item.pinyin || "",
+        lessonTitle: answer.item.lessonTitle || "",
+        pattern: answer.item.lessonPattern || "",
+        answer: answer.answer || "",
+        expected: answer.item.answer,
+        explanation: answer.item.explanation,
+        correct: Boolean(answer.correct),
+        score: answer.correct ? 1 : 0,
+      })),
+    };
+  }
 
   if (result.type === "review") {
     const correct = result.answers.filter((answer) => answer.correct).length;

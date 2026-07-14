@@ -100,6 +100,7 @@ window.__tests = {
   DASHBOARD_DAILY_GOAL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
@@ -107,6 +108,7 @@ window.__tests = {
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  applyToneToPinyinSyllable,
   applyReviewAttempt,
   applyLearningBackup,
   buildAnswerBox,
@@ -124,11 +126,14 @@ window.__tests = {
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildPronunciationViewSwitcher,
   buildDrillViewSwitcher,
   buildReviewFeedbackMarkup,
   buildReviewQueue,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
+  buildToneChoiceMarkup,
+  buildToneChoiceSet,
   buildVocabularyChoiceMarkup,
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
@@ -182,6 +187,9 @@ window.__tests = {
   getReviewDashboardData,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
+  getToneListeningPool,
+  getToneListeningWeaknessStats,
+  getTonePattern,
   formatTimer,
   getSelectedVocabularySet,
   getSavedSentenceItems,
@@ -191,6 +199,7 @@ window.__tests = {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
+  isReliableToneListeningItem,
   highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
@@ -226,6 +235,7 @@ const {
   DASHBOARD_DAILY_GOAL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
   VOCABULARY_MODES,
@@ -233,6 +243,7 @@ const {
   assessMapQuizSelection,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
+  applyToneToPinyinSyllable,
   applyReviewAttempt,
   applyLearningBackup,
   buildAnswerBox,
@@ -250,11 +261,14 @@ const {
   buildChinaMapMarkup,
   buildMapQuizFeedbackMarkup,
   buildPronunciationSentenceMarkup,
+  buildPronunciationViewSwitcher,
   buildDrillViewSwitcher,
   buildReviewFeedbackMarkup,
   buildReviewQueue,
   buildMdbgWordUrl,
   buildToneColoredPinyinMarkup,
+  buildToneChoiceMarkup,
+  buildToneChoiceSet,
   buildVocabularyChoiceMarkup,
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
@@ -308,6 +322,9 @@ const {
   getReviewDashboardData,
   getPronunciationWeaknessStats,
   getPronunciationRecognitionErrorMessage,
+  getToneListeningPool,
+  getToneListeningWeaknessStats,
+  getTonePattern,
   formatTimer,
   getSelectedVocabularySet,
   getSavedSentenceItems,
@@ -317,6 +334,7 @@ const {
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
+  isReliableToneListeningItem,
   highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
@@ -522,10 +540,11 @@ localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "retired-memory", type: "memory" },
   { id: "kept-drill", type: "drill" },
   { id: "kept-review", type: "review" },
+  { id: "kept-tone", type: "tone" },
 ]));
 assert(
-  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review",
-  "history loading should ignore records from the retired memory aid",
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone",
+  "history loading should retain tone practice while ignoring records from the retired memory aid",
 );
 localStorageEntries.delete("chineseTrainerHistory");
 const backupStorageSnapshot = new Map(localStorageEntries);
@@ -645,6 +664,12 @@ const vocabularyViewSwitcherMarkup = buildVocabularyViewSwitcher();
 assert(vocabularyViewSwitcherMarkup.includes('data-vocabulary-view="path"'), "vocabulary navigation should expose the HSK path");
 assert(vocabularyViewSwitcherMarkup.includes('class="active" type="button" data-vocabulary-view="path"'), "HSK path should have a distinct active navigation state");
 state.vocabularyView = previousVocabularyView;
+const previousPronunciationView = state.pronunciationView;
+state.pronunciationView = "tone";
+const pronunciationViewSwitcherMarkup = buildPronunciationViewSwitcher();
+assert(pronunciationViewSwitcherMarkup.includes('data-pronunciation-view="speaking"'), "pronunciation navigation should retain speaking practice");
+assert(pronunciationViewSwitcherMarkup.includes('class="active" type="button" data-pronunciation-view="tone"'), "tone listening should have a distinct active navigation state");
+state.pronunciationView = previousPronunciationView;
 localStorageEntries.set("chineseTrainerReviewProgress", JSON.stringify(reviewProgressFixture));
 const reviewDashboard = getReviewDashboardData(reviewNow);
 assert(reviewDashboard.dueCount === 1, "review dashboard should count words due now");
@@ -751,7 +776,7 @@ const progressHistory = [
   },
 ];
 const progressSkills = getHistorySkillStats(progressHistory);
-assert(progressSkills.length === 6, "Learning progress should report every core skill in a stable order");
+assert(progressSkills.length === 7, "Learning progress should report every core skill in a stable order");
 assert(Math.abs(progressSkills.find((skill) => skill.id === "reading").accuracy - 0.7) < 0.001, "Learning progress should calculate sentence-mode accuracy");
 assert(progressSkills.find((skill) => skill.id === "vocabulary").attempts === 15, "Learning progress should combine vocabulary quizzes and reviews");
 const progressActivity = getHistoryActivityDays(progressHistory, dashboardNow);
@@ -781,6 +806,7 @@ assert(reviewChoices.map((choice) => choice.shortcut).join("") === "12345", "rev
 assert(sessionUsesAudioPrompt(reviewSessionFixture), "audio review prompts should support the shared replay shortcut");
 reviewSessionFixture.index = 0;
 assert(!sessionUsesAudioPrompt(reviewSessionFixture), "pinyin review prompts should not trigger audio automatically");
+assert(sessionUsesAudioPrompt({ type: "tone" }), "tone listening should support the shared replay shortcut");
 const reviewFeedback = buildReviewFeedbackMarkup(reviewVocabulary[0], {
   answer: "ren",
   correct: true,
@@ -1375,6 +1401,40 @@ assert(
   "correct sentence drill feedback should animate",
 );
 
+const toneListeningPool = getToneListeningPool();
+assert(TONE_LISTENING_SESSION_LENGTH === 15, "tone listening should use a focused 15-word session");
+assert(toneListeningPool.length >= 1000, "tone listening should draw from broad HSK 1 and 2 coverage");
+assert(
+  toneListeningPool.every((item) => isReliableToneListeningItem(item)),
+  "tone listening should exclude ambiguous readings and common tone-sandhi traps",
+);
+assert(
+  !isReliableToneListeningItem({ zh: "你好", pinyin: "nǐ hǎo", numeric: "ni3 hao3", numericAlternates: [] }),
+  "tone listening should exclude adjacent third tones whose heard form changes through tone sandhi",
+);
+assert(applyToneToPinyinSyllable("hao3", "4") === "hào", "tone choices should apply fourth-tone marks accurately");
+assert(applyToneToPinyinSyllable("gui3", "1") === "guī", "tone choices should mark ui on its final vowel");
+assert(applyToneToPinyinSyllable("liu2", "3") === "liǔ", "tone choices should mark iu on its final vowel");
+assert(applyToneToPinyinSyllable("nv3", "4") === "nǜ", "tone choices should preserve umlaut vowels");
+const loveToneChoices = buildToneChoiceSet(loveEntry, 0);
+assert(loveToneChoices.length === 5, "tone listening should offer five tone-pattern choices");
+assert(loveToneChoices.filter((choice) => choice.correct).length === 1, "tone listening should expose exactly one correct pattern");
+assert(new Set(loveToneChoices.map((choice) => choice.tones.join("-"))).size === 5, "tone choices should not repeat a pattern");
+assert(loveToneChoices.map((choice) => choice.shortcut).join("") === "12345", "tone choices should expose keyboard shortcuts one through five");
+const correctLoveTone = loveToneChoices.find((choice) => choice.correct);
+assert(getTonePattern(loveEntry).join("") === "4" && correctLoveTone.pinyin === "ài", "the correct tone choice should preserve the source pronunciation");
+const toneChoiceMarkup = buildToneChoiceMarkup(loveToneChoices, {
+  choiceId: correctLoveTone.id,
+  correct: true,
+});
+assert(toneChoiceMarkup.includes("correct-celebration"), "correct tone choices should use the shared lightweight success animation");
+assert(toneChoiceMarkup.includes("tone-four"), "tone choices should use Pleco tone colors");
+assert(appSource.includes("tone-word-concealment") && appSource.includes("buildToneAnswerRevealMarkup"), "tone listening should hide the word until an answer is selected");
+assert(stylesSource.includes(".tone-listening-layout") && stylesSource.includes(".tone-choice-option"), "tone listening should include responsive first-class styling");
+assert(indexSource.includes("pronunciation-only pronunciation-speaking-only"), "speaking-only pinyin options should be scoped away from tone listening");
+assert(stylesSource.includes('data-pronunciation-view="speaking"'), "pronunciation options should respond to the selected practice type");
+assert(appSource.includes('state.pronunciationView = PRONUNCIATION_VIEWS.has(mode) ? mode : "speaking";'), "dashboard pronunciation actions should launch their intended practice type");
+
 const pronunciationItem = { zh: "我爱你。", en: "I love you.", level: "beginner" };
 const perfectPronunciation = assessPronunciationTranscript("我爱你", pronunciationItem);
 assert(perfectPronunciation.score === 1, "perfect pronunciation transcripts should recognize all words");
@@ -1439,6 +1499,30 @@ const pronunciationRecord = buildHistoryRecord({
 assert(pronunciationRecord.type === "pronunciation", "pronunciation history should store pronunciation records");
 assert(pronunciationRecord.answers[0].missedWords.length === 2, "pronunciation history should store missed words");
 assert(pronunciationRecord.weaknesses.tones.length > 0, "pronunciation history should store weakness summaries");
+const missedToneAnswer = {
+  item: loveEntry,
+  itemIndex: 0,
+  selectedPinyin: "ái",
+  selectedTones: ["2"],
+  correctTones: ["4"],
+  selectedPattern: "2",
+  correctPattern: "4",
+  correct: false,
+  score: 0,
+};
+const toneWeaknesses = getToneListeningWeaknessStats([missedToneAnswer]);
+assert(toneWeaknesses.tones[0].label === "Tone 4", "tone listening should identify the tone the learner missed");
+assert(toneWeaknesses.patterns[0].label === "4", "tone listening should identify difficult tone patterns");
+const toneRecord = buildHistoryRecord({
+  type: "tone",
+  answers: [missedToneAnswer],
+  elapsedSeconds: 9,
+});
+assert(toneRecord.type === "tone" && toneRecord.correct === 0, "tone listening should create a distinct history record");
+assert(toneRecord.answers[0].selectedPattern === "2" && toneRecord.answers[0].correctPattern === "4", "tone history should retain the selected and expected patterns");
+assert(buildHistoryRowMarkup(toneRecord).includes("Tone listening"), "History should label tone listening sessions clearly");
+assert(buildHistorySessionMarkup(toneRecord).includes("expected 4"), "tone history should expose answer-level review");
+assert(getHistorySkillStats([toneRecord]).find((skill) => skill.id === "tone").accuracy === 0, "Learning progress should track tone-listening accuracy separately");
 const mapRecord = buildHistoryRecord({
   type: "map",
   mapQuizMode: "city",

@@ -2,6 +2,7 @@
 
 const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
+const TONE_LISTENING_SESSION_LENGTH = 15;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
 const REVIEW_SESSION_LENGTH = 12;
 const DASHBOARD_DAILY_GOAL = 3;
@@ -19,7 +20,7 @@ const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "map"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "tone", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -39,6 +40,7 @@ const SENTENCE_DATA_SRC = "./sentence-data.js";
 const WORD_DATA_SRC = "./word-data.js";
 const SENTENCE_LIBRARY_PAGE_SIZE = 40;
 const DRILL_VIEWS = new Set(["practice", "library"]);
+const PRONUNCIATION_VIEWS = new Set(["speaking", "tone"]);
 
 const MODES = {
   listening: {
@@ -351,6 +353,16 @@ const PINYIN_TONE_MARKS = {
   ǹ: ["n", "4"],
   ḿ: ["m", "2"],
 };
+const PINYIN_VOWEL_TONE_MARKS = {
+  a: ["a", "ā", "á", "ǎ", "à"],
+  e: ["e", "ē", "é", "ě", "è"],
+  i: ["i", "ī", "í", "ǐ", "ì"],
+  o: ["o", "ō", "ó", "ǒ", "ò"],
+  u: ["u", "ū", "ú", "ǔ", "ù"],
+  ü: ["ü", "ǖ", "ǘ", "ǚ", "ǜ"],
+  n: ["n", "n", "ń", "ň", "ǹ"],
+  m: ["m", "m", "ḿ", "m", "m"],
+};
 const PLECO_TONE_CLASS_BY_TONE = {
   1: "tone-one",
   2: "tone-two",
@@ -378,6 +390,7 @@ const state = {
   vocabularyLibraryVisibleCount: VOCABULARY_LIBRARY_PAGE_SIZE,
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
   mapShowPinyinNames: false,
+  pronunciationView: "speaking",
   pronunciationShowPinyin: true,
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
@@ -450,6 +463,9 @@ function loadSettings() {
     if (typeof saved.mapShowPinyinNames === "boolean") {
       state.mapShowPinyinNames = saved.mapShowPinyinNames;
     }
+    if (PRONUNCIATION_VIEWS.has(saved.pronunciationView)) {
+      state.pronunciationView = saved.pronunciationView;
+    }
     if (typeof saved.pronunciationShowPinyin === "boolean") {
       state.pronunciationShowPinyin = saved.pronunciationShowPinyin;
     }
@@ -495,6 +511,7 @@ function saveSettings() {
         vocabularyHideTranslations: state.vocabularyHideTranslations,
         mapQuizMode: state.mapQuizMode,
         mapShowPinyinNames: state.mapShowPinyinNames,
+        pronunciationView: state.pronunciationView,
         pronunciationShowPinyin: state.pronunciationShowPinyin,
         selectedLevels: [...state.selectedLevels],
         voiceSpeed: state.voiceSpeed,
@@ -616,6 +633,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isToneChoiceShortcut(event)) {
+    event.preventDefault();
+    submitToneChoiceByShortcut(event.key);
+    return;
+  }
+
   if (isReviewChoiceShortcut(event)) {
     event.preventDefault();
     submitReviewChoiceByShortcut(event.key);
@@ -714,7 +737,7 @@ function shouldStartSessionFromShortcut(target) {
 }
 
 function sessionUsesAudioPrompt(session) {
-  if (session?.type === "pronunciation") {
+  if (session?.type === "pronunciation" || session?.type === "tone") {
     return true;
   }
 
@@ -725,6 +748,15 @@ function sessionUsesAudioPrompt(session) {
   return session?.type === "vocabulary"
     ? session.quizMode === "meaning"
     : session?.mode === "listening";
+}
+
+function isToneChoiceShortcut(event) {
+  return state.session?.type === "tone" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-5]$/.test(event.key);
 }
 
 function isVocabularyChoiceShortcut(event) {
@@ -1045,6 +1077,8 @@ function render() {
       renderReviewResults();
     } else if (state.result.type === "pronunciation") {
       renderPronunciationResults();
+    } else if (state.result.type === "tone") {
+      renderToneListeningResults();
     } else if (state.result.type === "map") {
       renderMapQuizResults();
     } else {
@@ -1104,10 +1138,13 @@ function updateNavigationState() {
     element.hidden = state.tool !== "drill";
   });
   document.querySelectorAll(".sentence-bank-only").forEach((element) => {
-    element.hidden = state.tool !== "drill" && state.tool !== "pronunciation";
+    element.hidden = state.tool !== "drill" && !(state.tool === "pronunciation" && state.pronunciationView === "speaking");
   });
   document.querySelectorAll(".pronunciation-only").forEach((element) => {
     element.hidden = state.tool !== "pronunciation";
+  });
+  document.querySelectorAll(".pronunciation-speaking-only").forEach((element) => {
+    element.hidden = state.tool !== "pronunciation" || state.pronunciationView !== "speaking";
   });
   document.querySelectorAll(".vocabulary-only").forEach((element) => {
     element.hidden = state.tool !== "vocabulary";
@@ -1126,6 +1163,7 @@ function updateNavigationState() {
   });
   document.body.dataset.vocabularyView = state.vocabularyView;
   document.body.dataset.drillView = state.drillView;
+  document.body.dataset.pronunciationView = state.pronunciationView;
   syncVocabularyOptionControls();
 }
 
@@ -1570,12 +1608,15 @@ function launchDashboardActivity(tool, mode = "") {
     state.mode = mode;
     state.drillView = "practice";
   }
+  if (tool === "pronunciation") {
+    state.pronunciationView = PRONUNCIATION_VIEWS.has(mode) ? mode : "speaking";
+  }
   saveSettings();
 
   if (tool === "review") {
     startReviewSession();
   } else if (tool === "pronunciation") {
-    startPronunciationSession();
+    startActivePronunciationSession();
   } else if (tool === "drill") {
     startSession();
   } else {
@@ -2025,6 +2066,11 @@ function getSavedSentenceItems(items = SENTENCES, savedIds = loadSavedSentenceId
 }
 
 function renderPronunciationHome() {
+  if (state.pronunciationView === "tone") {
+    renderToneListeningHome();
+    return;
+  }
+
   const shortSentenceCount = getSelectedPronunciationSentenceCount();
   const hasEnoughSentences = shortSentenceCount >= PRONUNCIATION_SESSION_LENGTH;
   const recognitionAvailable = supportsSpeechRecognition();
@@ -2032,6 +2078,7 @@ function renderPronunciationHome() {
 
   app.innerHTML = `
     <section class="workspace-panel">
+      ${buildPronunciationViewSwitcher()}
       <div class="mode-heading">
         <div>
           <h2>Pronunciation Practice</h2>
@@ -2078,7 +2125,76 @@ function renderPronunciationHome() {
     </section>
   `;
 
+  bindPronunciationViewSwitcher();
   document.querySelector("#startPronunciationSession").addEventListener("click", startPronunciationSession);
+}
+
+function renderToneListeningHome() {
+  const toneWordCount = getToneListeningPool().length;
+  const playbackAvailable = supportsSpeechSynthesis();
+
+  app.innerHTML = `
+    <section class="workspace-panel tone-listening-home">
+      ${buildPronunciationViewSwitcher()}
+      <div class="mode-heading">
+        <div>
+          <h2>Tone Listening</h2>
+          <p>Hear an HSK word and identify its tone pattern.</p>
+        </div>
+      </div>
+
+      <div class="task-preview pronunciation-preview" aria-hidden="true">
+        <div class="preview-cell">
+          <strong>调</strong>
+          <span>HSK 1 and 2 tone perception</span>
+        </div>
+      </div>
+
+      <p class="tone-pool-note"><strong>${toneWordCount.toLocaleString()}</strong> unambiguous HSK words available for practice</p>
+
+      ${playbackAvailable ? "" : `
+        <p class="empty-note error-note">
+          Speech playback is not available in this browser.
+        </p>
+      `}
+
+      <div class="pronunciation-start-row">
+        <button class="primary-btn shortcut-btn" type="button" id="startToneListeningSession" ${toneWordCount >= TONE_LISTENING_SESSION_LENGTH && playbackAvailable ? "" : "disabled"}>
+          <span>Start 15-word session</span>
+          ${shortcutHint("Enter")}
+        </button>
+      </div>
+    </section>
+  `;
+
+  bindPronunciationViewSwitcher();
+  document.querySelector("#startToneListeningSession").addEventListener("click", startToneListeningSession);
+}
+
+function buildPronunciationViewSwitcher() {
+  return `
+    <nav class="pronunciation-view-switcher" aria-label="Pronunciation practice type">
+      <button class="${state.pronunciationView === "speaking" ? "active" : ""}" type="button" data-pronunciation-view="speaking">Speaking</button>
+      <button class="${state.pronunciationView === "tone" ? "active" : ""}" type="button" data-pronunciation-view="tone">Tone Listening</button>
+    </nav>
+  `;
+}
+
+function bindPronunciationViewSwitcher() {
+  document.querySelectorAll(".pronunciation-view-switcher button[data-pronunciation-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.dataset.pronunciationView;
+      if (!PRONUNCIATION_VIEWS.has(nextView) || nextView === state.pronunciationView) {
+        return;
+      }
+      stopPronunciationRecognition();
+      stopSpeech();
+      state.pronunciationView = nextView;
+      state.dataError = "";
+      saveSettings();
+      render();
+    });
+  });
 }
 
 function renderMapQuizHome() {
@@ -3763,6 +3879,7 @@ function getProgressSkillDefinitions() {
   return [
     { id: "vocabulary", label: "Vocabulary", tool: "review", unit: "words" },
     { id: "pronunciation", label: "Pronunciation", tool: "pronunciation", unit: "sentences" },
+    { id: "tone", label: "Tone listening", tool: "pronunciation", mode: "tone", unit: "words" },
     { id: "reading", label: "Reading", tool: "drill", mode: "reading", unit: "sentences" },
     { id: "writing", label: "Writing", tool: "drill", mode: "writing", unit: "sentences" },
     { id: "listening", label: "Listening", tool: "drill", mode: "listening", unit: "sentences" },
@@ -4086,6 +4203,8 @@ function getHistoryRecordPresentation(record) {
           : "Daily review"
       : record.type === "pronunciation"
         ? "Pronunciation"
+        : record.type === "tone"
+          ? "Tone listening"
         : record.type === "map"
           ? "Geography"
           : "Sentence drill";
@@ -4101,6 +4220,8 @@ function getHistoryRecordPresentation(record) {
           : "Adaptive vocabulary"
       : record.type === "pronunciation"
         ? selectedLevelLabels(record.levels)
+      : record.type === "tone"
+          ? "HSK 1 & 2 vocabulary"
       : record.type === "map"
           ? getSelectedMapQuizMode(record.mapQuizMode).targetMetric
           : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
@@ -4110,6 +4231,8 @@ function getHistoryRecordPresentation(record) {
       ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
       : record.type === "pronunciation"
         ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
+        : record.type === "tone"
+          ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
         : record.type === "map"
           ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
           : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
@@ -4131,6 +4254,24 @@ function buildHistorySessionReviewMarkup(record) {
   return `
     <div class="history-mistake-list">
       ${mistakes.slice(0, 8).map((answer) => {
+        if (record.type === "tone") {
+          const item = {
+            zh: answer.zh || "",
+            pinyin: answer.pinyin || "",
+            meanings: String(answer.meaning || "").split(";").map((meaning) => meaning.trim()).filter(Boolean),
+          };
+          return `
+            <div class="history-mistake-row">
+              <div class="history-mistake-word">
+                <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+                <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+              </div>
+              <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
+              <span>Chose ${escapeHtml(answer.selectedPattern || "No answer")} · expected ${escapeHtml(answer.correctPattern || "")}</span>
+              <button class="icon-btn" type="button" data-progress-audio="${escapeHtml(item.zh)}" aria-label="Play ${escapeHtml(item.zh)}" title="Play word">${speakerIconMarkup()}</button>
+            </div>
+          `;
+        }
         if (["vocabulary", "review"].includes(record.type)) {
           const item = {
             zh: answer.zh || "",
@@ -4501,6 +4642,11 @@ function renderSession() {
     return;
   }
 
+  if (state.session?.type === "tone") {
+    renderToneListeningSession();
+    return;
+  }
+
   if (state.session?.type === "map") {
     renderMapQuizSession();
     return;
@@ -4670,6 +4816,105 @@ function renderPronunciationSession() {
   });
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
   document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+}
+
+function renderToneListeningSession() {
+  const session = state.session;
+  const current = session.items[session.index];
+  const assessment = session.currentAssessment;
+  const choices = getToneChoiceSet(session, session.index);
+  const answeredCount = session.answers.length;
+  const correctCount = session.answers.filter((answer) => answer.correct).length;
+  const progressPercent = Math.round((answeredCount / session.items.length) * 100);
+  const nextLabel = session.index + 1 === session.items.length ? "View results" : "Next word";
+
+  app.innerHTML = `
+    <section class="workspace-panel session-shell pronunciation-session tone-listening-session">
+      <div class="progress-row">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+        <span class="progress-label">Word ${session.index + 1} of ${session.items.length} · ${correctCount} correct</span>
+      </div>
+
+      <div class="tone-listening-layout">
+        <div class="tone-prompt-panel">
+          <span class="sentence-label">Listen for the tones</span>
+          <div class="audio-sentence tone-audio-controls">
+            <button class="secondary-btn shortcut-btn" type="button" id="playToneWord">
+              <span>Play word</span>
+              ${shortcutHint("Enter", { commandControl: true })}
+            </button>
+            ${buildAudioAnswerStatusMarkup(assessment)}
+            <span class="sound-indicator ${state.isSpeaking ? "active" : ""}" id="soundIndicator" aria-live="polite">
+              <span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+              Playing
+            </span>
+          </div>
+          ${assessment ? buildToneAnswerRevealMarkup(current, assessment) : `<div class="tone-word-concealment" aria-label="Word hidden until answered"><span></span><span></span><span></span></div>`}
+          ${assessment ? `
+            <button class="primary-btn shortcut-btn tone-next-btn" type="button" id="nextQuestion">
+              <span>${nextLabel}</span>
+              ${shortcutHint("Enter")}
+            </button>
+          ` : ""}
+          <button class="ghost-btn tone-end-btn" type="button" id="endSession">End session</button>
+        </div>
+
+        <div class="tone-response-panel ${assessment ? "is-answered" : ""}">
+          ${buildToneChoiceMarkup(choices, assessment)}
+        </div>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#playToneWord").addEventListener("click", () => speak(current.zh, { immediate: true }));
+  document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+  document.querySelectorAll("[data-tone-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitToneChoice(button.dataset.toneChoiceId));
+  });
+}
+
+function buildToneChoiceMarkup(choices, assessment = null) {
+  return `
+    <div class="choice-grid tone-choice-grid" role="group" aria-label="Tone pattern choices">
+      ${choices.map((choice) => {
+        const selected = assessment?.choiceId === choice.id;
+        const classes = [
+          "choice-option",
+          "tone-choice-option",
+          selected ? "selected" : "",
+          assessment && choice.correct ? "correct" : "",
+          assessment && selected && !choice.correct ? "incorrect" : "",
+          assessment && selected && choice.correct ? "correct-celebration" : "",
+        ].filter(Boolean).join(" ");
+
+        return `
+          <button class="${classes}" type="button" data-tone-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
+            <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+            <span class="tone-choice-text">
+              <strong>${buildToneColoredPinyinMarkup(choice.pinyin)}</strong>
+              <span>${escapeHtml(formatTonePattern(choice.tones))}</span>
+            </span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildToneAnswerRevealMarkup(item, assessment) {
+  return `
+    <div class="tone-answer-reveal ${assessment.correct ? "correct-celebration" : ""}" role="status" aria-live="polite">
+      <div class="tone-answer-word">
+        <strong class="chinese-text" lang="zh-CN">${buildVocabularyWordLink(item)}</strong>
+        <span>${buildToneColoredPinyinMarkup(item.pinyin)}</span>
+      </div>
+      <p>${escapeHtml(formatVocabularyMeanings(item))}</p>
+      <span class="tone-answer-pattern">Tone pattern <strong>${escapeHtml(formatTonePattern(getTonePattern(item)))}</strong></span>
+    </div>
+  `;
 }
 
 function renderMapQuizSession() {
@@ -6606,6 +6851,20 @@ function scrollAudioQuizPromptIntoView() {
   window.setTimeout?.(scrollToPrompt, 120);
 }
 
+function scrollToneListeningSessionIntoView() {
+  if (!window.matchMedia?.("(max-width: 980px)").matches) {
+    return;
+  }
+  const target = document.querySelector(".tone-listening-session");
+  if (!target) {
+    return;
+  }
+  const scrollToSession = () => target.scrollIntoView({ block: "start", behavior: "auto" });
+  scrollToSession();
+  window.requestAnimationFrame?.(scrollToSession);
+  window.setTimeout?.(scrollToSession, 100);
+}
+
 function scrollVocabularyWordListToCurrentRow(session) {
   if (session?.type !== "vocabulary") {
     return;
@@ -7033,6 +7292,95 @@ function renderPronunciationResults() {
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
+    render();
+  });
+}
+
+function renderToneListeningResults() {
+  const result = state.result;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const total = result.answers.length;
+  const percent = total ? Math.round((correct / total) * 100) : 0;
+  const weaknesses = getToneListeningWeaknessStats(result.answers);
+  const rows = result.answers.map((answer, index) => `
+    <tr class="${answer.correct ? "found" : "missed"}">
+      <td>${index + 1}</td>
+      <td class="chinese-text">${buildVocabularyWordLink(answer.item)}</td>
+      <td>${buildToneColoredPinyinMarkup(answer.item.pinyin)}</td>
+      <td>${escapeHtml(answer.selectedPattern || formatTonePattern(answer.selectedTones))}</td>
+      <td>${escapeHtml(answer.correctPattern || formatTonePattern(getTonePattern(answer.item)))}</td>
+      <td>${escapeHtml(formatVocabularyMeanings(answer.item))}</td>
+      <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Review"}</td>
+    </tr>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel tone-listening-results">
+      <div class="results-header">
+        <div>
+          <h2>Tone Listening Results</h2>
+          <p>${correct} of ${total} tone patterns identified correctly.</p>
+        </div>
+        <div class="result-actions">
+          <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
+            <span>Start another session</span>
+            ${shortcutHint("Enter")}
+          </button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to practice</button>
+        </div>
+      </div>
+
+      <div class="stat-grid tone-result-stats">
+        <div class="stat">
+          <strong>${percent}%</strong>
+          <span>Tone accuracy</span>
+        </div>
+        <div class="stat">
+          <strong>${correct}/${total}</strong>
+          <span>Correct</span>
+        </div>
+        <div class="stat">
+          <strong>${formatTimer(result.elapsedSeconds || 0)}</strong>
+          <span>Session time</span>
+        </div>
+      </div>
+
+      <section class="pronunciation-breakdown tone-breakdown">
+        <div class="vocab-section-heading">
+          <h3>Focus Areas</h3>
+          <span>Based on the tone patterns you confused</span>
+        </div>
+        <div class="pronunciation-breakdown-grid tone-breakdown-grid">
+          ${buildPronunciationWeaknessCard("Tones to revisit", weaknesses.tones.slice(0, 5), "No missed tones")}
+          ${buildPronunciationWeaknessCard("Patterns to revisit", weaknesses.patterns.slice(0, 5), "No missed patterns")}
+        </div>
+      </section>
+
+      <div class="results-table-wrap tone-results-table" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Word</th>
+              <th>Pinyin</th>
+              <th>Your pattern</th>
+              <th>Expected</th>
+              <th>Meaning</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession").addEventListener("click", startToneListeningSession);
+  document.querySelector("#backToModes").addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    state.pronunciationView = "tone";
+    saveSettings();
     render();
   });
 }
@@ -7467,6 +7815,159 @@ function getAllVocabularyReviewItems() {
   return items;
 }
 
+function getToneListeningPool(vocabulary = getAllVocabularyReviewItems()) {
+  return vocabulary.filter(isReliableToneListeningItem);
+}
+
+function isReliableToneListeningItem(item) {
+  const normalized = normalizePinyinForCompare(item?.numeric || item?.pinyin || "");
+  const syllables = splitPinyinSyllables(normalized);
+  const tones = syllables.map((syllable) => syllable.match(/([1-5])$/)?.[1] || "");
+  const hanCount = countHanCharacters(item?.zh || "");
+
+  if (
+    syllables.length < 1 ||
+    syllables.length > 3 ||
+    hanCount < 1 ||
+    hanCount > 4 ||
+    tones.some((tone) => !tone) ||
+    (item?.numericAlternates || []).length
+  ) {
+    return false;
+  }
+
+  if (syllables.length > 1 && /[一不]/.test(item.zh || "")) {
+    return false;
+  }
+
+  return !tones.some((tone, index) => tone === "3" && tones[index + 1] === "3");
+}
+
+function getTonePattern(item) {
+  return splitPinyinSyllables(normalizePinyinForCompare(item?.numeric || item?.pinyin || ""))
+    .map((syllable) => syllable.match(/([1-5])$/)?.[1] || "5");
+}
+
+function formatTonePattern(tones) {
+  return (tones || []).join("–");
+}
+
+function getToneChoiceSet(session, index) {
+  if (session?.type !== "tone" || index < 0 || index >= session.items.length) {
+    return [];
+  }
+  if (!(session.choiceSets instanceof Map)) {
+    session.choiceSets = new Map();
+  }
+  if (!session.choiceSets.has(index)) {
+    session.choiceSets.set(index, buildToneChoiceSet(session.items[index], index));
+  }
+  return session.choiceSets.get(index);
+}
+
+function buildToneChoiceSet(item, index = 0) {
+  const correctTones = getTonePattern(item);
+  if (!correctTones.length) {
+    return [];
+  }
+
+  const alternatives = [];
+  correctTones.forEach((correctTone, toneIndex) => {
+    ["1", "2", "3", "4", "5"].forEach((tone) => {
+      if (tone === correctTone) {
+        return;
+      }
+      const next = [...correctTones];
+      next[toneIndex] = tone;
+      alternatives.push(next);
+    });
+  });
+
+  const seen = new Set();
+  const wrongPatterns = shuffle(alternatives).filter((tones) => {
+    const key = tones.join("-");
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  }).slice(0, 4);
+
+  return shuffle([
+    { tones: correctTones, correct: true },
+    ...wrongPatterns.map((tones) => ({ tones, correct: false })),
+  ]).map((choice, choiceIndex) => ({
+    ...choice,
+    id: `tone-choice-${index}-${choiceIndex}`,
+    pinyin: buildPinyinForTonePattern(item, choice.tones),
+    shortcut: String(choiceIndex + 1),
+  }));
+}
+
+function buildPinyinForTonePattern(item, tones) {
+  const syllables = splitPinyinSyllables(normalizePinyinForCompare(item?.numeric || item?.pinyin || ""));
+  return syllables.map((syllable, index) => applyToneToPinyinSyllable(syllable, tones[index] || "5")).join(" ");
+}
+
+function applyToneToPinyinSyllable(syllable, tone) {
+  const toneNumber = clamp(Number(tone) || 5, 1, 5);
+  const base = String(syllable || "")
+    .toLowerCase()
+    .replace(/[1-5]$/, "")
+    .replace(/v/g, "ü");
+  if (toneNumber === 5 || !base) {
+    return base;
+  }
+
+  if ((base === "m" || base === "n") && PINYIN_VOWEL_TONE_MARKS[base]?.[toneNumber]) {
+    return PINYIN_VOWEL_TONE_MARKS[base][toneNumber];
+  }
+
+  let markIndex = base.indexOf("a");
+  if (markIndex < 0) {
+    markIndex = base.indexOf("e");
+  }
+  if (markIndex < 0 && base.includes("ou")) {
+    markIndex = base.indexOf("o");
+  }
+  if (markIndex < 0) {
+    for (let index = base.length - 1; index >= 0; index -= 1) {
+      if (PINYIN_VOWEL_TONE_MARKS[base[index]]) {
+        markIndex = index;
+        break;
+      }
+    }
+  }
+  if (markIndex < 0) {
+    return base;
+  }
+
+  const vowel = base[markIndex];
+  const marked = PINYIN_VOWEL_TONE_MARKS[vowel]?.[toneNumber] || vowel;
+  return `${base.slice(0, markIndex)}${marked}${base.slice(markIndex + 1)}`;
+}
+
+function getToneListeningWeaknessStats(answers = []) {
+  const tones = new Map();
+  const patterns = new Map();
+
+  answers.filter((answer) => !answer.correct).forEach((answer) => {
+    const expected = answer.correctTones || getTonePattern(answer.item);
+    const selected = answer.selectedTones || [];
+    expected.forEach((tone, index) => {
+      if (tone !== selected[index]) {
+        incrementMapCount(tones, tone === "5" ? "Neutral tone" : `Tone ${tone}`);
+      }
+    });
+    incrementMapCount(patterns, formatTonePattern(expected));
+  });
+
+  return {
+    tones: mapCountsToSortedItems(tones),
+    patterns: mapCountsToSortedItems(patterns),
+  };
+}
+
 function getVocabularySetReviewItems(set) {
   return (set?.words || []).map((item) => ({
     ...item,
@@ -7849,7 +8350,7 @@ function startActiveSession() {
   }
 
   if (state.tool === "pronunciation") {
-    startPronunciationSession();
+    startActivePronunciationSession();
     return;
   }
 
@@ -8039,6 +8540,47 @@ async function startPronunciationSession() {
 
   saveSettings();
   render();
+}
+
+function startActivePronunciationSession() {
+  if (state.pronunciationView === "tone") {
+    startToneListeningSession();
+    return;
+  }
+  startPronunciationSession();
+}
+
+function startToneListeningSession() {
+  if (!supportsSpeechSynthesis()) {
+    state.dataError = "Speech playback is not available in this browser.";
+    render();
+    return;
+  }
+
+  stopPronunciationRecognition();
+  stopSpeech();
+  const items = shuffle(getToneListeningPool()).slice(0, TONE_LISTENING_SESSION_LENGTH);
+  if (items.length < TONE_LISTENING_SESSION_LENGTH) {
+    state.dataError = "There are not enough unambiguous HSK words for tone practice.";
+    render();
+    return;
+  }
+
+  state.dataError = "";
+  state.result = null;
+  state.session = {
+    type: "tone",
+    items,
+    index: 0,
+    answers: [],
+    choiceSets: new Map(),
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  saveSettings();
+  render();
+  scrollToneListeningSessionIntoView();
+  speak(items[0].zh, { immediate: true });
 }
 
 function startMapQuizSession() {
@@ -8343,6 +8885,49 @@ function submitVocabularyChoice(choiceId) {
   scrollVocabularyWordListToIndex(index);
 }
 
+function submitToneChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "tone" || session.currentAssessment) {
+    return;
+  }
+  const choice = getToneChoiceSet(session, session.index).find((option) => option.shortcut === shortcut);
+  if (choice) {
+    submitToneChoice(choice.id);
+  }
+}
+
+function submitToneChoice(choiceId) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "tone" || !item || session.currentAssessment) {
+    return;
+  }
+  const choice = getToneChoiceSet(session, session.index).find((option) => option.id === choiceId);
+  if (!choice) {
+    return;
+  }
+
+  const scrollPosition = getScrollPosition();
+
+  const correctTones = getTonePattern(item);
+  const assessment = {
+    choiceId: choice.id,
+    answer: choice.pinyin,
+    selectedPinyin: choice.pinyin,
+    selectedTones: [...choice.tones],
+    correctTones,
+    selectedPattern: formatTonePattern(choice.tones),
+    correctPattern: formatTonePattern(correctTones),
+    score: choice.correct ? 1 : 0,
+    correct: choice.correct,
+  };
+  session.currentAssessment = assessment;
+  session.answers.push({ ...assessment, item, itemIndex: session.index });
+  stopSpeech();
+  render();
+  restoreScrollPosition(scrollPosition);
+}
+
 function nextQuestion() {
   const session = state.session;
   const sessionLength = session.items.length;
@@ -8409,6 +8994,25 @@ function nextQuestion() {
     session.recognitionError = "";
     session.isListening = false;
     render();
+    return;
+  }
+
+  if (session.type === "tone") {
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      stopSpeech();
+      render();
+      return;
+    }
+
+    session.index += 1;
+    session.currentAssessment = null;
+    render();
+    scrollToneListeningSessionIntoView();
+    speak(session.items[session.index].zh, { immediate: true });
     return;
   }
 
@@ -8559,6 +9163,16 @@ function buildSessionResult(session) {
       items: session.items,
       answers: session.answers,
       elapsedSeconds,
+      total: session.items.length,
+    };
+  }
+
+  if (session.type === "tone") {
+    return {
+      type: "tone",
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
       total: session.items.length,
     };
   }
@@ -8714,6 +9328,31 @@ function buildHistoryRecord(result) {
             text: token.text,
             pinyin: token.pinyin || "",
           })),
+      })),
+    };
+  }
+
+  if (result.type === "tone") {
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    const weaknesses = getToneListeningWeaknessStats(result.answers);
+    return {
+      id,
+      type: "tone",
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      weaknesses,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        zh: answer.item.zh,
+        pinyin: answer.item.pinyin,
+        meaning: formatVocabularyMeanings(answer.item),
+        selectedPinyin: answer.selectedPinyin || "",
+        selectedPattern: answer.selectedPattern || formatTonePattern(answer.selectedTones),
+        correctPattern: answer.correctPattern || formatTonePattern(getTonePattern(answer.item)),
+        correct: Boolean(answer.correct),
+        score: answer.correct ? 1 : 0,
       })),
     };
   }

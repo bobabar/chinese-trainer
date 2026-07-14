@@ -15,6 +15,9 @@ const HISTORY_KEY = "chineseTrainerHistory";
 const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
 const SAVED_VOCABULARY_KEY = "chineseTrainerSavedVocabulary";
 const SAVED_SENTENCES_KEY = "chineseTrainerSavedSentences";
+const LEARNING_BACKUP_APP_ID = "chinese-trainer";
+const LEARNING_BACKUP_VERSION = 1;
+const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
 const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "pronunciation", "map"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
@@ -1159,6 +1162,26 @@ function trashIconMarkup() {
       <path d="M19 6l-1 14H6L5 6"></path>
       <path d="M10 11v5"></path>
       <path d="M14 11v5"></path>
+    </svg>
+  `;
+}
+
+function downloadIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3v12"></path>
+      <path d="M7.5 10.5L12 15l4.5-4.5"></path>
+      <path d="M4 19h16"></path>
+    </svg>
+  `;
+}
+
+function uploadIconMarkup() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 16V4"></path>
+      <path d="M7.5 8.5L12 4l4.5 4.5"></path>
+      <path d="M4 20h16"></path>
     </svg>
   `;
 }
@@ -4227,11 +4250,23 @@ function renderHistoryHome() {
           <h2>Learning progress</h2>
           <p>${history.length ? "Patterns from your saved practice and review schedule." : "Complete a session to begin your learning record."}</p>
         </div>
-        <div class="result-actions">
-          <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" ${history.length ? "" : "disabled"}>
-            ${trashIconMarkup()}
-            <span>Clear history</span>
-          </button>
+        <div class="history-data-action-wrap">
+          <div class="result-actions history-data-actions" aria-label="Learning data">
+            <button class="ghost-btn icon-label-btn" type="button" id="exportLearningData">
+              ${downloadIconMarkup()}
+              <span>Export</span>
+            </button>
+            <button class="ghost-btn icon-label-btn" type="button" id="restoreLearningData">
+              ${uploadIconMarkup()}
+              <span>Restore</span>
+            </button>
+            <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" aria-label="Clear history" title="Clear history" ${history.length || review.totalTracked ? "" : "disabled"}>
+              ${trashIconMarkup()}
+              <span>Clear</span>
+            </button>
+            <input id="learningDataFile" type="file" accept="application/json,.json" tabindex="-1" hidden>
+          </div>
+          <p class="history-data-status" id="learningDataStatus" role="status" aria-live="polite" hidden></p>
         </div>
       </div>
 
@@ -4354,8 +4389,26 @@ function renderHistoryHome() {
     </section>
   `;
 
+  document.querySelector("#exportLearningData").addEventListener("click", exportLearningData);
+  document.querySelector("#restoreLearningData").addEventListener("click", () => {
+    document.querySelector("#learningDataFile")?.click();
+  });
+  document.querySelector("#learningDataFile").addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) {
+      return;
+    }
+
+    try {
+      await restoreLearningDataFile(file);
+    } catch (error) {
+      setLearningDataStatus(error instanceof Error ? error.message : "This backup could not be restored.", true);
+    }
+  });
   document.querySelector("#clearHistory").addEventListener("click", () => {
-    if (!window.confirm("Clear saved practice and quiz history from this browser?")) {
+    if (!window.confirm("Clear saved practice history and vocabulary review progress from this browser?")) {
       return;
     }
 
@@ -8817,6 +8870,177 @@ function saveHistoryRecords(records) {
 function clearHistoryRecords() {
   localStorage.removeItem(HISTORY_KEY);
   localStorage.removeItem(REVIEW_PROGRESS_KEY);
+}
+
+function buildLearningBackup(now = Date.now()) {
+  const exportedAt = new Date(now);
+  return {
+    app: LEARNING_BACKUP_APP_ID,
+    version: LEARNING_BACKUP_VERSION,
+    exportedAt: exportedAt.toISOString(),
+    data: {
+      settings: readStoredJson(SETTINGS_KEY, {}),
+      history: readStoredJson(HISTORY_KEY, []),
+      reviewProgress: readStoredJson(REVIEW_PROGRESS_KEY, {}),
+      savedVocabulary: readStoredJson(SAVED_VOCABULARY_KEY, []),
+      savedSentences: readStoredJson(SAVED_SENTENCES_KEY, []),
+    },
+  };
+}
+
+function readStoredJson(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeLearningBackup(backup) {
+  if (!isPlainRecord(backup) || backup.app !== LEARNING_BACKUP_APP_ID) {
+    throw new Error("Choose a Chinese Trainer backup file.");
+  }
+  if (backup.version !== LEARNING_BACKUP_VERSION) {
+    throw new Error("This backup version is not supported yet.");
+  }
+  if (!isPlainRecord(backup.data)) {
+    throw new Error("This backup is missing its learning data.");
+  }
+
+  const settings = isPlainRecord(backup.data.settings) ? backup.data.settings : null;
+  const history = Array.isArray(backup.data.history)
+    ? backup.data.history.filter((record) => isPlainRecord(record) && SUPPORTED_HISTORY_TYPES.has(record.type)).slice(0, HISTORY_LIMIT)
+    : null;
+  const reviewProgress = sanitizeReviewProgressBackup(backup.data.reviewProgress);
+  const savedVocabulary = sanitizeStringArrayBackup(backup.data.savedVocabulary);
+  const savedSentences = sanitizeStringArrayBackup(backup.data.savedSentences);
+  if (!settings || !history || !reviewProgress || !savedVocabulary || !savedSentences) {
+    throw new Error("This backup has invalid or incomplete learning data.");
+  }
+
+  const exportedAt = new Date(backup.exportedAt);
+  return {
+    app: LEARNING_BACKUP_APP_ID,
+    version: LEARNING_BACKUP_VERSION,
+    exportedAt: Number.isNaN(exportedAt.getTime()) ? new Date(0).toISOString() : exportedAt.toISOString(),
+    data: {
+      settings,
+      history,
+      reviewProgress,
+      savedVocabulary,
+      savedSentences,
+    },
+  };
+}
+
+function sanitizeReviewProgressBackup(value) {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key, record]) => typeof key === "string" && key && isPlainRecord(record))
+      .slice(0, 5000),
+  );
+}
+
+function sanitizeStringArrayBackup(value) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  return uniqueStrings(value.filter((item) => typeof item === "string" && item).slice(0, 5000));
+}
+
+function isPlainRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function applyLearningBackup(backup) {
+  const normalized = normalizeLearningBackup(backup);
+  const valuesByKey = new Map([
+    [SETTINGS_KEY, JSON.stringify(normalized.data.settings)],
+    [HISTORY_KEY, JSON.stringify(normalized.data.history)],
+    [REVIEW_PROGRESS_KEY, JSON.stringify(normalized.data.reviewProgress)],
+    [SAVED_VOCABULARY_KEY, JSON.stringify(normalized.data.savedVocabulary)],
+    [SAVED_SENTENCES_KEY, JSON.stringify(normalized.data.savedSentences)],
+  ]);
+  const previousValues = new Map([...valuesByKey.keys()].map((key) => [key, localStorage.getItem(key)]));
+
+  try {
+    valuesByKey.forEach((value, key) => localStorage.setItem(key, value));
+  } catch (error) {
+    previousValues.forEach((value, key) => {
+      if (value === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, value);
+      }
+    });
+    throw error;
+  }
+
+  return normalized;
+}
+
+function exportLearningData() {
+  const backup = normalizeLearningBackup(buildLearningBackup());
+  const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `chinese-trainer-backup-${backup.exportedAt.slice(0, 10)}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setLearningDataStatus("Backup downloaded.");
+}
+
+async function restoreLearningDataFile(file) {
+  if (Number(file?.size) > LEARNING_BACKUP_MAX_BYTES) {
+    throw new Error("This backup file is too large.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    throw new Error("This file is not valid JSON.");
+  }
+  const normalized = normalizeLearningBackup(parsed);
+  const dateLabel = formatBackupDate(normalized.exportedAt);
+  if (!window.confirm(`Restore the backup from ${dateLabel}? This will replace learning data in this browser.`)) {
+    return false;
+  }
+
+  applyLearningBackup(normalized);
+  window.location.reload();
+  return true;
+}
+
+function formatBackupDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "an unknown date";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function setLearningDataStatus(message, isError = false) {
+  const status = document.querySelector("#learningDataStatus");
+  if (!status) {
+    return;
+  }
+  status.hidden = !message;
+  status.classList.toggle("is-error", isError);
+  status.textContent = message;
 }
 
 function getVocabularyResultStats(result) {

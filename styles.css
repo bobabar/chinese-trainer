@@ -4310,6 +4310,35 @@ button:focus-visible {
   color: var(--muted);
 }
 
+.history-data-action-wrap {
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+}
+
+.history-data-actions {
+  flex-wrap: nowrap;
+}
+
+.history-data-actions .ghost-btn {
+  min-height: 40px;
+  padding: 9px 11px;
+  font-size: 12px;
+}
+
+.history-data-status {
+  max-width: 360px;
+  margin: 0;
+  color: #20744a;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.history-data-status.is-error {
+  color: #a9151e;
+}
+
 .results-header + .stat-grid,
 .high-score-celebration + .stat-grid {
   margin-bottom: 18px;
@@ -6631,6 +6660,26 @@ td.status-review {
     align-items: stretch;
   }
 
+  .history-data-action-wrap {
+    justify-items: stretch;
+  }
+
+  .history-data-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .history-data-actions .ghost-btn {
+    min-width: 0;
+    padding-inline: 7px;
+  }
+
+  .history-data-status {
+    max-width: none;
+    text-align: left;
+  }
+
   .history-session-review-heading {
     align-items: stretch;
     flex-direction: column;
@@ -6688,6 +6737,10 @@ td.status-review {
 
   .progress-header .result-actions {
     grid-template-columns: 1fr;
+  }
+
+  .progress-header .history-data-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .progress-metric-strip {

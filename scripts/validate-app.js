@@ -108,6 +108,7 @@ window.__tests = {
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyReviewAttempt,
+  applyLearningBackup,
   buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
@@ -117,6 +118,7 @@ window.__tests = {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
@@ -197,6 +199,7 @@ window.__tests = {
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
+  normalizeLearningBackup,
   normalizePinyinForCompare,
   parsePinyinSyllable,
   reviewItemKey,
@@ -231,6 +234,7 @@ const {
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyReviewAttempt,
+  applyLearningBackup,
   buildAnswerBox,
   buildAnswerBoxText,
   buildAnnotatedChineseMarkup,
@@ -240,6 +244,7 @@ const {
   buildHistoryRecord,
   buildHistoryRowMarkup,
   buildHistorySessionMarkup,
+  buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
   buildChinaMapMarkup,
@@ -320,6 +325,7 @@ const {
   dismissHighScoreCelebration,
   markVocabularyHighScoreResult,
   normalizeEnglish,
+  normalizeLearningBackup,
   normalizePinyinForCompare,
   parsePinyinSyllable,
   reviewItemKey,
@@ -518,6 +524,80 @@ assert(
   "history loading should ignore unsupported record types",
 );
 localStorageEntries.delete("chineseTrainerHistory");
+const backupStorageSnapshot = new Map(localStorageEntries);
+const backupTimestamp = Date.UTC(2026, 6, 15, 8, 30, 0);
+localStorageEntries.set("chineseTrainerSettings", JSON.stringify({ mode: "writing", voiceSpeed: "slow" }));
+localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
+  { id: "backup-drill", type: "drill", mode: "reading" },
+]));
+localStorageEntries.set("chineseTrainerReviewProgress", JSON.stringify({
+  "爱::ài": { stage: 2, dueAt: backupTimestamp },
+}));
+localStorageEntries.set("chineseTrainerSavedVocabulary", JSON.stringify(["爱::ài"]));
+localStorageEntries.set("chineseTrainerSavedSentences", JSON.stringify(["library-love"]));
+const learningBackup = buildLearningBackup(backupTimestamp);
+assert(
+  learningBackup.app === "chinese-trainer" && learningBackup.version === 1 && learningBackup.exportedAt === "2026-07-15T08:30:00.000Z",
+  "learning backups should use a stable app identity, schema version, and timestamp",
+);
+assert(
+  learningBackup.data.history[0].id === "backup-drill" &&
+    learningBackup.data.reviewProgress["爱::ài"].stage === 2 &&
+    learningBackup.data.savedVocabulary[0] === "爱::ài" &&
+    learningBackup.data.savedSentences[0] === "library-love",
+  "learning backups should include history, review scheduling, saved words, and saved sentences",
+);
+const normalizedBackup = normalizeLearningBackup({
+  ...learningBackup,
+  data: {
+    ...learningBackup.data,
+    history: [...learningBackup.data.history, { id: "unsupported", type: "retired" }],
+    savedVocabulary: ["爱::ài", "爱::ài"],
+  },
+});
+assert(normalizedBackup.data.history.length === 1, "backup validation should discard unsupported history records");
+assert(normalizedBackup.data.savedVocabulary.length === 1, "backup validation should deduplicate saved vocabulary keys");
+assertThrows(
+  () => normalizeLearningBackup({ ...learningBackup, app: "another-app" }),
+  "backup validation should reject files from another app",
+);
+assertThrows(
+  () => normalizeLearningBackup({ ...learningBackup, version: 99 }),
+  "backup validation should reject unsupported schema versions",
+);
+localStorageEntries.set("chineseTrainerSavedSentences", JSON.stringify(["old-sentence"]));
+applyLearningBackup(normalizedBackup);
+assert(loadSavedSentenceIds().has("library-love"), "restoring a backup should replace saved sentence data");
+assert(loadHistoryRecords()[0].id === "backup-drill", "restoring a backup should replace session history");
+const beforeFailedRestore = new Map(localStorageEntries);
+const originalStorageSetItem = context.localStorage.setItem;
+let backupWriteCount = 0;
+context.localStorage.setItem = function setItemWithFailure(key, value) {
+  backupWriteCount += 1;
+  if (backupWriteCount === 3) {
+    throw new Error("Simulated storage failure");
+  }
+  originalStorageSetItem.call(this, key, value);
+};
+assertThrows(
+  () => applyLearningBackup({
+    ...normalizedBackup,
+    data: { ...normalizedBackup.data, savedSentences: ["replacement"] },
+  }),
+  "backup restores should report browser storage failures",
+);
+context.localStorage.setItem = originalStorageSetItem;
+assert(
+  JSON.stringify([...localStorageEntries]) === JSON.stringify([...beforeFailedRestore]),
+  "failed backup restores should roll back every learner data key",
+);
+localStorageEntries.clear();
+backupStorageSnapshot.forEach((value, key) => localStorageEntries.set(key, value));
+assert(appSource.includes('id="exportLearningData"') && appSource.includes('id="restoreLearningData"'), "Learning Progress should expose export and restore controls");
+assert(
+  stylesSource.includes(".history-data-actions") && stylesSource.includes(".progress-header .history-data-actions"),
+  "learning data controls should preserve their compact responsive grid",
+);
 const reviewVocabulary = getAllVocabularyReviewItems();
 const reviewNow = Date.UTC(2026, 6, 14, 2, 0, 0);
 assert(REVIEW_SESSION_LENGTH === 12, "daily review should use a focused 12-word session");
@@ -1552,4 +1632,14 @@ function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function assertThrows(callback, message) {
+  let threw = false;
+  try {
+    callback();
+  } catch {
+    threw = true;
+  }
+  assert(threw, message);
 }

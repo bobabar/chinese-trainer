@@ -147,11 +147,13 @@ window.__tests = {
   filterVocabularyLibraryItems,
   filterSentenceLibraryItems,
   findVocabularyExamples,
+  formatMistakePracticeAction,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
   getDashboardWeek,
   getHistoryActivityDays,
+  getHistoryMistakeRetryData,
   getHistoryProgressData,
   getHistorySkillStats,
   getPracticeStreakDays,
@@ -171,6 +173,8 @@ window.__tests = {
   getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
+  getMissedSentenceDrillItems,
+  getMissedVocabularyReviewItems,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
   getReviewDashboardData,
@@ -266,11 +270,13 @@ const {
   filterVocabularyLibraryItems,
   filterSentenceLibraryItems,
   findVocabularyExamples,
+  formatMistakePracticeAction,
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
   getDashboardWeek,
   getHistoryActivityDays,
+  getHistoryMistakeRetryData,
   getHistoryProgressData,
   getHistorySkillStats,
   getPracticeStreakDays,
@@ -290,6 +296,8 @@ const {
   getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
+  getMissedSentenceDrillItems,
+  getMissedVocabularyReviewItems,
   getAllVocabularyReviewItems,
   getReviewChoiceSet,
   getReviewDashboardData,
@@ -427,7 +435,78 @@ const savedSentenceHistory = buildHistoryRecord({
   elapsedSeconds: 9,
 });
 assert(savedSentenceHistory.source === "saved" && buildHistoryRowMarkup(savedSentenceHistory).includes("Saved sentences"), "History should distinguish saved-sentence drills");
+const sentenceRetryResult = {
+  type: "drill",
+  source: "random",
+  mode: "reading",
+  levels: ["beginner", "intermediate"],
+  answers: [
+    { item: sentenceLibraryFixtures[0], answer: "I love you", score: 1, correct: true },
+    { item: sentenceLibraryFixtures[1], answer: "", score: 0, correct: false },
+  ],
+  elapsedSeconds: 18,
+};
+assert(
+  getMissedSentenceDrillItems(sentenceRetryResult).map((item) => item.id).join("") === "library-running",
+  "sentence retries should contain only missed prompts",
+);
+const sentenceRetryHistory = buildHistoryRecord(sentenceRetryResult);
+const sentenceHistoryRetry = getHistoryMistakeRetryData(sentenceRetryHistory);
+assert(
+  sentenceRetryHistory.answers[1].zh === sentenceLibraryFixtures[1].zh && sentenceRetryHistory.answers[1].en === sentenceLibraryFixtures[1].en,
+  "drill history should retain both sentence sides for later retries",
+);
+assert(
+  sentenceHistoryRetry?.type === "drill" && sentenceHistoryRetry.items[0].id === "library-running",
+  "History should reconstruct the exact missed sentence and mode",
+);
+assert(
+  buildHistorySessionMarkup(sentenceRetryHistory).includes("Review 1 mistake"),
+  "recent sentence sessions should offer focused mistake practice",
+);
+const vocabularyRetryResult = {
+  type: "vocabulary",
+  quizMode: "pinyin",
+  setId: "retry-set",
+  setLabel: "HSK 1 · Part 1",
+  items: [loveEntry, eightEntry],
+  foundIds: [vocabularyItemId(eightEntry, 1)],
+  answers: [{ item: eightEntry, itemIndex: 1, answer: "ba", score: 1, correct: true }],
+};
+const vocabularyRetryItems = getMissedVocabularyReviewItems(vocabularyRetryResult);
+assert(
+  vocabularyRetryItems.length === 1 && vocabularyRetryItems[0].zh === loveEntry.zh && vocabularyRetryItems[0].reviewMode === "pinyin",
+  "pinyin quiz retries should preserve the missed word and recall mode",
+);
+const audioVocabularyRetryItems = getMissedVocabularyReviewItems({
+  ...vocabularyRetryResult,
+  quizMode: "meaning",
+  foundIds: [],
+  answers: [
+    { item: loveEntry, itemIndex: 0, answer: "love", score: 1, correct: true },
+    { item: eightEntry, itemIndex: 1, answer: "seven", score: 0, correct: false },
+  ],
+});
+assert(
+  audioVocabularyRetryItems.length === 1 && audioVocabularyRetryItems[0].zh === eightEntry.zh && audioVocabularyRetryItems[0].reviewMode === "meaning",
+  "audio quiz retries should preserve the missed word and listening mode",
+);
+assert(formatMistakePracticeAction(1) === "Review 1 mistake", "single-item retries should use a concise action label");
+assert(formatMistakePracticeAction(18) === "Review 12 of 18 mistakes", "large vocabulary retries should advertise a focused review batch");
+const vocabularyRetryHistory = buildHistoryRecord({
+  ...vocabularyRetryResult,
+  foundIds: [vocabularyItemId(eightEntry, 1)],
+  missedIds: [],
+  elapsedSeconds: 12,
+  finishReason: "ended",
+  timeLimitSeconds: 300,
+});
+assert(
+  getHistoryMistakeRetryData(vocabularyRetryHistory)?.items[0].zh === loveEntry.zh,
+  "History should reconstruct missed vocabulary for targeted review",
+);
 assert(stylesSource.includes(".sentence-library-row") && stylesSource.includes(".drill-view-switcher"), "sentence library should include dedicated responsive styling");
+assert(stylesSource.includes(".history-retry-btn"), "History mistake actions should include responsive styling");
 assert(!/<body[^>]*data-mode=/i.test(indexSource), "initial page markup should not make the body look like a drill mode control");
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "unsupported-record", type: "unsupported" },

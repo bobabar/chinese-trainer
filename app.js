@@ -3530,18 +3530,27 @@ function renderReviewResults() {
   const result = state.result;
   const isSavedReview = result.source === "saved";
   const isPathReview = result.source === "path";
+  const isMistakeReview = result.source === "mistakes";
   const pathSetName = formatVocabularyPathSetName(result.setId, result.setLabel);
   const resultTitle = isSavedReview
     ? "Saved Words Review Complete"
     : isPathReview
       ? `${pathSetName} Review Complete`
+      : isMistakeReview
+        ? "Mistake Review Complete"
       : "Daily Review Complete";
   const restartLabel = isSavedReview
     ? "Review saved again"
     : isPathReview
       ? `Review ${getVocabularySetMeta({ id: result.setId, label: result.setLabel }).partLabel} again`
+      : isMistakeReview
+        ? "Review these words again"
       : "Start another review";
-  const backLabel = isSavedReview ? "Back to word library" : isPathReview ? "Back to HSK path" : "Back to review";
+  const backLabel = isSavedReview
+    ? "Back to word library"
+    : isPathReview
+      ? "Back to HSK path"
+      : "Back to daily review";
   const correct = result.answers.filter((answer) => answer.correct).length;
   const strengthened = result.answers.filter((answer) => answer.reviewStage > answer.previousStage).length;
   const dashboard = getReviewDashboardData();
@@ -3594,6 +3603,11 @@ function renderReviewResults() {
       startSavedVocabularyReview();
     } else if (isPathReview) {
       startVocabularySetReview(result.setId);
+    } else if (isMistakeReview) {
+      startReviewItems(result.items, "mistakes", {
+        setId: result.setId,
+        setLabel: result.setLabel,
+      });
     } else {
       startReviewSession();
     }
@@ -3608,6 +3622,9 @@ function renderReviewResults() {
     } else if (isPathReview) {
       state.tool = "vocabulary";
       state.vocabularyView = "path";
+      saveSettings();
+    } else if (isMistakeReview) {
+      state.tool = "review";
       saveSettings();
     }
     render();
@@ -4039,7 +4056,11 @@ function getHistoryRecordPresentation(record) {
   const typeLabel = record.type === "vocabulary"
     ? "Vocabulary quiz"
     : record.type === "review"
-      ? record.source === "path" ? "HSK path review" : "Daily review"
+      ? record.source === "path"
+        ? "HSK path review"
+        : record.source === "mistakes"
+          ? "Mistake review"
+          : "Daily review"
       : record.type === "pronunciation"
         ? "Pronunciation"
         : record.type === "map"
@@ -4052,12 +4073,14 @@ function getHistoryRecordPresentation(record) {
         ? "Saved vocabulary"
         : record.source === "path"
           ? `${formatVocabularyPathSetName(record.setId, record.setLabel)} · Focused review`
+          : record.source === "mistakes"
+            ? `${record.setLabel || "Vocabulary"} · Targeted retry`
           : "Adaptive vocabulary"
       : record.type === "pronunciation"
         ? selectedLevelLabels(record.levels)
       : record.type === "map"
           ? getSelectedMapQuizMode(record.mapQuizMode).targetMetric
-          : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : ""}`;
+          : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
   const resultLabel = record.type === "vocabulary"
     ? buildVocabularyHistoryResultLabel(record)
     : record.type === "review"
@@ -4138,6 +4161,7 @@ function buildHistorySessionReviewMarkup(record) {
 
 function buildHistorySessionMarkup(record) {
   const presentation = getHistoryRecordPresentation(record);
+  const retry = getHistoryMistakeRetryData(record);
   return `
     <details class="history-session-item">
       <summary>
@@ -4151,8 +4175,15 @@ function buildHistorySessionMarkup(record) {
       </summary>
       <div class="history-session-review">
         <div class="history-session-review-heading">
-          <strong>Mistake review</strong>
-          <span>${Array.isArray(record.answers) ? record.answers.length : 0} saved answers</span>
+          <div>
+            <strong>Mistake review</strong>
+            <span>${Array.isArray(record.answers) ? record.answers.length : 0} saved answers</span>
+          </div>
+          ${retry ? `
+            <button class="ghost-btn history-retry-btn" type="button" data-history-retry-id="${escapeHtml(record.id || "")}">
+              ${escapeHtml(formatMistakePracticeAction(retry.items.length, retry.type === "vocabulary" ? REVIEW_SESSION_LENGTH : retry.items.length))}
+            </button>
+          ` : ""}
         </div>
         ${buildHistorySessionReviewMarkup(record)}
       </div>
@@ -4162,6 +4193,7 @@ function buildHistorySessionMarkup(record) {
 
 function renderHistoryHome() {
   const history = loadHistoryRecords();
+  const historyById = new Map(history.map((record) => [record.id, record]));
   const review = getReviewDashboardData();
   const progress = getHistoryProgressData(history, Date.now(), review);
   const savedKeys = loadSavedVocabularyKeys();
@@ -4365,6 +4397,14 @@ function renderHistoryHome() {
   });
   document.querySelectorAll("[data-progress-audio]").forEach((button) => {
     button.addEventListener("click", () => speak(button.dataset.progressAudio, { immediate: true }));
+  });
+  document.querySelectorAll("[data-history-retry-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const record = historyById.get(button.dataset.historyRetryId);
+      if (record) {
+        startHistoryMistakeRetry(record);
+      }
+    });
   });
 }
 
@@ -6736,6 +6776,8 @@ function getGlossTooltipMeasurer() {
 function renderResults() {
   const result = state.result;
   const isSavedSentenceSession = result.source === "saved";
+  const isMistakeRetry = result.source === "mistakes";
+  const missedItems = getMissedSentenceDrillItems(result);
   const correct = result.answers.filter((answer) => answer.correct).length;
   const average = result.answers.length
     ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
@@ -6771,12 +6813,17 @@ function renderResults() {
     <section class="workspace-panel">
       <div class="results-header">
         <div>
-          <h2>${isSavedSentenceSession ? "Saved Sentence Results" : `${MODES[result.mode].label} Results`}</h2>
+          <h2>${isSavedSentenceSession ? "Saved Sentence Results" : isMistakeRetry ? "Mistake Retry Results" : `${MODES[result.mode].label} Results`}</h2>
           <p>${correct} correct out of ${result.answers.length}; average score ${percent}%.</p>
         </div>
         <div class="result-actions">
+          ${missedItems.length ? `
+            <button class="primary-btn" type="button" id="retrySentenceMistakes">
+              Review ${missedItems.length} ${missedItems.length === 1 ? "mistake" : "mistakes"}
+            </button>
+          ` : ""}
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
-            <span>${isSavedSentenceSession ? "Practice saved again" : "Start another session"}</span>
+            <span>${isSavedSentenceSession ? "Practice saved again" : isMistakeRetry ? "Practice this set again" : "Start another session"}</span>
             ${shortcutHint("Enter")}
           </button>
           <button class="ghost-btn" type="button" id="backToModes">${isSavedSentenceSession ? "Back to sentence library" : "Back to trainer"}</button>
@@ -6821,7 +6868,12 @@ function renderResults() {
     </section>
   `;
 
-  document.querySelector("#restartSession").addEventListener("click", isSavedSentenceSession ? startSavedSentenceSession : startSession);
+  document.querySelector("#retrySentenceMistakes")?.addEventListener("click", () => startSentenceMistakeRetry(result));
+  document.querySelector("#restartSession").addEventListener("click", isSavedSentenceSession
+    ? startSavedSentenceSession
+    : isMistakeRetry
+      ? () => startSentenceDrillItems(result.answers.map((answer) => answer.item), "mistakes")
+      : startSession);
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
@@ -7107,6 +7159,7 @@ function renderVocabularyResults() {
   const total = result.items.length;
   const stats = getVocabularyResultStats(result);
   const correct = stats.correct;
+  const mistakeReviewItems = getMissedVocabularyReviewItems(result);
   const bestTime = getVocabularyHighScore(result.quizMode, result.setId);
   const resultLabel = result.finishReason === "complete"
     ? "Completed"
@@ -7138,6 +7191,11 @@ function renderVocabularyResults() {
           <p>${resultLabel}: ${correct} of ${total} correct in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
         </div>
         <div class="result-actions">
+          ${mistakeReviewItems.length ? `
+            <button class="primary-btn" type="button" id="reviewVocabularyMistakes">
+              ${escapeHtml(formatMistakePracticeAction(mistakeReviewItems.length))}
+            </button>
+          ` : ""}
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
             <span>Start another quiz</span>
             ${shortcutHint("Enter")}
@@ -7184,6 +7242,7 @@ function renderVocabularyResults() {
     </section>
   `;
 
+  document.querySelector("#reviewVocabularyMistakes")?.addEventListener("click", () => startVocabularyMistakeReview(result));
   document.querySelector("#restartSession").addEventListener("click", startVocabularySession);
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
@@ -7199,6 +7258,7 @@ function renderVocabularyMeaningResults() {
   const answered = result.answers.length;
   const stats = getVocabularyResultStats(result);
   const correct = stats.correct;
+  const mistakeReviewItems = getMissedVocabularyReviewItems(result);
   const bestTime = getVocabularyHighScore(result.quizMode, result.setId);
   const resultLabel = result.finishReason === "complete"
     ? "Completed"
@@ -7233,6 +7293,11 @@ function renderVocabularyMeaningResults() {
           <p>${resultLabel}: ${correct} correct out of ${total}; ${answered} answered in ${formatTimer(result.elapsedSeconds)}. Best time: ${bestTime ? formatTimer(bestTime.elapsedSeconds) : "none"}.</p>
         </div>
         <div class="result-actions">
+          ${mistakeReviewItems.length ? `
+            <button class="primary-btn" type="button" id="reviewVocabularyMistakes">
+              ${escapeHtml(formatMistakePracticeAction(mistakeReviewItems.length))}
+            </button>
+          ` : ""}
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
             <span>Start another quiz</span>
             ${shortcutHint("Enter")}
@@ -7281,6 +7346,7 @@ function renderVocabularyMeaningResults() {
     </section>
   `;
 
+  document.querySelector("#reviewVocabularyMistakes")?.addEventListener("click", () => startVocabularyMistakeReview(result));
   document.querySelector("#restartSession").addEventListener("click", startVocabularySession);
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
@@ -7841,6 +7907,29 @@ function startSentenceDrillItems(items, source = "random") {
   }
 }
 
+function getMissedSentenceDrillItems(result) {
+  if (result?.type !== "drill") {
+    return [];
+  }
+
+  return (result.answers || [])
+    .filter((answer) => !answer.correct && answer.item?.zh && answer.item?.en)
+    .map((answer) => answer.item);
+}
+
+function startSentenceMistakeRetry(result = state.result) {
+  const items = getMissedSentenceDrillItems(result);
+  if (!items.length) {
+    return;
+  }
+
+  state.tool = "drill";
+  state.mode = result.mode;
+  state.drillView = "practice";
+  saveSettings();
+  startSentenceDrillItems(items, "mistakes");
+}
+
 async function startPronunciationSession() {
   if (state.isLoadingSentences) {
     return;
@@ -7966,6 +8055,46 @@ function startVocabularySession() {
   if (state.session.quizMode === "meaning") {
     speak(state.session.items[0].zh, { immediate: true });
   }
+}
+
+function getMissedVocabularyReviewItems(result) {
+  if (result?.type !== "vocabulary") {
+    return [];
+  }
+
+  const foundIds = new Set(result.foundIds || []);
+  const answersByIndex = new Map((result.answers || []).map((answer) => [answer.itemIndex, answer]));
+  return (result.items || []).flatMap((item, index) => {
+    const correct = result.quizMode === "pinyin"
+      ? foundIds.has(vocabularyItemId(item, index))
+      : Boolean(answersByIndex.get(index)?.correct);
+    return correct ? [] : [{
+      ...item,
+      reviewMode: result.quizMode === "meaning" ? "meaning" : "pinyin",
+    }];
+  });
+}
+
+function formatMistakePracticeAction(count, limit = REVIEW_SESSION_LENGTH) {
+  const practiceCount = Math.min(count, limit);
+  if (practiceCount < count) {
+    return `Review ${practiceCount} of ${count} mistakes`;
+  }
+  return `Review ${count} ${count === 1 ? "mistake" : "mistakes"}`;
+}
+
+function startVocabularyMistakeReview(result = state.result) {
+  const items = getMissedVocabularyReviewItems(result).slice(0, REVIEW_SESSION_LENGTH);
+  if (!items.length) {
+    return;
+  }
+
+  state.tool = "review";
+  saveSettings();
+  startReviewItems(items, "mistakes", {
+    setId: result.setId,
+    setLabel: result.setLabel,
+  });
 }
 
 function submitVocabularyGuess(answer, options = {}) {
@@ -8578,6 +8707,13 @@ function buildHistoryRecord(result) {
     elapsedSeconds: result.elapsedSeconds || 0,
     answers: result.answers.map((answer, index) => ({
       index,
+      id: answer.item.id || "",
+      zh: answer.item.zh,
+      en: answer.item.en,
+      level: answer.item.level || "",
+      source: answer.item.source || "",
+      sourceId: answer.item.sourceId || "",
+      translationId: answer.item.translationId || "",
       prompt: result.mode === "writing"
         ? answer.item.en
         : result.mode === "reading"
@@ -8589,6 +8725,78 @@ function buildHistoryRecord(result) {
       correct: answer.correct,
     })),
   };
+}
+
+function getHistoryMistakeRetryData(record) {
+  const mistakes = Array.isArray(record?.answers)
+    ? record.answers.filter((answer) => answer.correct === false)
+    : [];
+  if (!mistakes.length) {
+    return null;
+  }
+
+  if (["vocabulary", "review"].includes(record.type)) {
+    const itemsByKey = new Map();
+    mistakes.forEach((answer) => {
+      if (!answer.zh || !answer.pinyin) {
+        return;
+      }
+      const item = {
+        zh: answer.zh,
+        pinyin: answer.pinyin,
+        meanings: String(answer.meaning || "").split(";").map((meaning) => meaning.trim()).filter(Boolean),
+        reviewMode: answer.reviewMode || (record.quizMode === "meaning" ? "meaning" : "pinyin"),
+      };
+      itemsByKey.set(reviewItemKey(item), item);
+    });
+    const items = [...itemsByKey.values()];
+    return items.length ? { type: "vocabulary", items } : null;
+  }
+
+  if (record.type !== "drill" || !MODES[record.mode]) {
+    return null;
+  }
+
+  const items = mistakes.flatMap((answer, index) => {
+    const zh = answer.zh || (record.mode === "writing" ? answer.expected : record.mode === "reading" ? answer.prompt : "");
+    const en = answer.en || (record.mode === "writing" ? answer.prompt : record.mode === "reading" ? answer.expected : "");
+    if (!zh || !en || zh === "Audio sentence") {
+      return [];
+    }
+    return [{
+      id: answer.id || `history-${record.id || "session"}-${index}`,
+      zh,
+      en,
+      level: answer.level || record.levels?.[0] || "beginner",
+      source: answer.source || "History",
+      sourceId: answer.sourceId || "",
+      translationId: answer.translationId || "",
+    }];
+  });
+  return items.length ? { type: "drill", items, mode: record.mode } : null;
+}
+
+function startHistoryMistakeRetry(record) {
+  const retry = getHistoryMistakeRetryData(record);
+  if (!retry) {
+    return;
+  }
+
+  if (retry.type === "vocabulary") {
+    state.tool = "review";
+    saveSettings();
+    startReviewItems(retry.items.slice(0, REVIEW_SESSION_LENGTH), "mistakes", {
+      setId: record.setId || "",
+      setLabel: record.setLabel || "Mistakes from History",
+    });
+    return;
+  }
+
+  state.tool = "drill";
+  state.mode = retry.mode;
+  state.drillView = "practice";
+  saveSettings();
+  startSentenceDrillItems(retry.items, "mistakes");
 }
 
 function loadHistoryRecords() {

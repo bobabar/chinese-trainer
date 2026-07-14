@@ -5267,19 +5267,31 @@ button:focus-visible {
 
 .history-session-review-heading {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
 }
 
-.history-session-review-heading strong {
+.history-session-review-heading > div strong,
+.history-session-review-heading > div span {
+  display: block;
+}
+
+.history-session-review-heading > div strong {
   font-size: 12px;
 }
 
-.history-session-review-heading span,
+.history-session-review-heading > div span,
 .history-session-empty,
 .history-session-perfect {
   color: var(--muted);
+  font-size: 11px;
+}
+
+.history-retry-btn {
+  min-height: 34px;
+  padding: 6px 11px;
   font-size: 11px;
 }
 
@@ -6617,6 +6629,15 @@ td.status-review {
     display: grid;
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .history-session-review-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-retry-btn {
+    width: 100%;
   }
 
   .primary-btn,

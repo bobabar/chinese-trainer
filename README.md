@@ -40,6 +40,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - Word Study keeps learners in context with review status, audio, dictionary notes, exact-match example sentences, pinyin, Tatoeba attribution, and the existing MDBG link.
 - The Sentence Library searches all 1,800 sourced examples by Chinese, tone-insensitive pinyin, or English, with optional pinyin, word glosses, audio, bookmarks, and saved-sentence drills.
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
+- Quiz and sentence results turn missed answers into focused retry sessions, and recent History sessions can relaunch their saved mistakes directly.
 - Review sessions mix character-to-pinyin recall with audio-to-meaning choices and support keyboard controls.
 - Global navigation between Today, Vocabulary Quiz, Daily Review, Pronunciation, Geography of China, Sentence Drills, and History.
 - Sentence drill navigation for Reading, Writing, and Listening.

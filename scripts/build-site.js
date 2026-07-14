@@ -13,6 +13,7 @@ const FILES = [
   "word-data.js",
   "vocab-data.js",
   "grammar-data.js",
+  "exam-data.js",
   "manifest.webmanifest",
   "service-worker.js",
   "CNAME",
@@ -36,7 +37,7 @@ console.log(`Built static site in ${path.relative(ROOT, OUT_DIR)}/`);
 function cacheBustIndexAssets() {
   const indexPath = path.join(OUT_DIR, "index.html");
   let html = fs.readFileSync(indexPath, "utf8");
-  ["styles.css", "vocab-data.js", "grammar-data.js", "china-map-data.js", "app.js", "manifest.webmanifest"].forEach((file) => {
+  ["styles.css", "vocab-data.js", "grammar-data.js", "china-map-data.js", "exam-data.js", "app.js", "manifest.webmanifest"].forEach((file) => {
     const hash = hashFile(path.join(OUT_DIR, file));
     html = html.replaceAll(`./${file}`, `./${file}?v=${hash}`);
   });

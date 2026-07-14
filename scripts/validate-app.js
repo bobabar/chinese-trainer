@@ -7,6 +7,7 @@ const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
+const examData = fs.readFileSync(path.join(ROOT, "exam-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
@@ -96,6 +97,7 @@ vm.createContext(context);
 vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(grammarData, context, { filename: "grammar-data.js" });
+vm.runInContext(examData, context, { filename: "exam-data.js" });
 vm.runInContext(chinaMapData, context, { filename: "china-map-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
@@ -105,6 +107,7 @@ window.__tests = {
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
+  HSK_MOCK_EXAMS,
   PLACEMENT_GRAMMAR_PER_LEVEL,
   PLACEMENT_SESSION_LENGTH,
   PLACEMENT_VOCABULARY,
@@ -118,6 +121,7 @@ window.__tests = {
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
+  assessHskExamAnswer,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyToneToPinyinSyllable,
@@ -189,6 +193,7 @@ window.__tests = {
   getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
+  getHskExamResultStats,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -266,6 +271,7 @@ const {
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
+  HSK_MOCK_EXAMS,
   PLACEMENT_GRAMMAR_PER_LEVEL,
   PLACEMENT_SESSION_LENGTH,
   PLACEMENT_VOCABULARY,
@@ -279,6 +285,7 @@ const {
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
+  assessHskExamAnswer,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyToneToPinyinSyllable,
@@ -350,6 +357,7 @@ const {
   getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
+  getHskExamResultStats,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
   getRecommendedDrillMode,
@@ -443,7 +451,7 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|exam:Mock HSK Exam|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
   "global nav should show Today before the learning tools and History",
 );
 assert(
@@ -478,6 +486,7 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
   "app.js",
   "vocab-data.js",
   "grammar-data.js",
+  "exam-data.js",
   "china-map-data.js",
   "sentence-data.js",
   "word-data.js",
@@ -487,6 +496,8 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
   "assets/icon-512.png",
   "assets/icon-maskable-512.png",
   "assets/apple-touch-icon.png",
+  "assets/exam/hsk-scenes-1.webp",
+  "assets/exam/hsk-scenes-2.webp",
 ].forEach((asset) => {
   assert(serviceWorkerSource.includes(`"./${asset}"`), `${asset} should be available in the offline app shell`);
 });
@@ -494,9 +505,53 @@ assert(serviceWorkerSource.includes("__BUILD_HASH__") && serviceWorkerSource.inc
 assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWorkerSource.includes("handleNavigationRequest"), "offline navigation should use a network-first app-shell fallback");
 assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
 assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
+assert(buildSiteSource.includes('"exam-data.js"'), "production builds should publish and cache-bust the HSK exam corpus");
+assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-1.webp")).size > 10000, "the first HSK picture sheet should be a real optimized image asset");
+assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-2.webp")).size > 10000, "the second HSK picture sheet should be a real optimized image asset");
 assert(appSource.includes('window.addEventListener("beforeinstallprompt"') && appSource.includes('updateViaCache: "none"'), "the app should expose native installation and bypass stale service-worker script caches");
 assert(appSource.includes("showPwaUpdateReady") && appSource.includes('postMessage({ type: "SKIP_WAITING" })'), "new releases should wait for the learner to activate the update");
 assert(stylesSource.includes(".pwa-status") && stylesSource.includes(".pwa-action-btn") && stylesSource.includes('body[data-tool="vocabulary"] .pwa-access'), "install and offline status controls should match the existing Options design and keep a full-width vocabulary row");
+const hskExpectedStructure = {
+  1: { duration: 40, total: 40, sections: { listening: 20, reading: 20 } },
+  2: { duration: 60, total: 60, sections: { listening: 25, reading: 25, writing: 10 } },
+  3: { duration: 83, total: 70, sections: { listening: 30, reading: 30, writing: 10 } },
+};
+Object.entries(hskExpectedStructure).forEach(([level, expected]) => {
+  const exam = HSK_MOCK_EXAMS.levels[level];
+  const questions = exam.sections.flatMap((section) => section.parts.flatMap((part) => part.questions));
+  const sectionCounts = Object.fromEntries(exam.sections.map((section) => [
+    section.id,
+    section.parts.reduce((count, part) => count + part.questions.length, 0),
+  ]));
+  assert(exam.durationMinutes === expected.duration, `New HSK ${level} should use its official-format total duration`);
+  assert(exam.totalQuestions === expected.total && questions.length === expected.total, `New HSK ${level} should contain its official-format question total`);
+  assert(JSON.stringify(sectionCounts) === JSON.stringify(expected.sections), `New HSK ${level} should use the official-format section counts`);
+  assert(new Set(questions.map((question) => question.id)).size === questions.length, `New HSK ${level} question ids should be unique`);
+});
+const hskSpeakingPartCounts = HSK_MOCK_EXAMS.speaking.parts.map((part) => part.items.length);
+assert(
+  HSK_MOCK_EXAMS.speaking.durationMinutes === 15 &&
+    HSK_MOCK_EXAMS.speaking.preparationMinutes === 6 &&
+    hskSpeakingPartCounts.join("|") === "8|5|2",
+  "New HSK 3 speaking should include 8 repeats, 5 picture descriptions, and 2 open responses within the official-format timing",
+);
+const hskChoiceQuestion = HSK_MOCK_EXAMS.levels[1].sections[0].parts[0].questions[0];
+assert(assessHskExamAnswer(hskChoiceQuestion, hskChoiceQuestion.answer).correct, "HSK choice questions should score their keyed answer");
+assert(!assessHskExamAnswer(hskChoiceQuestion, "not-the-answer").correct, "HSK choice questions should reject a wrong answer");
+const hskReorderQuestion = HSK_MOCK_EXAMS.levels[2].sections
+  .flatMap((section) => section.parts)
+  .flatMap((part) => part.questions)
+  .find((question) => question.type === "reorder");
+const hskReorderAnswer = hskReorderQuestion.tokens.map((token, index) => ({ token, index }))
+  .sort((left, right) => hskReorderQuestion.answer.indexOf(left.token) - hskReorderQuestion.answer.indexOf(right.token))
+  .map((entry) => entry.index);
+assert(assessHskExamAnswer(hskReorderQuestion, hskReorderAnswer).correct, "HSK word-order questions should score a correctly assembled sentence");
+const hskFixtureAnswers = HSK_MOCK_EXAMS.levels[1].sections.flatMap((section) => section.parts.flatMap((part) => part.questions))
+  .map((question) => assessHskExamAnswer(question, question.type === "choice" ? question.answer : question.answer));
+const hskFixtureStats = getHskExamResultStats({ exam: HSK_MOCK_EXAMS.levels[1], answers: hskFixtureAnswers });
+assert(hskFixtureStats.scaledScore === 200 && hskFixtureStats.maxScore === 200, "a perfect New HSK 1 fixture should score 200 of 200");
+assert(indexSource.includes('data-tool="exam"') && indexSource.includes('./exam-data.js'), "the app shell should expose and load the Mock HSK Exam tool");
+assert(stylesSource.includes(".hsk-exam-session-shell") && stylesSource.includes(".hsk-exam-navigator"), "mock exams should include dedicated responsive runner styling");
 assert(SENTENCE_LIBRARY_PAGE_SIZE === 40, "sentence library should use a focused initial result batch");
 assert(indexSource.includes('class="mode-nav drill-only"'), "sentence modes should remain available while choosing saved-sentence practice");
 const sentenceLibraryFixtures = [
@@ -720,10 +775,11 @@ localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "kept-review", type: "review" },
   { id: "kept-tone", type: "tone" },
   { id: "kept-grammar", type: "grammar" },
+  { id: "kept-exam", type: "exam" },
   { id: "kept-placement", type: "placement" },
 ]));
 assert(
-  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone|kept-grammar|kept-placement",
+  loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review|kept-tone|kept-grammar|kept-exam|kept-placement",
   "history loading should retain active practice types while ignoring records from the retired memory aid",
 );
 localStorageEntries.delete("chineseTrainerHistory");
@@ -1199,7 +1255,7 @@ const progressHistory = [
   },
 ];
 const progressSkills = getHistorySkillStats(progressHistory);
-assert(progressSkills.length === 8, "Learning progress should report every core skill in a stable order");
+assert(progressSkills.length === 9 && progressSkills[2].id === "exam", "Learning progress should report every core skill, including mock exams, in a stable order");
 assert(Math.abs(progressSkills.find((skill) => skill.id === "reading").accuracy - 0.7) < 0.001, "Learning progress should calculate sentence-mode accuracy");
 assert(progressSkills.find((skill) => skill.id === "vocabulary").attempts === 15, "Learning progress should combine vocabulary quizzes and reviews");
 const progressActivity = getHistoryActivityDays(progressHistory, dashboardNow);

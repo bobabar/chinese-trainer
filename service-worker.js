@@ -9,6 +9,7 @@ const APP_SHELL_URLS = [
   "./app.js",
   "./vocab-data.js",
   "./grammar-data.js",
+  "./exam-data.js",
   "./china-map-data.js",
   "./sentence-data.js",
   "./word-data.js",
@@ -18,6 +19,8 @@ const APP_SHELL_URLS = [
   "./assets/icon-512.png",
   "./assets/icon-maskable-512.png",
   "./assets/apple-touch-icon.png",
+  "./assets/exam/hsk-scenes-1.webp",
+  "./assets/exam/hsk-scenes-2.webp",
 ];
 
 self.addEventListener("install", (event) => {

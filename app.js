@@ -20,11 +20,12 @@ const HISTORY_KEY = "chineseTrainerHistory";
 const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
 const SAVED_VOCABULARY_KEY = "chineseTrainerSavedVocabulary";
 const SAVED_SENTENCES_KEY = "chineseTrainerSavedSentences";
+const EXAM_DRAFT_KEY = "chineseTrainerHskExamDraft";
 const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map", "exam"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -94,6 +95,9 @@ const TOOLS = {
   },
   grammar: {
     label: "Grammar Lab",
+  },
+  exam: {
+    label: "Mock HSK Exam",
   },
   pronunciation: {
     label: "Pronunciation",
@@ -197,6 +201,10 @@ const VOCABULARY_QUIZ_SETS = buildVocabularyQuizSets(RAW_VOCABULARY_QUIZ_SETS);
 const GRAMMAR_LESSONS = Array.isArray(window.GRAMMAR_LESSONS)
   ? window.GRAMMAR_LESSONS
   : [];
+const HSK_MOCK_EXAMS = window.HSK_MOCK_EXAMS && typeof window.HSK_MOCK_EXAMS === "object"
+  ? window.HSK_MOCK_EXAMS
+  : { levels: {}, scenes: {}, speaking: null };
+const HSK_EXAM_LEVELS = [1, 2, 3];
 const VOCABULARY_ORDER_OPTIONS = {
   random: "Random order",
   list: "List order",
@@ -347,10 +355,15 @@ let sentenceDataLoaded = false;
 let wordDataPromise = null;
 let wordDataLoaded = false;
 let vocabularyTimerId = 0;
+let examTimerId = 0;
 let speechRequestId = 0;
 let pronunciationRecognition = null;
 let pronunciationRecognitionRequestId = 0;
 let pronunciationRecordingState = null;
+let hskSpeakingMediaRecorder = null;
+let hskSpeakingMediaStream = null;
+let hskSpeakingChunks = [];
+let hskSpeakingStopCallback = null;
 let deferredPwaInstallPrompt = null;
 let pwaRegistration = null;
 let pwaOfflineReady = false;
@@ -465,6 +478,9 @@ const state = {
   planSetupOpen: false,
   grammarLevel: 1,
   grammarLessonId: "",
+  examLevel: 1,
+  examMode: "written",
+  examScreen: "home",
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
   mapShowPinyinNames: false,
   pronunciationView: "speaking",
@@ -570,6 +586,12 @@ function loadSettings() {
     if ([1, 2].includes(Number(saved.grammarLevel))) {
       state.grammarLevel = Number(saved.grammarLevel);
     }
+    if (HSK_EXAM_LEVELS.includes(Number(saved.examLevel))) {
+      state.examLevel = Number(saved.examLevel);
+    }
+    if (["written", "speaking"].includes(saved.examMode)) {
+      state.examMode = saved.examMode;
+    }
     state.studyTargetLevel = [1, 2].includes(Number(saved.studyTargetLevel))
       ? Number(saved.studyTargetLevel)
       : state.grammarLevel;
@@ -637,6 +659,8 @@ function saveSettings() {
         onboardingComplete: state.onboardingComplete,
         grammarLevel: state.grammarLevel,
         grammarLessonId: state.grammarLessonId,
+        examLevel: state.examLevel,
+        examMode: state.examMode,
         mapQuizMode: state.mapQuizMode,
         mapShowPinyinNames: state.mapShowPinyinNames,
         pronunciationView: state.pronunciationView,
@@ -656,12 +680,20 @@ function bindTopLevelControls() {
       const nextTool = button.dataset.tool;
       if (!TOOLS[nextTool] || nextTool === state.tool) return;
 
-      if (state.session && !window.confirm("Switch tools and end this session?")) {
+      const switchMessage = state.session?.type === "exam"
+        ? "Leave this mock exam? Your answers will stay saved, but the timer will keep running."
+        : "Switch tools and end this session?";
+      if (state.session && !window.confirm(switchMessage)) {
         return;
       }
 
       stopPronunciationRecognition();
       stopSpeech();
+      if (state.session?.type === "exam-speaking") {
+        if (hskSpeakingMediaRecorder?.state === "recording") hskSpeakingMediaRecorder.stop();
+        releaseHskSpeakingMicrophone();
+      }
+      stopExamTimer();
       state.tool = nextTool;
       state.planSetupOpen = false;
       state.session = null;
@@ -1535,6 +1567,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isExamChoiceShortcut(event)) {
+    event.preventDefault();
+    submitHskExamChoiceByShortcut(event.key);
+    return;
+  }
+
   if (isPlacementChoiceShortcut(event)) {
     event.preventDefault();
     submitPlacementChoiceByShortcut(event.key);
@@ -1592,6 +1630,19 @@ function handleSessionShortcut(event) {
       event.preventDefault();
       startActiveSession();
     }
+    return;
+  }
+
+  if (state.session.type === "exam") {
+    if (isTypingTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    goToHskExamQuestion(Math.min(state.session.items.length - 1, state.session.index + 1));
+    return;
+  }
+
+  if (state.session.type === "exam-speaking") {
     return;
   }
 
@@ -1672,6 +1723,17 @@ function isToneChoiceShortcut(event) {
     !event.ctrlKey &&
     !event.shiftKey &&
     /^[1-5]$/.test(event.key);
+}
+
+function isExamChoiceShortcut(event) {
+  const question = state.session?.type === "exam"
+    ? state.session.items?.[state.session.index]
+    : null;
+  return question?.type === "choice" &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-6]$/.test(event.key);
 }
 
 function isGrammarChoiceShortcut(event) {
@@ -2004,6 +2066,7 @@ function render() {
 
   if (state.result) {
     stopVocabularyTimer();
+    stopExamTimer();
     if (state.result.type === "vocabulary") {
       renderVocabularyResults();
     } else if (state.result.type === "review") {
@@ -2018,6 +2081,8 @@ function render() {
       renderToneListeningResults();
     } else if (state.result.type === "map") {
       renderMapQuizResults();
+    } else if (state.result.type === "exam") {
+      renderHskExamResults();
     } else {
       renderResults();
     }
@@ -2028,13 +2093,19 @@ function render() {
     renderSession();
     if (state.session.type === "vocabulary") {
       startVocabularyTimer();
+      stopExamTimer();
+    } else if (["exam", "exam-speaking"].includes(state.session.type)) {
+      stopVocabularyTimer();
+      startExamTimer();
     } else {
       stopVocabularyTimer();
+      stopExamTimer();
     }
     return;
   }
 
   stopVocabularyTimer();
+  stopExamTimer();
   if (state.tool === "dashboard") {
     if (!state.onboardingComplete || state.planSetupOpen) {
       renderStudyPlanSetup();
@@ -2061,6 +2132,11 @@ function render() {
 
   if (state.tool === "grammar") {
     renderGrammarHome();
+    return;
+  }
+
+  if (state.tool === "exam") {
+    renderHskExamHome();
     return;
   }
 
@@ -6307,10 +6383,1201 @@ function formatVocabularySetOption(set) {
   return set.label || set.shortLabel || "";
 }
 
+function getHskExam(level = state.examLevel) {
+  return HSK_MOCK_EXAMS.levels?.[Number(level)] || null;
+}
+
+function flattenHskExamQuestions(exam) {
+  return (exam?.sections || []).flatMap((examSection) =>
+    (examSection.parts || []).flatMap((examPart) => examPart.questions || []),
+  );
+}
+
+function getHskExamSectionCounts(exam) {
+  return (exam?.sections || []).map((examSection) => ({
+    id: examSection.id,
+    label: examSection.label,
+    minutes: examSection.minutes,
+    total: examSection.parts.reduce((sum, examPart) => sum + examPart.questions.length, 0),
+  }));
+}
+
+function loadHskExamDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(EXAM_DRAFT_KEY) || "null");
+    const exam = getHskExam(draft?.level);
+    if (
+      !draft ||
+      draft.version !== HSK_MOCK_EXAMS.version ||
+      !exam ||
+      !Number.isFinite(Number(draft.endsAt))
+    ) {
+      if (draft) {
+        localStorage.removeItem(EXAM_DRAFT_KEY);
+      }
+      return null;
+    }
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+function saveHskExamDraft(session = state.session) {
+  if (session?.type !== "exam") {
+    return;
+  }
+  try {
+    localStorage.setItem(EXAM_DRAFT_KEY, JSON.stringify({
+      version: HSK_MOCK_EXAMS.version,
+      level: session.level,
+      index: session.index,
+      answers: session.answers,
+      flaggedIds: [...session.flaggedIds],
+      audioPlays: session.audioPlays,
+      startedAt: session.startedAt,
+      endsAt: session.endsAt,
+    }));
+  } catch {
+    // An exam remains usable when browser storage is unavailable.
+  }
+}
+
+function clearHskExamDraft() {
+  try {
+    localStorage.removeItem(EXAM_DRAFT_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
+function getHskExamDraftProgress(draft) {
+  const exam = getHskExam(draft?.level);
+  const items = flattenHskExamQuestions(exam);
+  const answered = items.filter((item) => isHskExamAnswerPresent(item, draft?.answers?.[item.id])).length;
+  return { answered, total: items.length };
+}
+
+function renderHskExamHome() {
+  if (state.examScreen === "ready") {
+    renderHskExamReadiness();
+    return;
+  }
+
+  const draft = loadHskExamDraft();
+  const draftProgress = draft ? getHskExamDraftProgress(draft) : null;
+  const draftExpired = draft ? Number(draft.endsAt) <= Date.now() : false;
+  const levelCards = HSK_EXAM_LEVELS.map((level) => {
+    const exam = getHskExam(level);
+    const sections = getHskExamSectionCounts(exam);
+    return `
+      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""}">
+        <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
+        <div class="hsk-exam-level-copy">
+          <span>HSK 3.0</span>
+          <h3>New HSK ${level}</h3>
+          <p>${sections.map((item) => item.label).join(" · ")}</p>
+        </div>
+        <dl class="hsk-exam-level-meta">
+          <div><dt>Questions</dt><dd>${exam.totalQuestions}</dd></div>
+          <div><dt>Time</dt><dd>${exam.durationMinutes} min</dd></div>
+          ${level === 3 ? `<div><dt>Speaking</dt><dd>15 min</dd></div>` : ""}
+        </dl>
+        <button class="secondary-btn hsk-exam-level-action" type="button" data-hsk-exam-level="${level}">
+          View exam details
+          <span aria-hidden="true">→</span>
+        </button>
+      </article>
+    `;
+  }).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel hsk-exam-home">
+      <header class="hsk-exam-home-header">
+        <div>
+          <span class="hsk-exam-kicker">Full-length practice</span>
+          <h2>Mock HSK Exam</h2>
+          <p>Timed HSK 3.0 papers with official section order and original questions at the target level.</p>
+        </div>
+        <a class="hsk-exam-source-link" href="${escapeHtml(HSK_MOCK_EXAMS.sourceUrl || "https://www.chinesetest.cn/notice")}" target="_blank" rel="noopener noreferrer">
+          Official 2025 syllabus
+          <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+
+      ${draft ? `
+        <section class="hsk-exam-resume" aria-label="Saved exam">
+          <div class="hsk-exam-resume-icon" aria-hidden="true">${draft.level}</div>
+          <div>
+            <span>Saved attempt</span>
+            <strong>New HSK ${draft.level}</strong>
+            <p>${draftProgress.answered} of ${draftProgress.total} answered · ${draftExpired ? "time expired" : `${formatTimer(Math.ceil((draft.endsAt - Date.now()) / 1000))} remaining`}</p>
+          </div>
+          <button class="primary-btn" type="button" id="resumeHskExam">${draftExpired ? "View timed result" : "Resume exam"}</button>
+          <button class="icon-btn" type="button" id="discardHskExam" aria-label="Discard saved exam" title="Discard saved exam">${trashIconMarkup()}</button>
+        </section>
+      ` : ""}
+
+      <div class="hsk-exam-level-grid">${levelCards}</div>
+
+      <footer class="hsk-exam-notice">
+        <strong>HSK 3.0 practice format</strong>
+        <p>The official January 2026 HSK 3.0 sitting was a trial. Regular 2026 HSK dates still use HSK 2.0 until an official transition date is announced.</p>
+      </footer>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-hsk-exam-level]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.examLevel = Number(button.dataset.hskExamLevel) || 1;
+      state.examMode = "written";
+      state.examScreen = "ready";
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelector("#resumeHskExam")?.addEventListener("click", resumeHskExam);
+  document.querySelector("#discardHskExam")?.addEventListener("click", () => {
+    if (window.confirm("Discard this saved mock exam attempt?")) {
+      clearHskExamDraft();
+      render();
+    }
+  });
+}
+
+function renderHskExamReadiness() {
+  const exam = getHskExam();
+  if (!exam) {
+    state.examScreen = "home";
+    render();
+    return;
+  }
+  const sections = getHskExamSectionCounts(exam);
+  const isSpeaking = state.examLevel === 3 && state.examMode === "speaking";
+  const speaking = HSK_MOCK_EXAMS.speaking;
+
+  app.innerHTML = `
+    <section class="workspace-panel hsk-exam-ready">
+      <button class="hsk-exam-back" type="button" id="backToHskExamLevels">
+        <span aria-hidden="true">←</span>
+        All levels
+      </button>
+      <div class="hsk-exam-ready-layout">
+        <div class="hsk-exam-ready-main">
+          <span class="hsk-exam-kicker">${isSpeaking ? "Speaking simulation" : "Written mock"}</span>
+          <h2>${isSpeaking ? speaking.label : exam.label}</h2>
+          <p>${isSpeaking
+            ? "Prepare, record, and review all three official speaking task types under the 15-minute limit."
+            : "Complete every section under one continuous timer. Answers and flags are saved in this browser while the timer keeps running."}</p>
+
+          ${state.examLevel === 3 ? `
+            <div class="hsk-exam-mode-switcher" role="tablist" aria-label="HSK 3 exam component">
+              <button type="button" role="tab" data-hsk-exam-mode="written" aria-selected="${!isSpeaking}" class="${!isSpeaking ? "active" : ""}">Written · 83 min</button>
+              <button type="button" role="tab" data-hsk-exam-mode="speaking" aria-selected="${isSpeaking}" class="${isSpeaking ? "active" : ""}">Speaking · 15 min</button>
+            </div>
+          ` : ""}
+
+          <div class="hsk-exam-blueprint">
+            ${(isSpeaking
+              ? speaking.parts.map((examPart) => ({
+                  label: examPart.label,
+                  total: examPart.items.length,
+                  minutes: examPart.responseSeconds < 60 ? `${examPart.responseSeconds} sec each` : `${examPart.responseSeconds / 60} min each`,
+                }))
+              : sections.map((examSection) => ({
+                  label: examSection.label,
+                  total: examSection.total,
+                  minutes: `${examSection.minutes} min task time`,
+                })))
+              .map((item, index) => `
+                <div class="hsk-exam-blueprint-row">
+                  <span>${index + 1}</span>
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <small>${item.total} ${item.total === 1 ? "item" : "items"}</small>
+                  <b>${escapeHtml(String(item.minutes))}</b>
+                </div>
+              `).join("")}
+          </div>
+        </div>
+
+        <aside class="hsk-exam-start-panel">
+          <div class="hsk-exam-start-time">
+            <span>Total time</span>
+            <strong>${isSpeaking ? speaking.durationMinutes : exam.durationMinutes}</strong>
+            <small>minutes</small>
+          </div>
+          <ul>
+            <li>${isSpeaking ? "Allow microphone access when asked." : "Listening audio can be played once per item."}</li>
+            <li>No answer feedback appears before submission.</li>
+            <li>${isSpeaking ? "Recordings stay in this tab for review." : "Reloading can resume the same running timer."}</li>
+          </ul>
+          ${!isSpeaking ? `
+            <button class="ghost-btn hsk-exam-audio-test" type="button" id="testHskExamAudio">
+              ${speakerIconMarkup()}
+              Test Mandarin audio
+            </button>
+          ` : ""}
+          <button class="primary-btn hsk-exam-start" type="button" id="beginHskExam">
+            Begin timed ${isSpeaking ? "speaking" : "exam"}
+          </button>
+          <p>Starting begins the countdown immediately.</p>
+        </aside>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#backToHskExamLevels")?.addEventListener("click", () => {
+    state.examScreen = "home";
+    render();
+  });
+  document.querySelectorAll("[data-hsk-exam-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.examMode = button.dataset.hskExamMode;
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelector("#testHskExamAudio")?.addEventListener("click", () => speak("欢迎参加中文水平考试。", { immediate: true }));
+  document.querySelector("#beginHskExam")?.addEventListener("click", () => {
+    if (isSpeaking) {
+      startHskSpeakingExam();
+    } else {
+      startHskExam(exam.level);
+    }
+  });
+}
+
+async function startHskExam(level) {
+  const exam = getHskExam(level);
+  if (!exam) {
+    return;
+  }
+  stopPronunciationRecognition();
+  stopSpeech();
+  try {
+    await ensureWordData();
+  } catch {
+    // Pinyin annotations are enhanced by the local word data, but the exam can run without it.
+  }
+  const startedAt = Date.now();
+  state.tool = "exam";
+  state.examLevel = exam.level;
+  state.examMode = "written";
+  state.examScreen = "home";
+  state.result = null;
+  state.session = {
+    type: "exam",
+    level: exam.level,
+    exam,
+    items: flattenHskExamQuestions(exam),
+    index: 0,
+    answers: {},
+    flaggedIds: new Set(),
+    audioPlays: {},
+    startedAt,
+    endsAt: startedAt + exam.durationMinutes * 60 * 1000,
+  };
+  saveSettings();
+  saveHskExamDraft();
+  render();
+}
+
+function resumeHskExam() {
+  const draft = loadHskExamDraft();
+  const exam = getHskExam(draft?.level);
+  if (!draft || !exam) {
+    render();
+    return;
+  }
+  state.tool = "exam";
+  state.examLevel = exam.level;
+  state.examMode = "written";
+  state.result = null;
+  state.session = {
+    type: "exam",
+    level: exam.level,
+    exam,
+    items: flattenHskExamQuestions(exam),
+    index: clamp(Number(draft.index) || 0, 0, exam.totalQuestions - 1),
+    answers: draft.answers && typeof draft.answers === "object" ? draft.answers : {},
+    flaggedIds: new Set(Array.isArray(draft.flaggedIds) ? draft.flaggedIds : []),
+    audioPlays: draft.audioPlays && typeof draft.audioPlays === "object" ? draft.audioPlays : {},
+    startedAt: Number(draft.startedAt) || Date.now(),
+    endsAt: Number(draft.endsAt),
+  };
+  render();
+}
+
+function buildHskExamSceneMarkup(sceneId, options = {}) {
+  const scene = HSK_MOCK_EXAMS.scenes?.[sceneId];
+  if (!scene) {
+    return "";
+  }
+  const positions = [0, 33.333, 66.667, 100];
+  const image = `./assets/exam/hsk-scenes-${scene.sheet}.webp`;
+  return `
+    <span
+      class="hsk-exam-scene ${options.large ? "is-large" : ""}"
+      role="img"
+      aria-label="${escapeHtml(scene.alt)}"
+      style="--hsk-scene-image:url('${image}');--hsk-scene-x:${positions[scene.column] || 0}%;--hsk-scene-y:${positions[scene.row] || 0}%">
+    </span>
+  `;
+}
+
+function buildHskExamChineseMarkup(value, level, options = {}) {
+  const lines = String(value || "").split("\n");
+  return `<div class="hsk-exam-chinese-copy ${options.compact ? "is-compact" : ""}">
+    ${lines.map((line) => {
+      if (!containsChinese(line)) {
+        return `<p>${escapeHtml(line)}</p>`;
+      }
+      if (Number(level) <= 2) {
+        return buildAnnotatedChineseMarkup(line, { showPinyin: true });
+      }
+      return `<p class="chinese-text" lang="zh-CN">${escapeHtml(line)}</p>`;
+    }).join("")}
+  </div>`;
+}
+
+function buildHskExamQuestionControl(question, answer, level) {
+  if (question.type === "choice") {
+    return `
+      <div class="hsk-exam-choice-grid ${question.choices.some((choice) => choice.scene) ? "has-scenes" : ""}" role="radiogroup" aria-label="Answer choices">
+        ${question.choices.map((choice, index) => {
+          const selected = answer === choice.id;
+          return `
+            <button
+              class="hsk-exam-choice ${selected ? "is-selected" : ""} ${choice.scene ? "is-scene" : ""}"
+              type="button"
+              role="radio"
+              aria-checked="${selected}"
+              data-hsk-exam-choice="${escapeHtml(choice.id)}">
+              <span class="hsk-exam-choice-key">${index + 1}</span>
+              ${choice.scene
+                ? buildHskExamSceneMarkup(choice.scene)
+                : buildHskExamChineseMarkup(choice.label, level, { compact: true })}
+            </button>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  if (question.type === "reorder") {
+    const selectedIndexes = Array.isArray(answer) ? answer : [];
+    const available = question.tokens.map((token, index) => ({ token, index })).filter((item) => !selectedIndexes.includes(item.index));
+    return `
+      <div class="hsk-exam-reorder">
+        <div class="hsk-exam-reorder-answer" aria-label="Constructed sentence">
+          ${selectedIndexes.length
+            ? selectedIndexes.map((tokenIndex, position) => `
+                <button type="button" data-hsk-reorder-remove="${position}" class="hsk-exam-word-tile is-selected">${escapeHtml(question.tokens[tokenIndex])}</button>
+              `).join("")
+            : `<span>Select words below to build the sentence.</span>`}
+        </div>
+        <div class="hsk-exam-word-bank" aria-label="Available words">
+          ${available.map((item) => `
+            <button type="button" data-hsk-reorder-add="${item.index}" class="hsk-exam-word-tile">${escapeHtml(item.token)}</button>
+          `).join("")}
+        </div>
+        <button type="button" class="hsk-exam-clear-answer" id="clearHskExamAnswer" ${selectedIndexes.length ? "" : "disabled"}>Clear answer</button>
+      </div>
+    `;
+  }
+
+  const inputValue = typeof answer === "string" ? answer : "";
+  const isFree = question.type === "free";
+  return `
+    <label class="hsk-exam-text-answer">
+      <span>${isFree ? "Your sentence" : "Your answer"}</span>
+      ${isFree
+        ? `<textarea id="hskExamTextAnswer" class="chinese-text" lang="zh-CN" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Write a complete Chinese sentence">${escapeHtml(inputValue)}</textarea>`
+        : `<input id="hskExamTextAnswer" class="chinese-text" lang="zh-CN" value="${escapeHtml(inputValue)}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Type the missing character">`}
+    </label>
+  `;
+}
+
+function buildHskExamNavigator(session) {
+  return session.exam.sections.map((examSection) => {
+    const sectionItems = session.items.filter((item) => item.skill === examSection.id);
+    const answered = sectionItems.filter((item) => isHskExamAnswerPresent(item, session.answers[item.id])).length;
+    return `
+      <section class="hsk-exam-nav-section">
+        <header><strong>${escapeHtml(examSection.label)}</strong><span>${answered}/${sectionItems.length}</span></header>
+        <div class="hsk-exam-nav-grid">
+          ${sectionItems.map((item) => {
+            const itemIndex = session.items.findIndex((candidate) => candidate.id === item.id);
+            const hasAnswer = isHskExamAnswerPresent(item, session.answers[item.id]);
+            const flagged = session.flaggedIds.has(item.id);
+            return `
+              <button
+                class="${hasAnswer ? "is-answered" : ""} ${flagged ? "is-flagged" : ""} ${itemIndex === session.index ? "is-current" : ""}"
+                type="button"
+                data-hsk-question-index="${itemIndex}"
+                aria-label="Question ${item.number}${hasAnswer ? ", answered" : ""}${flagged ? ", flagged" : ""}"
+                ${itemIndex === session.index ? `aria-current="step"` : ""}>${item.number}</button>
+            `;
+          }).join("")}
+        </div>
+      </section>
+    `;
+  }).join("");
+}
+
+function renderHskExamSession() {
+  const session = state.session;
+  const question = session.items[session.index];
+  const answer = session.answers[question.id];
+  const answeredCount = session.items.filter((item) => isHskExamAnswerPresent(item, session.answers[item.id])).length;
+  const progressPercent = Math.round((answeredCount / session.items.length) * 100);
+  const audioUsed = Number(session.audioPlays[question.id]) || 0;
+  const flagged = session.flaggedIds.has(question.id);
+
+  app.innerHTML = `
+    <section class="workspace-panel hsk-exam-session-shell">
+      <header class="hsk-exam-session-header">
+        <div class="hsk-exam-session-identity">
+          <span>HSK 3.0 mock</span>
+          <strong>New HSK ${session.level}</strong>
+        </div>
+        <div class="hsk-exam-session-progress">
+          <span>${answeredCount} of ${session.items.length} answered</span>
+          <div class="progress-track" aria-hidden="true"><div style="width:${progressPercent}%"></div></div>
+        </div>
+        <div class="hsk-exam-session-clock ${getHskExamRemainingSeconds(session) <= 300 ? "is-urgent" : ""}">
+          <span>Time remaining</span>
+          <strong id="hskExamTimer">${formatTimer(getHskExamRemainingSeconds(session))}</strong>
+        </div>
+        <button class="ghost-btn hsk-exam-finish" type="button" id="finishHskExam">Finish exam</button>
+      </header>
+
+      <div class="hsk-exam-session-layout">
+        <aside class="hsk-exam-navigator" aria-label="Question navigator">
+          <div class="hsk-exam-nav-legend"><span><i></i>Answered</span><span><i></i>Flagged</span></div>
+          ${buildHskExamNavigator(session)}
+        </aside>
+
+        <main class="hsk-exam-question-panel" id="hskExamQuestionPanel">
+          <header class="hsk-exam-question-header">
+            <div>
+              <span>${escapeHtml(question.sectionLabel)} · ${escapeHtml(question.partLabel)}</span>
+              <strong>Question ${question.number} of ${session.items.length}</strong>
+            </div>
+            <button class="hsk-exam-flag ${flagged ? "is-active" : ""}" type="button" id="flagHskExamQuestion" aria-pressed="${flagged}">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 21V4"></path><path d="M5 5h12l-2 4 2 4H5"></path></svg>
+              ${flagged ? "Flagged" : "Flag for review"}
+            </button>
+          </header>
+
+          <p class="hsk-exam-instruction">${escapeHtml(question.instruction)}</p>
+
+          ${question.audio ? `
+            <div class="hsk-exam-audio-prompt">
+              <button class="hsk-exam-play-audio" type="button" id="playHskExamAudio" ${audioUsed >= 1 ? "disabled" : ""}>
+                ${speakerIconMarkup()}
+                <span>${audioUsed >= 1 ? "Audio played" : "Play audio"}</span>
+              </button>
+              <span>${audioUsed >= 1 ? "No replays remaining" : "One play available"}</span>
+              <i id="soundIndicator" aria-hidden="true"></i>
+            </div>
+          ` : ""}
+
+          ${question.scene && question.type === "free" ? `<div class="hsk-exam-writing-scene">${buildHskExamSceneMarkup(question.scene, { large: true })}</div>` : ""}
+          ${question.hintPinyin ? `<div class="hsk-exam-pinyin-hint"><span>Pinyin</span><strong>${buildToneColoredPinyinMarkup(question.hintPinyin)}</strong></div>` : ""}
+          ${question.audio
+            ? `<h2 class="hsk-exam-hidden-prompt">Listen before answering</h2>`
+            : buildHskExamChineseMarkup(question.prompt, session.level)}
+
+          ${buildHskExamQuestionControl(question, answer, session.level)}
+
+          <footer class="hsk-exam-question-actions">
+            <button class="ghost-btn" type="button" id="previousHskExamQuestion" ${session.index === 0 ? "disabled" : ""}>Previous</button>
+            <span>Answers are not checked until the exam ends.</span>
+            ${session.index + 1 === session.items.length
+              ? `<button class="primary-btn" type="button" id="submitHskExamFromLast">Review and finish</button>`
+              : `<button class="primary-btn" type="button" id="nextHskExamQuestion">Next question</button>`}
+          </footer>
+        </main>
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-hsk-question-index]").forEach((button) => {
+    button.addEventListener("click", () => goToHskExamQuestion(Number(button.dataset.hskQuestionIndex)));
+  });
+  document.querySelectorAll("[data-hsk-exam-choice]").forEach((button) => {
+    button.addEventListener("click", () => setHskExamAnswer(question.id, button.dataset.hskExamChoice));
+  });
+  document.querySelectorAll("[data-hsk-reorder-add]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const current = Array.isArray(session.answers[question.id]) ? [...session.answers[question.id]] : [];
+      current.push(Number(button.dataset.hskReorderAdd));
+      setHskExamAnswer(question.id, current);
+    });
+  });
+  document.querySelectorAll("[data-hsk-reorder-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const current = Array.isArray(session.answers[question.id]) ? [...session.answers[question.id]] : [];
+      current.splice(Number(button.dataset.hskReorderRemove), 1);
+      setHskExamAnswer(question.id, current);
+    });
+  });
+  document.querySelector("#clearHskExamAnswer")?.addEventListener("click", () => setHskExamAnswer(question.id, []));
+  document.querySelector("#hskExamTextAnswer")?.addEventListener("input", (event) => {
+    session.answers[question.id] = event.currentTarget.value;
+    saveHskExamDraft(session);
+    updateHskExamNavigatorState(session, question);
+  });
+  document.querySelector("#playHskExamAudio")?.addEventListener("click", () => playHskExamAudio(question));
+  document.querySelector("#flagHskExamQuestion")?.addEventListener("click", () => toggleHskExamFlag(question.id));
+  document.querySelector("#previousHskExamQuestion")?.addEventListener("click", () => goToHskExamQuestion(session.index - 1));
+  document.querySelector("#nextHskExamQuestion")?.addEventListener("click", () => goToHskExamQuestion(session.index + 1));
+  document.querySelector("#finishHskExam")?.addEventListener("click", () => finishHskExam("submitted"));
+  document.querySelector("#submitHskExamFromLast")?.addEventListener("click", () => finishHskExam("submitted"));
+  if (["text", "free"].includes(question.type) && !isTouchLikeDevice()) {
+    document.querySelector("#hskExamTextAnswer")?.focus();
+  }
+}
+
+function updateHskExamNavigatorState(session, question) {
+  const answered = isHskExamAnswerPresent(question, session.answers[question.id]);
+  const navButton = document.querySelector(`[data-hsk-question-index="${session.index}"]`);
+  navButton?.classList.toggle("is-answered", answered);
+  const answeredCount = session.items.filter((item) => isHskExamAnswerPresent(item, session.answers[item.id])).length;
+  const progressCopy = document.querySelector(".hsk-exam-session-progress > span");
+  const progressFill = document.querySelector(".hsk-exam-session-progress .progress-track > div");
+  if (progressCopy) progressCopy.textContent = `${answeredCount} of ${session.items.length} answered`;
+  if (progressFill) progressFill.style.width = `${Math.round((answeredCount / session.items.length) * 100)}%`;
+}
+
+function setHskExamAnswer(questionId, answer) {
+  const session = state.session;
+  if (session?.type !== "exam" || !session.items.some((item) => item.id === questionId)) {
+    return;
+  }
+  session.answers[questionId] = answer;
+  saveHskExamDraft(session);
+  render();
+}
+
+function submitHskExamChoiceByShortcut(key) {
+  const session = state.session;
+  const question = session?.type === "exam" ? session.items[session.index] : null;
+  const choice = question?.choices?.[Number(key) - 1];
+  if (choice) {
+    setHskExamAnswer(question.id, choice.id);
+  }
+}
+
+function toggleHskExamFlag(questionId) {
+  const session = state.session;
+  if (session?.type !== "exam") return;
+  if (session.flaggedIds.has(questionId)) {
+    session.flaggedIds.delete(questionId);
+  } else {
+    session.flaggedIds.add(questionId);
+  }
+  saveHskExamDraft(session);
+  render();
+}
+
+function goToHskExamQuestion(index) {
+  const session = state.session;
+  if (session?.type !== "exam") return;
+  const nextIndex = clamp(Number(index) || 0, 0, session.items.length - 1);
+  if (nextIndex === session.index) return;
+  stopSpeech();
+  session.index = nextIndex;
+  saveHskExamDraft(session);
+  render();
+  if (window.matchMedia?.("(max-width: 820px)").matches) {
+    document.querySelector("#hskExamQuestionPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function playHskExamAudio(question) {
+  const session = state.session;
+  if (session?.type !== "exam" || !question?.audio || Number(session.audioPlays[question.id]) >= 1) {
+    return;
+  }
+  session.audioPlays[question.id] = 1;
+  saveHskExamDraft(session);
+  render();
+  speak(question.audio, { immediate: true });
+}
+
+function isHskExamAnswerPresent(question, answer) {
+  if (question?.type === "reorder") {
+    return Array.isArray(answer) && answer.length > 0;
+  }
+  return typeof answer === "string" ? Boolean(answer.trim()) : answer !== undefined && answer !== null;
+}
+
+function formatHskExamAnswer(question, answer) {
+  if (!isHskExamAnswerPresent(question, answer)) return "No answer";
+  if (question.type === "choice") {
+    const choice = question.choices.find((item) => item.id === answer);
+    return choice?.label || HSK_MOCK_EXAMS.scenes?.[choice?.scene]?.alt || "Selected picture";
+  }
+  if (question.type === "reorder") {
+    return answer.map((index) => question.tokens[index] || "").join("");
+  }
+  return String(answer).trim();
+}
+
+function getHskExamExpectedAnswer(question) {
+  if (question.type === "choice") {
+    const choice = question.choices.find((item) => item.id === question.answer);
+    return choice?.label || HSK_MOCK_EXAMS.scenes?.[choice?.scene]?.alt || "Correct picture";
+  }
+  return question.answer || "";
+}
+
+function assessHskExamAnswer(question, answer) {
+  const answered = isHskExamAnswerPresent(question, answer);
+  let score = 0;
+  if (answered && question.type === "choice") {
+    score = answer === question.answer ? 1 : 0;
+  } else if (answered && question.type === "reorder") {
+    score = scoreChinese(formatHskExamAnswer(question, answer), question.answer);
+  } else if (answered && question.type === "text") {
+    score = Math.max(0, ...(question.answers || [question.answer]).map((expected) => scoreChinese(String(answer), expected)));
+  } else if (answered && question.type === "free") {
+    const normalized = normalizeChinese(String(answer));
+    const groups = [question.keywords || [], ...(question.alternateKeywords || [])];
+    const bestKeywordScore = Math.max(0, ...groups.map((keywords) => {
+      if (!keywords.length) return 0;
+      return keywords.filter((keyword) => normalized.includes(normalizeChinese(keyword))).length / keywords.length;
+    }));
+    score = normalized.length >= 4 ? bestKeywordScore : bestKeywordScore * 0.5;
+  }
+  return {
+    item: question,
+    answer: formatHskExamAnswer(question, answer),
+    expected: getHskExamExpectedAnswer(question),
+    answered,
+    score: clamp(score, 0, 1),
+    correct: score >= 0.8,
+    estimated: question.type === "free",
+  };
+}
+
+function buildHskExamResult(session, finishReason = "submitted") {
+  const answers = session.items.map((item) => assessHskExamAnswer(item, session.answers[item.id]));
+  const elapsedSeconds = Math.min(
+    session.exam.durationMinutes * 60,
+    Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+  );
+  return {
+    type: "exam",
+    examMode: "written",
+    level: session.level,
+    exam: session.exam,
+    items: session.items,
+    answers,
+    total: session.items.length,
+    elapsedSeconds,
+    timeLimitSeconds: session.exam.durationMinutes * 60,
+    finishReason,
+  };
+}
+
+function getHskExamResultStats(result) {
+  const sections = (result.exam?.sections || []).map((examSection) => {
+    const answers = result.answers.filter((answer) => answer.item.skill === examSection.id);
+    const correct = answers.filter((answer) => answer.correct).length;
+    const answered = answers.filter((answer) => answer.answered).length;
+    const accuracy = answers.length ? answers.reduce((sum, answer) => sum + answer.score, 0) / answers.length : 0;
+    return {
+      id: examSection.id,
+      label: examSection.label,
+      correct,
+      answered,
+      total: answers.length,
+      accuracy,
+      scaledScore: Math.round(accuracy * 100),
+    };
+  });
+  const maxScore = sections.length * 100;
+  const scaledScore = sections.reduce((sum, examSection) => sum + examSection.scaledScore, 0);
+  return {
+    sections,
+    answered: result.answers.filter((answer) => answer.answered).length,
+    correct: result.answers.filter((answer) => answer.correct).length,
+    total: result.answers.length,
+    scaledScore,
+    maxScore,
+    percent: maxScore ? scaledScore / maxScore : 0,
+  };
+}
+
+function finishHskExam(reason = "submitted") {
+  const session = state.session;
+  if (session?.type !== "exam") return;
+  const unanswered = session.items.filter((item) => !isHskExamAnswerPresent(item, session.answers[item.id])).length;
+  if (reason === "submitted" && unanswered && !window.confirm(`${unanswered} ${unanswered === 1 ? "question is" : "questions are"} unanswered. Finish the exam anyway?`)) {
+    return;
+  }
+  const result = buildHskExamResult(session, reason);
+  clearHskExamDraft();
+  stopExamTimer();
+  stopSpeech();
+  state.result = result;
+  state.session = null;
+  saveHistoryResult(result);
+  render();
+}
+
+function buildHskExamReviewMarkup(answer) {
+  const question = answer.item;
+  const prompt = question.audio ? question.audio : question.prompt;
+  return `
+    <details class="hsk-exam-review-item ${answer.correct ? "is-correct" : "is-wrong"}">
+      <summary>
+        <span>${question.number}</span>
+        <strong>${escapeHtml(question.sectionLabel)} · ${escapeHtml(question.partLabel)}</strong>
+        <b>${answer.correct ? "Correct" : answer.answered ? "Review" : "Not answered"}</b>
+      </summary>
+      <div class="hsk-exam-review-body">
+        ${buildHskExamChineseMarkup(prompt, question.level)}
+        <dl>
+          <div><dt>Your answer</dt><dd>${escapeHtml(answer.answer)}</dd></div>
+          <div><dt>${answer.estimated ? "Model answer" : "Correct answer"}</dt><dd>${escapeHtml(answer.expected)}</dd></div>
+        </dl>
+        ${answer.estimated ? `<p>Open writing is estimated from required meaning words; other complete sentences may also be valid.</p>` : ""}
+      </div>
+    </details>
+  `;
+}
+
+function renderHskExamResults() {
+  const result = state.result;
+  if (result?.examMode === "speaking") {
+    renderHskSpeakingResults();
+    return;
+  }
+  const stats = getHskExamResultStats(result);
+  const missed = result.answers.filter((answer) => !answer.correct);
+  app.innerHTML = `
+    <section class="workspace-panel hsk-exam-results">
+      <header class="hsk-exam-results-header">
+        <div>
+          <span class="hsk-exam-kicker">Mock complete</span>
+          <h2>New HSK ${result.level} results</h2>
+          <p>${result.finishReason === "time" ? "Time expired and the exam was submitted automatically." : "Your full paper has been scored and saved to History."}</p>
+        </div>
+        <div class="hsk-exam-score-ring" style="--score:${Math.round(stats.percent * 100)}">
+          <span>Estimated score</span>
+          <strong>${stats.scaledScore}</strong>
+          <small>of ${stats.maxScore}</small>
+        </div>
+      </header>
+
+      <div class="hsk-exam-result-summary">
+        <div><span>Correct</span><strong>${stats.correct}/${stats.total}</strong></div>
+        <div><span>Answered</span><strong>${stats.answered}/${stats.total}</strong></div>
+        <div><span>Time used</span><strong>${formatTimer(result.elapsedSeconds)}</strong></div>
+        <div><span>Practice benchmark</span><strong>${Math.round(stats.percent * 100)}%</strong></div>
+      </div>
+
+      <section class="hsk-exam-section-results" aria-labelledby="hskExamSectionResultsHeading">
+        <div class="hsk-exam-results-section-heading">
+          <div><h3 id="hskExamSectionResultsHeading">Section performance</h3><p>Each section contributes 100 estimated points.</p></div>
+        </div>
+        ${stats.sections.map((examSection) => `
+          <div class="hsk-exam-section-result-row">
+            <strong>${escapeHtml(examSection.label)}</strong>
+            <span>${examSection.correct}/${examSection.total} correct</span>
+            <div class="progress-track" aria-hidden="true"><div style="width:${Math.round(examSection.accuracy * 100)}%"></div></div>
+            <b>${examSection.scaledScore}/100</b>
+          </div>
+        `).join("")}
+      </section>
+
+      <section class="hsk-exam-review" aria-labelledby="hskExamReviewHeading">
+        <div class="hsk-exam-results-section-heading">
+          <div><h3 id="hskExamReviewHeading">Answer review</h3><p>${missed.length ? `${missed.length} ${missed.length === 1 ? "answer" : "answers"} to review` : "Every answer was correct"}</p></div>
+          <span>${result.answers.length} saved answers</span>
+        </div>
+        <div class="hsk-exam-review-list">
+          ${(missed.length ? missed : result.answers).map(buildHskExamReviewMarkup).join("")}
+        </div>
+      </section>
+
+      <p class="hsk-exam-score-note">This is a practice estimate from raw answers, not an official HSK score report. Open writing accepts target-language alternatives but still requires self-review.</p>
+
+      <div class="result-actions">
+        <button class="primary-btn" type="button" id="restartHskExam">Retake New HSK ${result.level}</button>
+        ${result.level === 3 ? `<button class="secondary-btn" type="button" id="startHskSpeakingFromResults">Practice HSK 3 speaking</button>` : ""}
+        <button class="ghost-btn" type="button" id="backToHskExamHome">All mock exams</button>
+      </div>
+    </section>
+  `;
+
+  document.querySelector("#restartHskExam")?.addEventListener("click", () => startHskExam(result.level));
+  document.querySelector("#startHskSpeakingFromResults")?.addEventListener("click", () => {
+    state.result = null;
+    state.examLevel = 3;
+    state.examMode = "speaking";
+    state.examScreen = "ready";
+    render();
+  });
+  document.querySelector("#backToHskExamHome")?.addEventListener("click", () => {
+    state.result = null;
+    state.examScreen = "home";
+    render();
+  });
+}
+
+function flattenHskSpeakingItems(speaking = HSK_MOCK_EXAMS.speaking) {
+  let number = 0;
+  return (speaking?.parts || []).flatMap((examPart) =>
+    examPart.items.map((item) => {
+      number += 1;
+      return {
+        ...item,
+        number,
+        partId: examPart.id,
+        partLabel: examPart.label,
+        responseSeconds: examPart.responseSeconds,
+      };
+    }),
+  );
+}
+
+function startHskSpeakingExam() {
+  const speaking = HSK_MOCK_EXAMS.speaking;
+  if (!speaking) return;
+  stopPronunciationRecognition();
+  stopSpeech();
+  releaseHskSpeakingMicrophone();
+  const startedAt = Date.now();
+  state.tool = "exam";
+  state.examLevel = 3;
+  state.examMode = "speaking";
+  state.examScreen = "home";
+  state.result = null;
+  state.dataError = "";
+  state.session = {
+    type: "exam-speaking",
+    level: 3,
+    speaking,
+    items: flattenHskSpeakingItems(speaking),
+    index: 0,
+    stage: "preparation",
+    recordings: {},
+    audioPlays: {},
+    isRecording: false,
+    microphoneError: "",
+    startedAt,
+    preparationEndsAt: startedAt + speaking.preparationMinutes * 60 * 1000,
+    endsAt: startedAt + speaking.durationMinutes * 60 * 1000,
+  };
+  saveSettings();
+  render();
+}
+
+function renderHskSpeakingSession() {
+  const session = state.session;
+  if (session.stage === "preparation") {
+    renderHskSpeakingPreparation();
+    return;
+  }
+  const item = session.items[session.index];
+  const recording = session.recordings[item.id];
+  const audioUsed = Number(session.audioPlays[item.id]) || 0;
+  const responseRemaining = session.isRecording && session.responseEndsAt
+    ? Math.max(0, Math.ceil((session.responseEndsAt - Date.now()) / 1000))
+    : item.responseSeconds;
+
+  app.innerHTML = `
+    <section class="workspace-panel hsk-speaking-session">
+      <header class="hsk-exam-session-header hsk-speaking-header">
+        <div class="hsk-exam-session-identity"><span>HSK 3.0 mock</span><strong>New HSK 3 Speaking</strong></div>
+        <div class="hsk-exam-session-progress">
+          <span>${Object.keys(session.recordings).length} of ${session.items.length} recorded</span>
+          <div class="progress-track" aria-hidden="true"><div style="width:${Math.round((session.index / session.items.length) * 100)}%"></div></div>
+        </div>
+        <div class="hsk-exam-session-clock ${getHskExamRemainingSeconds(session) <= 120 ? "is-urgent" : ""}"><span>Total time</span><strong id="hskExamTimer">${formatTimer(getHskExamRemainingSeconds(session))}</strong></div>
+        <button class="ghost-btn hsk-exam-finish" type="button" id="finishHskSpeaking">Finish</button>
+      </header>
+
+      <main class="hsk-speaking-question-panel">
+        <div class="hsk-speaking-question-meta">
+          <span>${escapeHtml(item.partLabel)}</span>
+          <strong>Question ${item.number} of ${session.items.length}</strong>
+          <b>${item.responseSeconds < 60 ? `${item.responseSeconds} seconds` : `${item.responseSeconds / 60} minutes`}</b>
+        </div>
+
+        ${item.partId === "repeat" ? `
+          <div class="hsk-speaking-repeat-prompt">
+            <span>Listen carefully, then repeat the sentence.</span>
+            <button class="hsk-exam-play-audio" type="button" id="playHskSpeakingPrompt" ${audioUsed >= 1 || session.isRecording ? "disabled" : ""}>
+              ${speakerIconMarkup()}
+              <span>${audioUsed ? "Prompt played" : "Play prompt"}</span>
+            </button>
+          </div>
+        ` : item.partId === "picture" ? `
+          <div class="hsk-speaking-picture-prompt">${buildHskExamSceneMarkup(item.scene, { large: true })}</div>
+          <h2>Describe what you see in one clear sentence.</h2>
+        ` : `
+          <div class="hsk-speaking-open-prompt">
+            <span>回答问题</span>
+            <h2 class="chinese-text" lang="zh-CN">${escapeHtml(item.prompt)}</h2>
+          </div>
+        `}
+
+        <div class="hsk-speaking-recorder ${session.isRecording ? "is-recording" : ""}">
+          <div class="hsk-speaking-recorder-status">
+            <i aria-hidden="true"></i>
+            <div>
+              <span>${session.isRecording ? "Recording" : recording ? "Response saved" : "Ready to record"}</span>
+              <strong id="hskSpeakingResponseTimer">${formatTimer(responseRemaining)}</strong>
+            </div>
+          </div>
+          ${session.microphoneError ? `<p class="hsk-speaking-microphone-error" role="alert">${escapeHtml(session.microphoneError)}</p>` : ""}
+          <div class="hsk-speaking-recorder-actions">
+            ${session.isRecording
+              ? `<button class="primary-btn is-danger" type="button" id="stopHskSpeakingRecording">Stop response</button>`
+              : `<button class="primary-btn" type="button" id="startHskSpeakingRecording">${recording ? "Record again" : "Start recording"}</button>`}
+            ${recording && !session.isRecording ? `<audio controls preload="metadata" src="${escapeHtml(recording.url)}" aria-label="Your response to question ${item.number}"></audio>` : ""}
+          </div>
+        </div>
+
+        <footer class="hsk-speaking-actions">
+          <button class="ghost-btn" type="button" id="previousHskSpeakingQuestion" ${session.index === 0 || session.isRecording ? "disabled" : ""}>Previous</button>
+          <span>Recordings are kept only until this tab closes.</span>
+          <button class="primary-btn" type="button" id="nextHskSpeakingQuestion" ${session.isRecording ? "disabled" : ""}>${session.index + 1 === session.items.length ? "Finish speaking mock" : "Next question"}</button>
+        </footer>
+      </main>
+    </section>
+  `;
+
+  document.querySelector("#playHskSpeakingPrompt")?.addEventListener("click", () => {
+    if (!session.audioPlays[item.id]) {
+      session.audioPlays[item.id] = 1;
+      render();
+      speak(item.prompt, { immediate: true });
+    }
+  });
+  document.querySelector("#startHskSpeakingRecording")?.addEventListener("click", startHskSpeakingRecording);
+  document.querySelector("#stopHskSpeakingRecording")?.addEventListener("click", () => stopHskSpeakingRecording());
+  document.querySelector("#previousHskSpeakingQuestion")?.addEventListener("click", () => goToHskSpeakingQuestion(session.index - 1));
+  document.querySelector("#nextHskSpeakingQuestion")?.addEventListener("click", () => {
+    if (session.index + 1 >= session.items.length) {
+      finishHskSpeakingExam("submitted");
+    } else {
+      goToHskSpeakingQuestion(session.index + 1);
+    }
+  });
+  document.querySelector("#finishHskSpeaking")?.addEventListener("click", () => finishHskSpeakingExam("submitted"));
+}
+
+function renderHskSpeakingPreparation() {
+  const session = state.session;
+  const pictureItems = session.items.filter((item) => item.partId === "picture");
+  const responseItems = session.items.filter((item) => item.partId === "response");
+  const remaining = Math.max(0, Math.ceil((session.preparationEndsAt - Date.now()) / 1000));
+  app.innerHTML = `
+    <section class="workspace-panel hsk-speaking-preparation">
+      <header>
+        <div><span class="hsk-exam-kicker">Preparation period</span><h2>Review the picture and response prompts</h2><p>The listen-and-repeat sentences remain hidden until playback.</p></div>
+        <div class="hsk-speaking-prep-clock"><span>Preparation</span><strong id="hskSpeakingPreparationTimer">${formatTimer(remaining)}</strong><small>Total exam <b id="hskExamTimer">${formatTimer(getHskExamRemainingSeconds(session))}</b></small></div>
+      </header>
+      <div class="hsk-speaking-prep-pictures">
+        ${pictureItems.map((item, index) => `<div><span>${index + 9}</span>${buildHskExamSceneMarkup(item.scene)}</div>`).join("")}
+      </div>
+      <div class="hsk-speaking-prep-responses">
+        ${responseItems.map((item) => `<div><span>${item.number}</span><strong class="chinese-text" lang="zh-CN">${escapeHtml(item.prompt)}</strong></div>`).join("")}
+      </div>
+      <div class="hsk-speaking-prep-actions">
+        <p>You may begin early. The overall 15-minute timer continues either way.</p>
+        <button class="primary-btn" type="button" id="beginHskSpeakingResponses">Begin responses</button>
+      </div>
+    </section>
+  `;
+  document.querySelector("#beginHskSpeakingResponses")?.addEventListener("click", beginHskSpeakingResponses);
+}
+
+function beginHskSpeakingResponses() {
+  const session = state.session;
+  if (session?.type !== "exam-speaking") return;
+  session.stage = "responses";
+  session.index = 0;
+  render();
+}
+
+async function startHskSpeakingRecording() {
+  const session = state.session;
+  const item = session?.type === "exam-speaking" ? session.items[session.index] : null;
+  if (!item || session.isRecording) return;
+  stopSpeech();
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    session.microphoneError = "Audio recording is not supported in this browser. Try current Chrome, Edge, or Safari over HTTPS.";
+    render();
+    return;
+  }
+  try {
+    if (!hskSpeakingMediaStream?.active) {
+      hskSpeakingMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    const previous = session.recordings[item.id];
+    if (previous?.url) URL.revokeObjectURL(previous.url);
+    hskSpeakingChunks = [];
+    hskSpeakingMediaRecorder = new MediaRecorder(hskSpeakingMediaStream);
+    hskSpeakingMediaRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) hskSpeakingChunks.push(event.data);
+    });
+    hskSpeakingMediaRecorder.addEventListener("stop", () => {
+      const blob = new Blob(hskSpeakingChunks, { type: hskSpeakingMediaRecorder?.mimeType || "audio/webm" });
+      if (blob.size) {
+        session.recordings[item.id] = {
+          url: URL.createObjectURL(blob),
+          durationSeconds: Math.max(1, Math.round((Date.now() - session.responseStartedAt) / 1000)),
+        };
+      }
+      session.isRecording = false;
+      session.responseEndsAt = 0;
+      hskSpeakingMediaRecorder = null;
+      const callback = hskSpeakingStopCallback;
+      hskSpeakingStopCallback = null;
+      if (callback) callback();
+      else if (state.session === session) render();
+    }, { once: true });
+    session.microphoneError = "";
+    session.isRecording = true;
+    session.responseStartedAt = Date.now();
+    session.responseEndsAt = session.responseStartedAt + item.responseSeconds * 1000;
+    hskSpeakingMediaRecorder.start(250);
+    render();
+  } catch (error) {
+    session.microphoneError = error?.name === "NotAllowedError"
+      ? "Microphone permission was denied. Allow access in the browser site settings and try again."
+      : "The microphone could not start. Check that another app is not using it.";
+    render();
+  }
+}
+
+function stopHskSpeakingRecording(callback = null) {
+  const session = state.session;
+  if (session?.type !== "exam-speaking" || !session.isRecording) {
+    callback?.();
+    return;
+  }
+  hskSpeakingStopCallback = callback;
+  if (hskSpeakingMediaRecorder?.state === "recording") {
+    hskSpeakingMediaRecorder.stop();
+  } else {
+    session.isRecording = false;
+    callback?.();
+  }
+}
+
+function goToHskSpeakingQuestion(index) {
+  const session = state.session;
+  if (session?.type !== "exam-speaking" || session.isRecording) return;
+  stopSpeech();
+  session.index = clamp(Number(index) || 0, 0, session.items.length - 1);
+  session.microphoneError = "";
+  render();
+}
+
+function finishHskSpeakingExam(reason = "submitted") {
+  const session = state.session;
+  if (session?.type !== "exam-speaking") return;
+  if (session.isRecording) {
+    stopHskSpeakingRecording(() => finishHskSpeakingExam(reason));
+    return;
+  }
+  const recorded = Object.keys(session.recordings).length;
+  if (reason === "submitted" && recorded < session.items.length && !window.confirm(`${session.items.length - recorded} responses are not recorded. Finish anyway?`)) {
+    return;
+  }
+  const result = {
+    type: "exam",
+    examMode: "speaking",
+    level: 3,
+    speaking: session.speaking,
+    items: session.items,
+    recordings: session.recordings,
+    answers: session.items.map((item) => ({ item, recorded: Boolean(session.recordings[item.id]) })),
+    total: session.items.length,
+    recorded,
+    elapsedSeconds: Math.min(session.speaking.durationMinutes * 60, Math.max(0, Math.round((Date.now() - session.startedAt) / 1000))),
+    timeLimitSeconds: session.speaking.durationMinutes * 60,
+    finishReason: reason,
+  };
+  stopExamTimer();
+  stopSpeech();
+  releaseHskSpeakingMicrophone();
+  state.result = result;
+  state.session = null;
+  saveHistoryResult(result);
+  render();
+}
+
+function releaseHskSpeakingMicrophone() {
+  hskSpeakingMediaStream?.getTracks?.().forEach((track) => track.stop());
+  hskSpeakingMediaStream = null;
+  hskSpeakingMediaRecorder = null;
+  hskSpeakingChunks = [];
+}
+
+function renderHskSpeakingResults() {
+  const result = state.result;
+  app.innerHTML = `
+    <section class="workspace-panel hsk-exam-results hsk-speaking-results">
+      <header class="hsk-exam-results-header">
+        <div><span class="hsk-exam-kicker">Speaking mock complete</span><h2>New HSK 3 speaking review</h2><p>Listen back while the recordings remain available in this tab.</p></div>
+        <div class="hsk-speaking-result-count"><span>Responses recorded</span><strong>${result.recorded}</strong><small>of ${result.total}</small></div>
+      </header>
+      <div class="hsk-exam-result-summary">
+        <div><span>Repeat</span><strong>${result.answers.filter((answer) => answer.item.partId === "repeat" && answer.recorded).length}/8</strong></div>
+        <div><span>Picture</span><strong>${result.answers.filter((answer) => answer.item.partId === "picture" && answer.recorded).length}/5</strong></div>
+        <div><span>Response</span><strong>${result.answers.filter((answer) => answer.item.partId === "response" && answer.recorded).length}/2</strong></div>
+        <div><span>Time used</span><strong>${formatTimer(result.elapsedSeconds)}</strong></div>
+      </div>
+      <section class="hsk-speaking-review" aria-labelledby="hskSpeakingReviewHeading">
+        <div class="hsk-exam-results-section-heading"><div><h3 id="hskSpeakingReviewHeading">Self-review</h3><p>Compare clarity, completeness, and fluency across all three parts.</p></div></div>
+        <div class="hsk-speaking-review-list">
+          ${result.answers.map((answer) => {
+            const item = answer.item;
+            const recording = result.recordings[item.id];
+            const reference = item.partId === "repeat" ? item.prompt : item.partId === "picture" ? item.modelAnswer : "Aim for at least five connected sentences with a clear reason or example.";
+            return `
+              <article class="hsk-speaking-review-item ${answer.recorded ? "" : "is-missing"}">
+                <span>${item.number}</span>
+                <div><strong>${escapeHtml(item.partLabel)}</strong><p class="${containsChinese(reference) ? "chinese-text" : ""}">${escapeHtml(reference)}</p></div>
+                ${recording ? `<audio controls preload="metadata" src="${escapeHtml(recording.url)}" aria-label="Response ${item.number}"></audio>` : `<b>Not recorded</b>`}
+              </article>
+            `;
+          }).join("")}
+        </div>
+      </section>
+      <p class="hsk-exam-score-note">Speaking responses require human judgment, so this simulation records completion rather than inventing an automated official score.</p>
+      <div class="result-actions">
+        <button class="primary-btn" type="button" id="restartHskSpeaking">Retake speaking mock</button>
+        <button class="secondary-btn" type="button" id="startHskWrittenFromSpeaking">Take New HSK 3 written</button>
+        <button class="ghost-btn" type="button" id="backToHskExamHome">All mock exams</button>
+      </div>
+    </section>
+  `;
+  document.querySelector("#restartHskSpeaking")?.addEventListener("click", startHskSpeakingExam);
+  document.querySelector("#startHskWrittenFromSpeaking")?.addEventListener("click", () => startHskExam(3));
+  document.querySelector("#backToHskExamHome")?.addEventListener("click", () => {
+    Object.values(result.recordings || {}).forEach((recording) => recording?.url && URL.revokeObjectURL(recording.url));
+    state.result = null;
+    state.examScreen = "home";
+    render();
+  });
+}
+
 function getProgressSkillDefinitions() {
   return [
     { id: "vocabulary", label: "Vocabulary", tool: "review", unit: "words" },
     { id: "grammar", label: "Grammar", tool: "grammar", unit: "questions" },
+    { id: "exam", label: "Mock exams", tool: "exam", unit: "questions" },
     { id: "pronunciation", label: "Pronunciation", tool: "pronunciation", unit: "sentences" },
     { id: "tone", label: "Tone listening", tool: "pronunciation", mode: "tone", unit: "words" },
     { id: "reading", label: "Reading", tool: "drill", mode: "reading", unit: "sentences" },
@@ -6626,63 +7893,53 @@ function buildProgressVocabularyMistakeMarkup(item, savedKeys = new Set()) {
 }
 
 function getHistoryRecordPresentation(record) {
-  const typeLabel = record.type === "vocabulary"
-    ? "Vocabulary quiz"
-      : record.type === "review"
-      ? record.source === "path"
-        ? "HSK path review"
+  let typeLabel = "Sentence drill";
+  let modeLabel = `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
+  let resultLabel = `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+
+  if (record.type === "vocabulary") {
+    typeLabel = "Vocabulary quiz";
+    modeLabel = `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`;
+    resultLabel = buildVocabularyHistoryResultLabel(record);
+  } else if (record.type === "review") {
+    typeLabel = record.source === "path" ? "HSK path review" : record.source === "mistakes" ? "Mistake review" : "Daily review";
+    modeLabel = record.source === "saved"
+      ? "Saved vocabulary"
+      : record.source === "path"
+        ? `${formatVocabularyPathSetName(record.setId, record.setLabel)} · Focused review`
         : record.source === "mistakes"
-          ? "Mistake review"
-          : "Daily review"
-      : record.type === "grammar"
-        ? "Grammar practice"
-      : record.type === "placement"
-        ? "Level check"
-      : record.type === "pronunciation"
-        ? "Pronunciation"
-        : record.type === "tone"
-          ? "Tone listening"
-        : record.type === "map"
-          ? "Geography"
-          : "Sentence drill";
-  const modeLabel = record.type === "vocabulary"
-    ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
-      : record.type === "review"
-      ? record.source === "saved"
-        ? "Saved vocabulary"
-        : record.source === "path"
-          ? `${formatVocabularyPathSetName(record.setId, record.setLabel)} · Focused review`
-          : record.source === "mistakes"
-            ? `${record.setLabel || "Vocabulary"} · Targeted retry`
-          : "Adaptive vocabulary"
-      : record.type === "grammar"
-        ? record.scope === "lesson"
-          ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
-          : `HSK ${record.level || 1} · Mixed patterns`
-      : record.type === "placement"
-        ? "HSK 1–2 · Vocabulary and grammar"
-      : record.type === "pronunciation"
-        ? selectedLevelLabels(record.levels)
-      : record.type === "tone"
-          ? "HSK 1 & 2 vocabulary"
-      : record.type === "map"
-          ? getSelectedMapQuizMode(record.mapQuizMode).targetMetric
-          : `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
-  const resultLabel = record.type === "vocabulary"
-    ? buildVocabularyHistoryResultLabel(record)
-      : record.type === "review"
-        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-      : record.type === "grammar"
-        ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-      : record.type === "placement"
-        ? `HSK ${record.recommendedLevel || 1} recommended · ${record.correct}/${record.total} correct`
-      : record.type === "pronunciation"
-        ? `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`
-        : record.type === "tone"
-          ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-        : record.type === "map"
-          ? `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`
-          : `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+          ? `${record.setLabel || "Vocabulary"} · Targeted retry`
+          : "Adaptive vocabulary";
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "grammar") {
+    typeLabel = "Grammar practice";
+    modeLabel = record.scope === "lesson"
+      ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
+      : `HSK ${record.level || 1} · Mixed patterns`;
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "exam") {
+    typeLabel = record.examMode === "speaking" ? "HSK speaking mock" : "Mock HSK exam";
+    modeLabel = `New HSK ${record.level || 1} · ${record.examMode === "speaking" ? "Speaking" : "Written"}`;
+    resultLabel = record.examMode === "speaking"
+      ? `${record.recorded || 0}/${record.total} recorded · ${formatTimer(record.elapsedSeconds || 0)}`
+      : `${record.scaledScore || 0}/${record.maxScore || 0} estimated · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "placement") {
+    typeLabel = "Level check";
+    modeLabel = "HSK 1–2 · Vocabulary and grammar";
+    resultLabel = `HSK ${record.recommendedLevel || 1} recommended · ${record.correct}/${record.total} correct`;
+  } else if (record.type === "pronunciation") {
+    typeLabel = "Pronunciation";
+    modeLabel = selectedLevelLabels(record.levels);
+    resultLabel = `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`;
+  } else if (record.type === "tone") {
+    typeLabel = "Tone listening";
+    modeLabel = "HSK 1 & 2 vocabulary";
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "map") {
+    typeLabel = "Geography";
+    modeLabel = getSelectedMapQuizMode(record.mapQuizMode).targetMetric;
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  }
   return { typeLabel, modeLabel, resultLabel };
 }
 
@@ -6701,6 +7958,16 @@ function buildHistorySessionReviewMarkup(record) {
   return `
     <div class="history-mistake-list">
       ${mistakes.slice(0, 8).map((answer) => {
+        if (record.type === "exam") {
+          return `
+            <div class="history-mistake-row is-sentence is-grammar">
+              <strong class="${containsChinese(answer.prompt || "") ? "chinese-text" : ""}" lang="${containsChinese(answer.prompt || "") ? "zh-CN" : "en"}">${escapeHtml(answer.prompt || `Question ${(answer.index || 0) + 1}`)}</strong>
+              <p>${record.examMode === "speaking" ? escapeHtml(answer.partLabel || "Speaking response") : `${escapeHtml(answer.skillLabel || "Exam")} · New HSK ${record.level || 1}`}</p>
+              <span>${record.examMode === "speaking" ? "No response recorded" : `Your answer: ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}`}</span>
+              <b>${answer.correct ? "Correct" : "Review"}</b>
+            </div>
+          `;
+        }
         if (record.type === "placement") {
           if (answer.kind === "vocabulary") {
             return `
@@ -7107,6 +8374,16 @@ function buildVocabularyHistoryResultLabel(record) {
 }
 
 function renderSession() {
+  if (state.session?.type === "exam") {
+    renderHskExamSession();
+    return;
+  }
+
+  if (state.session?.type === "exam-speaking") {
+    renderHskSpeakingSession();
+    return;
+  }
+
   if (state.session?.type === "review") {
     renderReviewSession();
     return;
@@ -10857,6 +12134,20 @@ function startActiveSession() {
     return;
   }
 
+  if (state.tool === "exam") {
+    if (state.examScreen === "ready") {
+      if (state.examMode === "speaking") {
+        startHskSpeakingExam();
+      } else {
+        startHskExam(state.examLevel);
+      }
+    } else {
+      state.examScreen = "ready";
+      render();
+    }
+    return;
+  }
+
   if (state.tool === "pronunciation") {
     startActivePronunciationSession();
     return;
@@ -11784,6 +13075,68 @@ function markVocabularyHighScoreResult(result) {
 function buildHistoryRecord(result) {
   const completedAt = new Date().toISOString();
   const id = `${completedAt}-${Math.random().toString(36).slice(2, 9)}`;
+
+  if (result.type === "exam") {
+    if (result.examMode === "speaking") {
+      return {
+        id,
+        type: "exam",
+        examMode: "speaking",
+        level: result.level || 3,
+        completedAt,
+        total: result.total || result.answers.length,
+        recorded: result.recorded || 0,
+        correct: result.recorded || 0,
+        elapsedSeconds: result.elapsedSeconds || 0,
+        finishReason: result.finishReason || "submitted",
+        answers: result.answers.map((answer, index) => ({
+          index,
+          prompt: answer.item.prompt || answer.item.modelAnswer || "Picture description",
+          partLabel: answer.item.partLabel || "Speaking",
+          recorded: Boolean(answer.recorded),
+          correct: Boolean(answer.recorded),
+          score: answer.recorded ? 1 : 0,
+        })),
+      };
+    }
+
+    const stats = getHskExamResultStats(result);
+    return {
+      id,
+      type: "exam",
+      examMode: "written",
+      level: result.level || 1,
+      completedAt,
+      total: stats.total,
+      answered: stats.answered,
+      correct: stats.correct,
+      scaledScore: stats.scaledScore,
+      maxScore: stats.maxScore,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      finishReason: result.finishReason || "submitted",
+      sections: stats.sections.map((examSection) => ({
+        id: examSection.id,
+        label: examSection.label,
+        correct: examSection.correct,
+        total: examSection.total,
+        scaledScore: examSection.scaledScore,
+      })),
+      answers: result.answers.map((answer, index) => ({
+        index,
+        questionId: answer.item.id,
+        prompt: answer.item.audio || answer.item.prompt || "",
+        skill: answer.item.skill,
+        skillLabel: answer.item.sectionLabel,
+        partLabel: answer.item.partLabel,
+        answer: answer.answer,
+        expected: answer.expected,
+        answered: answer.answered,
+        estimated: answer.estimated,
+        correct: answer.correct,
+        score: answer.score,
+      })),
+    };
+  }
 
   if (result.type === "placement") {
     const correct = result.answers.filter((answer) => answer.correct).length;
@@ -13243,6 +14596,58 @@ function formatTimer(seconds) {
   const minutes = Math.floor(safeSeconds / 60);
   const remainingSeconds = safeSeconds % 60;
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function getHskExamRemainingSeconds(session = state.session) {
+  if (!["exam", "exam-speaking"].includes(session?.type) || !session.endsAt) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil((session.endsAt - Date.now()) / 1000));
+}
+
+function startExamTimer() {
+  if (examTimerId || !["exam", "exam-speaking"].includes(state.session?.type)) {
+    return;
+  }
+  examTimerId = window.setInterval(updateHskExamTimer, 250);
+  updateHskExamTimer();
+}
+
+function stopExamTimer() {
+  if (!examTimerId) return;
+  window.clearInterval(examTimerId);
+  examTimerId = 0;
+}
+
+function updateHskExamTimer() {
+  const session = state.session;
+  if (!["exam", "exam-speaking"].includes(session?.type)) {
+    stopExamTimer();
+    return;
+  }
+  const remaining = getHskExamRemainingSeconds(session);
+  const timer = document.querySelector("#hskExamTimer");
+  if (timer) timer.textContent = formatTimer(remaining);
+  document.querySelector(".hsk-exam-session-clock")?.classList.toggle("is-urgent", remaining <= (session.type === "exam" ? 300 : 120));
+  if (remaining <= 0) {
+    if (session.type === "exam") finishHskExam("time");
+    else finishHskSpeakingExam("time");
+    return;
+  }
+  if (session.type !== "exam-speaking") return;
+  if (session.stage === "preparation") {
+    const prepRemaining = Math.max(0, Math.ceil((session.preparationEndsAt - Date.now()) / 1000));
+    const prepTimer = document.querySelector("#hskSpeakingPreparationTimer");
+    if (prepTimer) prepTimer.textContent = formatTimer(prepRemaining);
+    if (prepRemaining <= 0) beginHskSpeakingResponses();
+    return;
+  }
+  if (session.isRecording && session.responseEndsAt) {
+    const responseRemaining = Math.max(0, Math.ceil((session.responseEndsAt - Date.now()) / 1000));
+    const responseTimer = document.querySelector("#hskSpeakingResponseTimer");
+    if (responseTimer) responseTimer.textContent = formatTimer(responseRemaining);
+    if (responseRemaining <= 0) stopHskSpeakingRecording();
+  }
 }
 
 function startVocabularyTimer() {

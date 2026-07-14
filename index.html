@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Adaptive Mandarin vocabulary, grammar, pronunciation, geography, and sentence practice.">
+    <meta name="description" content="Adaptive Mandarin vocabulary, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
     <meta name="theme-color" content="#f7f8fb">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Chinese Trainer">
     <meta property="og:title" content="Chinese Trainer">
-    <meta property="og:description" content="Adaptive Mandarin learning with vocabulary, grammar, pronunciation, geography, and sentence practice.">
+    <meta property="og:description" content="Adaptive Mandarin learning with vocabulary, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
     <meta property="og:type" content="website">
     <title>Chinese Trainer</title>
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
@@ -32,7 +32,7 @@
             <img class="brand-mark" src="./assets/icon.svg" alt="" aria-hidden="true">
             <div>
               <h1>Chinese Trainer</h1>
-              <p>Adaptive vocabulary, grammar, pronunciation, geography, and sentence practice</p>
+              <p>Adaptive vocabulary, grammar, mock exams, pronunciation, geography, and sentence practice</p>
             </div>
           </div>
 
@@ -87,6 +87,15 @@
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17h7"></path>
             </svg>
             <span class="tool-tab-label">Grammar Lab</span>
+          </button>
+          <button class="tool-tab" type="button" data-tool="exam">
+            <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M7 3h10v4H7z"></path>
+              <path d="M5 5h14v16H5z"></path>
+              <path d="m8 12 2 2 4-4"></path>
+              <path d="M8 17h8"></path>
+            </svg>
+            <span class="tool-tab-label">Mock HSK Exam</span>
           </button>
           <button class="tool-tab" type="button" data-tool="pronunciation">
             <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -249,6 +258,7 @@
     <script src="./vocab-data.js" defer></script>
     <script src="./grammar-data.js" defer></script>
     <script src="./china-map-data.js" defer></script>
+    <script src="./exam-data.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

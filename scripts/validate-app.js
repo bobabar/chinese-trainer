@@ -129,9 +129,11 @@ window.__tests = {
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
+  buildVocabularyPathPartMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
+  buildVocabularyViewSwitcher,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
@@ -162,6 +164,7 @@ window.__tests = {
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
   getVocabularyMistakeStats,
+  getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
   getAllVocabularyReviewItems,
@@ -171,6 +174,8 @@ window.__tests = {
   getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
+  getRecommendedVocabularyPathPart,
+  getVocabularySetReviewItems,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
@@ -235,9 +240,11 @@ const {
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
+  buildVocabularyPathPartMarkup,
   buildVocabularyQuizRows,
   buildVocabularySetPicker,
   buildVocabularyPromptMarkup,
+  buildVocabularyViewSwitcher,
   containsChinese,
   choosePreferredVoice,
   determineVocabularyTimeLimit,
@@ -268,6 +275,7 @@ const {
   getVocabularyResultStats,
   getVocabularyLibraryStatus,
   getVocabularyMistakeStats,
+  getVocabularyPathData,
   getVocabularyDetailProgress,
   getMapQuizPool,
   getAllVocabularyReviewItems,
@@ -277,6 +285,8 @@ const {
   getPronunciationRecognitionErrorMessage,
   formatTimer,
   getSelectedVocabularySet,
+  getRecommendedVocabularyPathPart,
+  getVocabularySetReviewItems,
   isVocabularyRowAnswered,
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
@@ -366,6 +376,33 @@ assert(reviewItemKey(reviewQueue[0].item) === reviewItemKey(reviewVocabulary[1])
 assert(reviewQueue[0].statusLabel === "Due" && reviewQueue.some((entry) => entry.statusLabel === "New"), "review queue should distinguish due and new words");
 assert(formatReviewDueLabel(reviewNow, false, reviewNow) === "Due now", "missed words should clearly show that they are immediately due");
 assert(formatReviewDueLabel(reviewNow + 24 * 60 * 60 * 1000, true, reviewNow) === "Tomorrow", "one-day review intervals should use a clear tomorrow label");
+const firstPathSet = VOCABULARY_QUIZ_SETS[0];
+const firstPathItems = getVocabularySetReviewItems(firstPathSet);
+const pathDay = 24 * 60 * 60 * 1000;
+const pathProgressFixture = {
+  [reviewItemKey(firstPathItems[0])]: { stage: 2, dueAt: reviewNow - 1 },
+  [reviewItemKey(firstPathItems[1])]: { stage: 2, dueAt: reviewNow + pathDay },
+  [reviewItemKey(firstPathItems[2])]: { stage: 4, dueAt: reviewNow + pathDay },
+};
+const vocabularyPath = getVocabularyPathData(pathProgressFixture, reviewNow);
+const firstPathPart = vocabularyPath.parts[0];
+assert(vocabularyPath.levels.length === 2, "HSK path should keep HSK 1 and HSK 2 as separate levels");
+assert(vocabularyPath.parts.length === VOCABULARY_QUIZ_SETS.length, "HSK path should include every vocabulary quiz part");
+assert(vocabularyPath.totals.total === reviewVocabulary.length, "HSK path should account for the complete HSK 1 and HSK 2 vocabulary corpus");
+assert(vocabularyPath.totals.new + vocabularyPath.totals.due + vocabularyPath.totals.learning + vocabularyPath.totals.strong === vocabularyPath.totals.total, "HSK path statuses should be mutually exclusive and exhaustive");
+assert(firstPathPart.counts.due === 1 && firstPathPart.counts.learning === 1 && firstPathPart.counts.strong === 1, "HSK path should distinguish due, learning, and strong words within each part");
+assert(firstPathPart.counts.introduced === 3, "HSK path coverage should count every previously reviewed word");
+assert(getRecommendedVocabularyPathPart(vocabularyPath).set.id === firstPathSet.id, "HSK path should recommend a part with due vocabulary first");
+const pathPartMarkup = buildVocabularyPathPartMarkup(firstPathPart, { recommended: true, totalParts: vocabularyPath.levels[0].parts.length });
+assert(pathPartMarkup.includes("Up next"), "recommended HSK path parts should be visibly identified");
+assert(pathPartMarkup.includes(`data-vocabulary-path-review="${firstPathSet.id}"`), "HSK path parts should launch a focused review");
+assert(pathPartMarkup.includes(`data-vocabulary-path-quiz="${firstPathSet.id}"`), "HSK path parts should link to their timed quiz");
+const previousVocabularyView = state.vocabularyView;
+state.vocabularyView = "path";
+const vocabularyViewSwitcherMarkup = buildVocabularyViewSwitcher();
+assert(vocabularyViewSwitcherMarkup.includes('data-vocabulary-view="path"'), "vocabulary navigation should expose the HSK path");
+assert(vocabularyViewSwitcherMarkup.includes('class="active" type="button" data-vocabulary-view="path"'), "HSK path should have a distinct active navigation state");
+state.vocabularyView = previousVocabularyView;
 localStorageEntries.set("chineseTrainerReviewProgress", JSON.stringify(reviewProgressFixture));
 const reviewDashboard = getReviewDashboardData(reviewNow);
 assert(reviewDashboard.dueCount === 1, "review dashboard should count words due now");
@@ -525,7 +562,28 @@ const reviewHistoryRecord = buildHistoryRecord({
 assert(reviewHistoryRecord.type === "review" && reviewHistoryRecord.correct === 1, "daily review runs should create review history records");
 assert(reviewHistoryRecord.answers[0].reviewStage === 1, "review history should retain scheduling outcomes");
 assert(buildHistoryRowMarkup(reviewHistoryRecord).includes("Daily review"), "History should label adaptive review runs clearly");
+const pathReviewHistoryRecord = buildHistoryRecord({
+  type: "review",
+  source: "path",
+  setId: firstPathSet.id,
+  setLabel: firstPathSet.label,
+  answers: [{
+    item: firstPathItems[0],
+    answer: firstPathItems[0].pinyin,
+    correct: true,
+    score: 1,
+    reviewMode: "pinyin",
+    previousStage: 0,
+    reviewStage: 1,
+    nextDueAt: reviewNow + pathDay,
+  }],
+  elapsedSeconds: 12,
+});
+const pathHistoryMarkup = buildHistoryRowMarkup(pathReviewHistoryRecord);
+assert(pathReviewHistoryRecord.setId === firstPathSet.id, "HSK path review history should retain its curriculum part");
+assert(pathHistoryMarkup.includes("HSK path review") && pathHistoryMarkup.includes("HSK 1 · Part 1"), "History should identify focused HSK path review sessions");
 assert(stylesSource.includes(".review-practice-layout"), "daily review should include a dedicated responsive practice layout");
+assert(stylesSource.includes(".vocabulary-path-part") && stylesSource.includes(".vocabulary-path-level"), "HSK path should include dedicated responsive curriculum styling");
 localStorageEntries.set("chineseTrainerReviewProgress", "{}");
 updateReviewProgressFromVocabularyResult({
   type: "vocabulary",

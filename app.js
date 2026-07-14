@@ -143,6 +143,7 @@ const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
 const VOCABULARY_LIBRARY_PAGE_SIZE = 80;
+const VOCABULARY_VIEWS = new Set(["quiz", "library", "path"]);
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const MDBG_WORD_DICTIONARY_URL = "https://www.mdbg.net/chinese/dictionary";
 const PINYIN_INITIALS = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
@@ -409,7 +410,7 @@ function loadSettings() {
     if (saved.vocabularyMode && VOCABULARY_MODES[saved.vocabularyMode]) {
       state.vocabularyMode = saved.vocabularyMode;
     }
-    if (["quiz", "library"].includes(saved.vocabularyView)) {
+    if (VOCABULARY_VIEWS.has(saved.vocabularyView)) {
       state.vocabularyView = saved.vocabularyView;
     }
     if (saved.vocabularySetId && VOCABULARY_QUIZ_SETS.some((set) => set.id === saved.vocabularySetId)) {
@@ -1769,6 +1770,11 @@ function renderVocabularyHome() {
     return;
   }
 
+  if (state.vocabularyView === "path") {
+    renderVocabularyPath();
+    return;
+  }
+
   const mode = VOCABULARY_MODES[state.vocabularyMode];
   const selectedSet = getSelectedVocabularySet();
   const wordCount = selectedSet?.words.length || 0;
@@ -1873,6 +1879,7 @@ function buildVocabularyViewSwitcher() {
     <nav class="vocabulary-view-switcher" aria-label="Vocabulary view">
       <button class="${state.vocabularyView === "quiz" ? "active" : ""}" type="button" data-vocabulary-view="quiz">Quiz</button>
       <button class="${state.vocabularyView === "library" ? "active" : ""}" type="button" data-vocabulary-view="library">Word Library</button>
+      <button class="${state.vocabularyView === "path" ? "active" : ""}" type="button" data-vocabulary-view="path">HSK Path</button>
     </nav>
   `;
 }
@@ -1881,7 +1888,7 @@ function bindVocabularyViewSwitcher() {
   document.querySelectorAll("[data-vocabulary-view]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextView = button.dataset.vocabularyView;
-      if (!["quiz", "library"].includes(nextView) || nextView === state.vocabularyView) {
+      if (!VOCABULARY_VIEWS.has(nextView) || nextView === state.vocabularyView) {
         return;
       }
       state.vocabularyView = nextView;
@@ -1890,6 +1897,215 @@ function bindVocabularyViewSwitcher() {
       render();
     });
   });
+}
+
+function renderVocabularyPath() {
+  const path = getVocabularyPathData();
+  const recommended = getRecommendedVocabularyPathPart(path);
+  const totals = path.totals;
+  const coveragePercent = getVocabularyPathPercent(totals.introduced, totals.total);
+  const strongPercent = getVocabularyPathPercent(totals.strong, totals.total);
+  const recommendedMeta = recommended?.meta;
+
+  app.innerHTML = `
+    <section class="workspace-panel vocabulary-path">
+      ${buildVocabularyViewSwitcher()}
+      <div class="mode-heading vocabulary-path-heading">
+        <div>
+          <h2>HSK Vocabulary Path</h2>
+          <p>Move through the complete HSK 1 and HSK 2 vocabulary curriculum, one focused part at a time.</p>
+        </div>
+        <button class="primary-btn shortcut-btn vocabulary-path-continue" type="button" id="continueVocabularyPath" ${recommended ? "" : "disabled"}>
+          <span>${recommendedMeta ? `Continue ${escapeHtml(recommendedMeta.levelLabel)} ${escapeHtml(recommendedMeta.partLabel)}` : "No parts available"}</span>
+          ${shortcutHint("Enter")}
+        </button>
+      </div>
+
+      <div class="vocabulary-path-overview" aria-label="Overall HSK vocabulary progress">
+        <div>
+          <span>Coverage</span>
+          <strong>${coveragePercent}%</strong>
+          <small>${totals.introduced} of ${totals.total} introduced</small>
+        </div>
+        <div>
+          <span>Strong</span>
+          <strong>${strongPercent}%</strong>
+          <small>${totals.strong} words retained</small>
+        </div>
+        <div>
+          <span>Due now</span>
+          <strong>${totals.due}</strong>
+          <small>${totals.due === 1 ? "word needs review" : "words need review"}</small>
+        </div>
+        <div>
+          <span>Curriculum</span>
+          <strong>${path.parts.length}</strong>
+          <small>HSK parts</small>
+        </div>
+      </div>
+
+      <div class="vocabulary-path-legend" aria-label="Progress status legend">
+        <span class="is-strong">Strong</span>
+        <span class="is-learning">Learning</span>
+        <span class="is-due">Due</span>
+        <span class="is-new">New</span>
+      </div>
+
+      <div class="vocabulary-path-levels">
+        ${path.levels.map((level, index) => buildVocabularyPathLevelMarkup(level, {
+          open: recommended ? level.parts.some((part) => part.set.id === recommended.set.id) : index === 0,
+          recommendedSetId: recommended?.set.id || "",
+        })).join("")}
+      </div>
+    </section>
+  `;
+
+  bindVocabularyViewSwitcher();
+  document.querySelector("#continueVocabularyPath")?.addEventListener("click", () => {
+    if (recommended) {
+      startVocabularySetReview(recommended.set.id);
+    }
+  });
+  document.querySelectorAll("[data-vocabulary-path-review]").forEach((button) => {
+    button.addEventListener("click", () => startVocabularySetReview(button.dataset.vocabularyPathReview));
+  });
+  document.querySelectorAll("[data-vocabulary-path-quiz]").forEach((button) => {
+    button.addEventListener("click", () => openVocabularySetQuiz(button.dataset.vocabularyPathQuiz));
+  });
+}
+
+function getVocabularyPathData(progress = ensureReviewProgress(), now = Date.now(), sets = VOCABULARY_QUIZ_SETS) {
+  const levelsByLabel = new Map();
+  const totals = createVocabularyPathCounts();
+  const parts = sets.map((set) => {
+    const meta = getVocabularySetMeta(set);
+    const items = getVocabularySetReviewItems(set);
+    const counts = createVocabularyPathCounts(items.length);
+    items.forEach((item) => {
+      const status = getVocabularyLibraryStatus(item, progress, now).id;
+      counts[status] += 1;
+    });
+    counts.introduced = counts.total - counts.new;
+    addVocabularyPathCounts(totals, counts);
+    const part = { set, meta, items, counts };
+    const level = levelsByLabel.get(meta.levelLabel) || {
+      label: meta.levelLabel,
+      levelNumber: meta.levelNumber,
+      parts: [],
+      totals: createVocabularyPathCounts(),
+    };
+    level.parts.push(part);
+    addVocabularyPathCounts(level.totals, counts);
+    levelsByLabel.set(meta.levelLabel, level);
+    return part;
+  });
+
+  return {
+    levels: [...levelsByLabel.values()],
+    parts,
+    totals,
+  };
+}
+
+function createVocabularyPathCounts(total = 0) {
+  return { total, introduced: 0, new: 0, due: 0, learning: 0, strong: 0 };
+}
+
+function addVocabularyPathCounts(target, source) {
+  target.total += source.total;
+  target.introduced += source.introduced;
+  target.new += source.new;
+  target.due += source.due;
+  target.learning += source.learning;
+  target.strong += source.strong;
+  return target;
+}
+
+function getVocabularyPathPercent(count, total) {
+  if (!count || !total) {
+    return 0;
+  }
+  return Math.max(1, Math.round((count / total) * 100));
+}
+
+function getRecommendedVocabularyPathPart(path) {
+  return path.parts.find((part) => part.counts.due > 0) ||
+    path.parts.find((part) => part.counts.learning > 0) ||
+    path.parts.find((part) => part.counts.new > 0) ||
+    path.parts[0] || null;
+}
+
+function buildVocabularyPathLevelMarkup(level, { open = false, recommendedSetId = "" } = {}) {
+  const coveragePercent = getVocabularyPathPercent(level.totals.introduced, level.totals.total);
+  return `
+    <details class="vocabulary-path-level hsk-level-${escapeHtml(level.levelNumber)}" ${open ? "open" : ""}>
+      <summary>
+        <span class="vocabulary-path-level-number" aria-hidden="true">${escapeHtml(level.levelNumber)}</span>
+        <span class="vocabulary-path-level-copy">
+          <strong>${escapeHtml(level.label)}</strong>
+          <small>${level.totals.introduced} of ${level.totals.total} introduced · ${level.totals.strong} strong${level.totals.due ? ` · ${level.totals.due} due` : ""}</small>
+        </span>
+        <span class="vocabulary-path-level-progress" aria-label="${coveragePercent}% introduced">
+          <span><i style="width: ${coveragePercent}%"></i></span>
+          <strong>${coveragePercent}%</strong>
+        </span>
+        <span class="vocabulary-path-level-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="vocabulary-path-parts">
+        ${level.parts.map((part) => buildVocabularyPathPartMarkup(part, {
+          recommended: part.set.id === recommendedSetId,
+          totalParts: level.parts.length,
+        })).join("")}
+      </div>
+    </details>
+  `;
+}
+
+function buildVocabularyPathPartMarkup(part, { recommended = false, totalParts = 1 } = {}) {
+  const counts = part.counts;
+  const introducedPercent = getVocabularyPathPercent(counts.introduced, counts.total);
+  const segmentWidth = (count) => counts.total ? `${(count / counts.total) * 100}%` : "0%";
+  return `
+    <article class="vocabulary-path-part ${recommended ? "is-recommended" : ""}">
+      ${buildVocabularySetIconMarkup(part.set, totalParts)}
+      <div class="vocabulary-path-part-copy">
+        <div class="vocabulary-path-part-title">
+          <strong>${escapeHtml(part.meta.partLabel)}</strong>
+          ${recommended ? `<span>Up next</span>` : ""}
+        </div>
+        <p>${counts.total} words · ${counts.introduced} introduced · ${counts.strong} strong${counts.due ? ` · ${counts.due} due` : ""}</p>
+        <div
+          class="vocabulary-path-bar"
+          role="img"
+          aria-label="${counts.strong} strong, ${counts.learning} learning, ${counts.due} due, ${counts.new} new"
+        >
+          <span class="is-strong" style="width: ${segmentWidth(counts.strong)}"></span>
+          <span class="is-learning" style="width: ${segmentWidth(counts.learning)}"></span>
+          <span class="is-due" style="width: ${segmentWidth(counts.due)}"></span>
+        </div>
+      </div>
+      <div class="vocabulary-path-part-progress">
+        <strong>${introducedPercent}%</strong>
+        <span>covered</span>
+      </div>
+      <div class="vocabulary-path-part-actions">
+        <button class="secondary-btn" type="button" data-vocabulary-path-review="${escapeHtml(part.set.id)}">Review part</button>
+        <button class="ghost-btn" type="button" data-vocabulary-path-quiz="${escapeHtml(part.set.id)}">Timed quiz</button>
+      </div>
+    </article>
+  `;
+}
+
+function openVocabularySetQuiz(setId) {
+  if (!VOCABULARY_QUIZ_SETS.some((set) => set.id === setId)) {
+    return;
+  }
+  state.vocabularySetId = setId;
+  state.vocabularyView = "quiz";
+  state.result = null;
+  state.session = null;
+  saveSettings();
+  render();
 }
 
 function renderVocabularyLibrary() {
@@ -2253,6 +2469,25 @@ function startSavedVocabularyReview() {
   state.tool = "review";
   saveSettings();
   startReviewItems(selected, "saved");
+}
+
+function startVocabularySetReview(setId) {
+  const set = VOCABULARY_QUIZ_SETS.find((candidate) => candidate.id === setId);
+  if (!set?.words?.length) {
+    return;
+  }
+
+  const progress = ensureReviewProgress();
+  const queue = buildReviewQueue(progress, Date.now(), getVocabularySetReviewItems(set));
+  const selected = queue.slice(0, REVIEW_SESSION_LENGTH).map((entry, index) => ({
+    ...entry.item,
+    reviewMode: chooseReviewMode(entry.record, index),
+  }));
+  state.tool = "vocabulary";
+  state.vocabularyView = "path";
+  state.vocabularySetId = set.id;
+  saveSettings();
+  startReviewItems(selected, "path", { setId: set.id, setLabel: set.label });
 }
 
 function bookmarkIconMarkup(saved = false) {
@@ -2727,12 +2962,17 @@ function renderReviewSession() {
   const promptMarkup = isPinyin
     ? `<p class="review-prompt-word chinese-text" lang="zh-CN">${escapeHtml(current.zh)}</p>`
     : buildVocabularyPromptMarkup(current, "meaning", assessment);
+  const sourceLabel = session.source === "path"
+    ? formatVocabularyPathSetName(session.setId, session.setLabel)
+    : session.source === "saved"
+      ? "Saved Words"
+      : "Daily Review";
 
   app.innerHTML = `
     <section class="workspace-panel review-session">
       <div class="review-session-header">
         <div>
-          <span>Daily Review</span>
+          <span>${escapeHtml(sourceLabel)}</span>
           <strong>${isPinyin ? "Character to pinyin" : "Listen for the meaning"}</strong>
         </div>
         <div class="review-session-score">
@@ -2869,6 +3109,20 @@ function buildReviewFeedbackMarkup(item, assessment) {
 
 function renderReviewResults() {
   const result = state.result;
+  const isSavedReview = result.source === "saved";
+  const isPathReview = result.source === "path";
+  const pathSetName = formatVocabularyPathSetName(result.setId, result.setLabel);
+  const resultTitle = isSavedReview
+    ? "Saved Words Review Complete"
+    : isPathReview
+      ? `${pathSetName} Review Complete`
+      : "Daily Review Complete";
+  const restartLabel = isSavedReview
+    ? "Review saved again"
+    : isPathReview
+      ? `Review ${getVocabularySetMeta({ id: result.setId, label: result.setLabel }).partLabel} again`
+      : "Start another review";
+  const backLabel = isSavedReview ? "Back to word library" : isPathReview ? "Back to HSK path" : "Back to review";
   const correct = result.answers.filter((answer) => answer.correct).length;
   const strengthened = result.answers.filter((answer) => answer.reviewStage > answer.previousStage).length;
   const dashboard = getReviewDashboardData();
@@ -2888,15 +3142,15 @@ function renderReviewResults() {
     <section class="workspace-panel review-results">
       <div class="results-header">
         <div>
-          <h2>${result.source === "saved" ? "Saved Words Review Complete" : "Daily Review Complete"}</h2>
+          <h2>${escapeHtml(resultTitle)}</h2>
           <p>${correct} of ${result.answers.length} correct in ${formatTimer(result.elapsedSeconds)}.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn shortcut-btn" type="button" id="restartSession">
-            <span>${result.source === "saved" ? "Review saved again" : "Start another review"}</span>
+            <span>${escapeHtml(restartLabel)}</span>
             ${shortcutHint("Enter")}
           </button>
-          <button class="ghost-btn" type="button" id="backToModes">${result.source === "saved" ? "Back to word library" : "Back to review"}</button>
+          <button class="ghost-btn" type="button" id="backToModes">${escapeHtml(backLabel)}</button>
         </div>
       </div>
 
@@ -2916,17 +3170,35 @@ function renderReviewResults() {
     </section>
   `;
 
-  document.querySelector("#restartSession").addEventListener("click", result.source === "saved" ? startSavedVocabularyReview : startReviewSession);
+  document.querySelector("#restartSession").addEventListener("click", () => {
+    if (isSavedReview) {
+      startSavedVocabularyReview();
+    } else if (isPathReview) {
+      startVocabularySetReview(result.setId);
+    } else {
+      startReviewSession();
+    }
+  });
   document.querySelector("#backToModes").addEventListener("click", () => {
     state.result = null;
     state.session = null;
-    if (result.source === "saved") {
+    if (isSavedReview) {
       state.tool = "vocabulary";
       state.vocabularyView = "library";
+      saveSettings();
+    } else if (isPathReview) {
+      state.tool = "vocabulary";
+      state.vocabularyView = "path";
       saveSettings();
     }
     render();
   });
+}
+
+function formatVocabularyPathSetName(setId, setLabel = "") {
+  const set = VOCABULARY_QUIZ_SETS.find((candidate) => candidate.id === setId) || { id: setId, label: setLabel };
+  const meta = getVocabularySetMeta(set);
+  return `${meta.levelLabel} · ${meta.partLabel}`;
 }
 
 function buildVocabularySetPicker(selectedSetId) {
@@ -2976,16 +3248,23 @@ function buildVocabularySetButton(set, selectedSetId, totalParts = 1) {
       data-vocabulary-set-id="${escapeHtml(set.id)}"
       aria-pressed="${selected ? "true" : "false"}"
     >
-      <span class="quiz-set-icon" aria-hidden="true">
-        <span class="quiz-set-icon-level">${escapeHtml(meta.levelNumber || "V")}</span>
-        <span class="quiz-set-icon-part">${escapeHtml(meta.partBadge)}</span>
-        ${buildVocabularyPartMarks(meta.partNumber, totalParts)}
-      </span>
+      ${buildVocabularySetIconMarkup(set, totalParts)}
       <span class="quiz-set-card-text">
         <strong>${escapeHtml(meta.levelLabel)}</strong>
         <span>${escapeHtml(meta.partLabel)}</span>
       </span>
     </button>
+  `;
+}
+
+function buildVocabularySetIconMarkup(set, totalParts = 1) {
+  const meta = getVocabularySetMeta(set);
+  return `
+    <span class="quiz-set-icon" aria-hidden="true">
+      <span class="quiz-set-icon-level">${escapeHtml(meta.levelNumber || "V")}</span>
+      <span class="quiz-set-icon-part">${escapeHtml(meta.partBadge)}</span>
+      ${buildVocabularyPartMarks(meta.partNumber, totalParts)}
+    </span>
   `;
 }
 
@@ -3341,7 +3620,7 @@ function getHistoryRecordPresentation(record) {
   const typeLabel = record.type === "vocabulary"
     ? "Vocabulary quiz"
     : record.type === "review"
-      ? "Daily review"
+      ? record.source === "path" ? "HSK path review" : "Daily review"
       : record.type === "pronunciation"
         ? "Pronunciation"
         : record.type === "map"
@@ -3350,7 +3629,11 @@ function getHistoryRecordPresentation(record) {
   const modeLabel = record.type === "vocabulary"
     ? `${record.setLabel} · ${VOCABULARY_MODES[record.quizMode]?.label || record.quizMode}`
     : record.type === "review"
-      ? record.source === "saved" ? "Saved vocabulary" : "Adaptive vocabulary"
+      ? record.source === "saved"
+        ? "Saved vocabulary"
+        : record.source === "path"
+          ? `${formatVocabularyPathSetName(record.setId, record.setLabel)} · Focused review`
+          : "Adaptive vocabulary"
       : record.type === "pronunciation"
         ? selectedLevelLabels(record.levels)
       : record.type === "map"
@@ -6627,24 +6910,28 @@ function getAllVocabularyReviewItems() {
   const items = [];
 
   VOCABULARY_QUIZ_SETS.forEach((set) => {
-    (set.words || []).forEach((item) => {
+    getVocabularySetReviewItems(set).forEach((item) => {
       const key = reviewItemKey(item);
       if (!key || seen.has(key)) {
         return;
       }
 
       seen.add(key);
-      items.push({
-        ...item,
-        reviewKey: key,
-        setId: set.id,
-        setLabel: set.label,
-        level: set.level,
-      });
+      items.push(item);
     });
   });
 
   return items;
+}
+
+function getVocabularySetReviewItems(set) {
+  return (set?.words || []).map((item) => ({
+    ...item,
+    reviewKey: reviewItemKey(item),
+    setId: set.id,
+    setLabel: set.label,
+    level: set.level,
+  }));
 }
 
 function reviewItemKey(item) {
@@ -6888,7 +7175,7 @@ function startReviewSession() {
   })), "adaptive");
 }
 
-function startReviewItems(items, source = "adaptive") {
+function startReviewItems(items, source = "adaptive", { setId = "", setLabel = "" } = {}) {
   if (!items.length) {
     return;
   }
@@ -6899,6 +7186,8 @@ function startReviewItems(items, source = "adaptive") {
   state.session = {
     type: "review",
     source,
+    setId,
+    setLabel,
     items,
     index: 0,
     answers: [],
@@ -7000,6 +7289,11 @@ function startActiveSession() {
   if (state.tool === "vocabulary") {
     if (state.vocabularyView === "library") {
       startSavedVocabularyReview();
+    } else if (state.vocabularyView === "path") {
+      const recommended = getRecommendedVocabularyPathPart(getVocabularyPathData());
+      if (recommended) {
+        startVocabularySetReview(recommended.set.id);
+      }
     } else {
       startVocabularySession();
     }
@@ -7575,6 +7869,8 @@ function buildSessionResult(session) {
     return {
       type: "review",
       source: session.source || "adaptive",
+      setId: session.setId || "",
+      setLabel: session.setLabel || "",
       items: session.items,
       answers: session.answers,
       elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
@@ -7681,6 +7977,8 @@ function buildHistoryRecord(result) {
       id,
       type: "review",
       source: result.source || "adaptive",
+      setId: result.setId || "",
+      setLabel: result.setLabel || "",
       completedAt,
       total: result.answers.length,
       correct,

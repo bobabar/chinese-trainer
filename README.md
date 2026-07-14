@@ -33,6 +33,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 ## Features
 
+- First-run study setup turns an HSK target or level check plus a learning focus into an editable daily plan, while existing learners migrate without interruption.
 - Today turns saved progress into a three-session daily plan, recommends the next activity, and shows a seven-day practice streak and learning snapshot.
 - The HSK mastery roadmap connects vocabulary coverage, spaced retention, grammar strength, and separate Pinyin and Audio benchmarks into a persistent HSK 1 or HSK 2 study target with a direct next action.
 - A 20-question HSK 1–2 placement check samples vocabulary and grammar, explains each answer, recommends a starting roadmap, and saves the result for later review.

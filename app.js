@@ -28,6 +28,21 @@ const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "gramm
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+const STUDY_FOCUSES = {
+  balanced: {
+    label: "Balanced",
+    description: "Vocabulary, pronunciation, and grammar or sentence practice.",
+  },
+  speaking: {
+    label: "Listening & speaking",
+    description: "Pronunciation, audio comprehension, and active vocabulary recall.",
+  },
+  literacy: {
+    label: "Reading & writing",
+    description: "Written sentence production, grammar, and vocabulary recall.",
+  },
+};
+
 const LEVELS = [
   { id: "beginner", label: "Beginner" },
   { id: "intermediate", label: "Intermediate" },
@@ -435,6 +450,11 @@ const state = {
   vocabularyLibraryStatus: "all",
   vocabularyLibraryVisibleCount: VOCABULARY_LIBRARY_PAGE_SIZE,
   studyTargetLevel: 1,
+  studyFocus: "balanced",
+  onboardingComplete: false,
+  studyPlanLevelChoice: "1",
+  studyPlanFocusChoice: "balanced",
+  planSetupOpen: false,
   grammarLevel: 1,
   grammarLessonId: "",
   mapQuizMode: DEFAULT_MAP_QUIZ_MODE,
@@ -481,8 +501,11 @@ function init() {
 }
 
 function loadSettings() {
+  let hadSavedSettings = false;
   try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    const rawSettings = localStorage.getItem(SETTINGS_KEY);
+    hadSavedSettings = Boolean(rawSettings);
+    const saved = JSON.parse(rawSettings || "{}");
     if (saved.mode && MODES[saved.mode]) {
       state.mode = saved.mode;
     }
@@ -520,6 +543,10 @@ function loadSettings() {
     state.studyTargetLevel = [1, 2].includes(Number(saved.studyTargetLevel))
       ? Number(saved.studyTargetLevel)
       : state.grammarLevel;
+    state.studyFocus = STUDY_FOCUSES[saved.studyFocus] ? saved.studyFocus : "balanced";
+    state.onboardingComplete = typeof saved.onboardingComplete === "boolean"
+      ? saved.onboardingComplete
+      : hadSavedSettings;
     if (saved.grammarLessonId && GRAMMAR_LESSONS.some((lesson) => lesson.id === saved.grammarLessonId)) {
       state.grammarLessonId = saved.grammarLessonId;
     }
@@ -542,6 +569,7 @@ function loadSettings() {
     }
   } catch {
     state.selectedLevels = new Set(["beginner"]);
+    state.onboardingComplete = hadSavedSettings;
   }
 
   if (!state.selectedLevels.size) {
@@ -551,6 +579,8 @@ function loadSettings() {
   if (!state.vocabularySetId && VOCABULARY_QUIZ_SETS[0]) {
     state.vocabularySetId = VOCABULARY_QUIZ_SETS[0].id;
   }
+  state.studyPlanLevelChoice = String(state.studyTargetLevel);
+  state.studyPlanFocusChoice = state.studyFocus;
 
   voiceSpeed.value = state.voiceSpeed;
   vocabularyOrder.value = state.vocabularyOrder;
@@ -573,6 +603,8 @@ function saveSettings() {
         vocabularyOrder: state.vocabularyOrder,
         vocabularyHideTranslations: state.vocabularyHideTranslations,
         studyTargetLevel: state.studyTargetLevel,
+        studyFocus: state.studyFocus,
+        onboardingComplete: state.onboardingComplete,
         grammarLevel: state.grammarLevel,
         grammarLessonId: state.grammarLessonId,
         mapQuizMode: state.mapQuizMode,
@@ -601,6 +633,7 @@ function bindTopLevelControls() {
       stopPronunciationRecognition();
       stopSpeech();
       state.tool = nextTool;
+      state.planSetupOpen = false;
       state.session = null;
       state.result = null;
       state.dataError = "";
@@ -948,7 +981,8 @@ function isTypingTarget(target) {
 }
 
 function shouldStartSessionFromShortcut(target) {
-  return !isTypingTarget(target) && !state.result;
+  const interactiveTarget = target?.closest?.("button, a, summary, [role='button']");
+  return !isTypingTarget(target) && !interactiveTarget && !state.result;
 }
 
 function sessionUsesAudioPrompt(session) {
@@ -1336,7 +1370,11 @@ function render() {
 
   stopVocabularyTimer();
   if (state.tool === "dashboard") {
-    renderDashboardHome();
+    if (!state.onboardingComplete || state.planSetupOpen) {
+      renderStudyPlanSetup();
+    } else {
+      renderDashboardHome();
+    }
     return;
   }
 
@@ -1466,9 +1504,168 @@ function uploadIconMarkup() {
   `;
 }
 
+function getStudyFocus(focus = state.studyFocus) {
+  return STUDY_FOCUSES[focus] || STUDY_FOCUSES.balanced;
+}
+
+function getStudyPlanPreview(focus = state.studyPlanFocusChoice) {
+  if (focus === "speaking") {
+    return [
+      ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
+      ["Listening sentence drill", "Train meaning recall from spoken Mandarin"],
+      ["HSK vocabulary review", "Keep target-level words active with spaced practice"],
+    ];
+  }
+  if (focus === "literacy") {
+    return [
+      ["Writing sentence drill", "Produce Chinese from an English prompt"],
+      ["Grammar pattern practice", "Use core structures in context"],
+      ["HSK vocabulary review", "Keep target-level words active with spaced practice"],
+    ];
+  }
+  return [
+    ["HSK vocabulary review", "Build recall with a target-level adaptive queue"],
+    ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
+    ["Grammar or sentence practice", "Rotate language skills using recent results"],
+  ];
+}
+
+function renderStudyPlanSetup() {
+  const isEditing = state.onboardingComplete;
+  const levelChoice = state.studyPlanLevelChoice;
+  const focusChoice = STUDY_FOCUSES[state.studyPlanFocusChoice] ? state.studyPlanFocusChoice : "balanced";
+  const selectedFocus = getStudyFocus(focusChoice);
+  const preview = getStudyPlanPreview(focusChoice);
+  const levelOptions = [
+    { id: "1", label: "HSK 1", detail: "Build the foundation" },
+    { id: "2", label: "HSK 2", detail: "Continue beyond the basics" },
+    { id: "placement", label: "Not sure", detail: "Take the level check" },
+  ];
+
+  app.innerHTML = `
+    <section class="workspace-panel study-plan-setup">
+      <header class="study-plan-header">
+        <div>
+          <span>${isEditing ? "Study preferences" : "First step"}</span>
+          <h2>${isEditing ? "Edit your study plan" : "Build your study plan"}</h2>
+          <p>Choose where to start and what you want to improve. Today will turn those choices into a focused daily mix.</p>
+        </div>
+        ${isEditing ? `<button class="ghost-btn study-plan-cancel" type="button" id="cancelStudyPlan">Cancel</button>` : ""}
+      </header>
+
+      <div class="study-plan-layout">
+        <div class="study-plan-form">
+          <section class="study-plan-field" aria-labelledby="studyPlanLevelHeading">
+            <div class="study-plan-field-heading">
+              <span>1</span>
+              <div>
+                <h3 id="studyPlanLevelHeading">Choose your starting point</h3>
+                <p>You can switch HSK roadmaps at any time.</p>
+              </div>
+            </div>
+            <div class="study-plan-choice-grid study-plan-level-grid" role="group" aria-label="Starting level">
+              ${levelOptions.map((option) => `
+                <button
+                  class="study-plan-choice ${levelChoice === option.id ? "active" : ""}"
+                  type="button"
+                  data-study-plan-level="${option.id}"
+                  aria-pressed="${levelChoice === option.id}">
+                  <strong>${escapeHtml(option.label)}</strong>
+                  <span>${escapeHtml(option.detail)}</span>
+                </button>
+              `).join("")}
+            </div>
+          </section>
+
+          <section class="study-plan-field" aria-labelledby="studyPlanFocusHeading">
+            <div class="study-plan-field-heading">
+              <span>2</span>
+              <div>
+                <h3 id="studyPlanFocusHeading">Choose your focus</h3>
+                <p>The plan still keeps vocabulary in every study day.</p>
+              </div>
+            </div>
+            <div class="study-plan-choice-grid study-plan-focus-grid" role="group" aria-label="Learning focus">
+              ${Object.entries(STUDY_FOCUSES).map(([id, focus]) => `
+                <button
+                  class="study-plan-choice ${focusChoice === id ? "active" : ""}"
+                  type="button"
+                  data-study-plan-focus="${id}"
+                  aria-pressed="${focusChoice === id}">
+                  <strong>${escapeHtml(focus.label)}</strong>
+                  <span>${escapeHtml(focus.description)}</span>
+                </button>
+              `).join("")}
+            </div>
+          </section>
+        </div>
+
+        <aside class="study-plan-preview" aria-live="polite">
+          <span>Your daily mix</span>
+          <h3>${escapeHtml(selectedFocus.label)} plan</h3>
+          <p>${levelChoice === "placement" ? "Your level check will set the HSK roadmap." : `Starting with the HSK ${levelChoice} roadmap.`}</p>
+          <ol>
+            ${preview.map(([title, detail], index) => `
+              <li>
+                <span>${index + 1}</span>
+                <div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small></div>
+              </li>
+            `).join("")}
+          </ol>
+          <div class="study-plan-actions">
+            <button class="primary-btn shortcut-btn" type="button" id="completeStudyPlan">
+              <span>${levelChoice === "placement" ? "Start level check" : isEditing ? "Save study plan" : "Create my plan"}</span>
+              ${shortcutHint("Enter")}
+            </button>
+            <small>Preferences and progress are saved privately in this browser.</small>
+          </div>
+        </aside>
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-study-plan-level]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.studyPlanLevelChoice = button.dataset.studyPlanLevel;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-study-plan-focus]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.studyPlanFocusChoice = button.dataset.studyPlanFocus;
+      render();
+    });
+  });
+  document.querySelector("#completeStudyPlan")?.addEventListener("click", completeStudyPlanSetup);
+  document.querySelector("#cancelStudyPlan")?.addEventListener("click", () => {
+    state.planSetupOpen = false;
+    state.studyPlanLevelChoice = String(state.studyTargetLevel);
+    state.studyPlanFocusChoice = state.studyFocus;
+    render();
+    window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+  });
+}
+
+function completeStudyPlanSetup() {
+  const levelChoice = state.studyPlanLevelChoice;
+  state.studyFocus = STUDY_FOCUSES[state.studyPlanFocusChoice] ? state.studyPlanFocusChoice : "balanced";
+  state.onboardingComplete = true;
+  state.planSetupOpen = false;
+  if (levelChoice === "placement") {
+    saveSettings();
+    startPlacementSession();
+    return;
+  }
+  setStudyTargetLevel(Number(levelChoice));
+  state.studyPlanLevelChoice = String(state.studyTargetLevel);
+  render();
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+}
+
 function renderDashboardHome() {
   const dashboard = getDashboardData();
   const roadmap = getHskRoadmapData(state.studyTargetLevel);
+  const studyFocus = getStudyFocus();
   const nextActivity = dashboard.nextActivity;
   const goalComplete = dashboard.completedCount >= DASHBOARD_DAILY_GOAL;
   const goalAngle = Math.round(dashboard.goalProgress * 3.6);
@@ -1508,15 +1705,18 @@ function renderDashboardHome() {
           <h2>${escapeHtml(getDashboardGreeting(dashboard.now))}</h2>
           <p>${goalComplete
             ? "Your daily plan is complete. Extra practice now will strengthen what you learned."
-            : "A focused plan built from your vocabulary schedule and recent practice."}</p>
-          <button
-            class="primary-btn shortcut-btn dashboard-primary"
-            type="button"
-            data-dashboard-start="${escapeHtml(nextActivity.tool)}"
-            data-dashboard-mode="${escapeHtml(nextActivity.mode || "")}">
-            <span>${goalComplete ? `Practice ${nextActivity.title}` : `Continue: ${nextActivity.title}`}</span>
-            ${shortcutHint("Enter")}
-          </button>
+            : `A ${studyFocus.label.toLowerCase()} plan built from your HSK target and recent practice.`}</p>
+          <div class="dashboard-hero-actions">
+            <button
+              class="primary-btn shortcut-btn dashboard-primary"
+              type="button"
+              data-dashboard-start="${escapeHtml(nextActivity.tool)}"
+              data-dashboard-mode="${escapeHtml(nextActivity.mode || "")}">
+              <span>${goalComplete ? `Practice ${nextActivity.title}` : `Continue: ${nextActivity.title}`}</span>
+              ${shortcutHint("Enter")}
+            </button>
+            <button class="ghost-btn dashboard-edit-plan" type="button" id="editStudyPlan">Edit plan</button>
+          </div>
         </div>
         <div class="dashboard-goal" aria-label="${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL} daily activities complete">
           <div class="dashboard-goal-ring" style="--dashboard-goal-angle: ${goalAngle}deg">
@@ -1534,7 +1734,7 @@ function renderDashboardHome() {
           <div class="dashboard-section-heading">
             <div>
               <h3 id="dashboardPlanHeading">Today&rsquo;s plan</h3>
-              <p>Three complete sessions make a focused study day.</p>
+              <p>Three ${escapeHtml(studyFocus.label.toLowerCase())} sessions make a focused study day.</p>
             </div>
             <strong>${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL}</strong>
           </div>
@@ -1589,6 +1789,12 @@ function renderDashboardHome() {
       launchDashboardActivity(button.dataset.dashboardStart, button.dataset.dashboardMode || "");
     });
   });
+  document.querySelector("#editStudyPlan")?.addEventListener("click", () => {
+    state.studyPlanLevelChoice = String(state.studyTargetLevel);
+    state.studyPlanFocusChoice = state.studyFocus;
+    state.planSetupOpen = true;
+    render();
+  });
   document.querySelectorAll("[data-roadmap-level]").forEach((button) => {
     button.addEventListener("click", () => {
       const level = Number(button.dataset.roadmapLevel);
@@ -1607,7 +1813,7 @@ function renderDashboardHome() {
 
 function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
   const review = getReviewDashboardData(now);
-  const plan = buildDashboardPlan(history, review, now);
+  const plan = buildDashboardPlan(history, review, now, state.studyFocus);
   const completedCount = plan.filter((activity) => activity.completed).length;
   const week = getDashboardWeek(history, now);
   const todayKey = localDateKey(now);
@@ -2295,6 +2501,7 @@ function renderPlacementResults() {
     state.session = null;
     state.tool = "dashboard";
     render();
+    window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
   });
   document.querySelector("#retakePlacement")?.addEventListener("click", startPlacementSession);
   document.querySelector("#backFromPlacement")?.addEventListener("click", () => {
@@ -2305,7 +2512,7 @@ function renderPlacementResults() {
   });
 }
 
-function buildDashboardPlan(history, review, now = Date.now()) {
+function buildDashboardPlan(history, review, now = Date.now(), focus = state.studyFocus) {
   const todayKey = localDateKey(now);
   const completedTypes = new Set(
     history
@@ -2321,25 +2528,69 @@ function buildDashboardPlan(history, review, now = Date.now()) {
     ? `${review.dueCount} due ${review.dueCount === 1 ? "word" : "words"} · mixed pinyin and listening`
     : review.totalTracked
       ? "12-word retrieval practice to maintain recall"
-      : "Build your adaptive HSK vocabulary baseline";
+      : `Build your adaptive HSK ${state.studyTargetLevel} vocabulary baseline`;
 
-  return [
-    {
-      id: "review",
-      tool: "review",
-      title: "Daily vocabulary review",
-      detail: reviewDetail,
-      completed: completedTypes.has("review"),
-    },
-    {
-      id: "pronunciation",
-      tool: "pronunciation",
-      title: "Pronunciation practice",
-      detail: "15 short sentences with word-level feedback",
-      completed: completedTypes.has("pronunciation"),
-    },
-    languageActivity,
-  ];
+  const reviewActivity = {
+    id: "review",
+    tool: "review",
+    title: "Daily vocabulary review",
+    detail: reviewDetail,
+    completed: completedTypes.has("review"),
+  };
+  const pronunciationActivity = {
+    id: "pronunciation",
+    tool: "pronunciation",
+    title: "Pronunciation practice",
+    detail: "15 short sentences with word-level feedback",
+    completed: completedTypes.has("pronunciation"),
+  };
+  const selectedFocus = STUDY_FOCUSES[focus] ? focus : "balanced";
+  if (selectedFocus === "speaking") {
+    return [
+      pronunciationActivity,
+      buildFocusedDrillActivity(history, "listening", now),
+      reviewActivity,
+    ];
+  }
+  if (selectedFocus === "literacy") {
+    return [
+      buildFocusedDrillActivity(history, "writing", now),
+      {
+        id: "grammar",
+        tool: "grammar",
+        title: "Grammar pattern practice",
+        detail: "10 contextual questions from your current HSK level",
+        completed: history.some((record) =>
+          record.type === "grammar" &&
+          localDateKey(Date.parse(record.completedAt)) === todayKey &&
+          isDashboardPlanRecordComplete(record),
+        ),
+      },
+      reviewActivity,
+    ];
+  }
+  return [reviewActivity, pronunciationActivity, languageActivity];
+}
+
+function buildFocusedDrillActivity(history, mode, now = Date.now()) {
+  const targetMode = MODES[mode] ? mode : "reading";
+  const label = MODES[targetMode].label;
+  const todayKey = localDateKey(now);
+  return {
+    id: `${targetMode}-drill`,
+    tool: "drill",
+    mode: targetMode,
+    title: `${label} sentence drill`,
+    detail: targetMode === "listening"
+      ? "30 spoken sentences for audio comprehension"
+      : "30 English prompts for written Chinese production",
+    completed: history.some((record) =>
+      record.type === "drill" &&
+      record.mode === targetMode &&
+      localDateKey(Date.parse(record.completedAt)) === todayKey &&
+      isDashboardPlanRecordComplete(record),
+    ),
+  };
 }
 
 function getRecommendedLanguageActivity(history, drillMode = getRecommendedDrillMode(history), drillLabel = MODES[drillMode]?.label || "Reading", now = Date.now()) {
@@ -2510,8 +2761,8 @@ function getDashboardFocusInsight(history, review) {
   }
 
   return {
-    title: "Build your learning baseline",
-    detail: "Start with adaptive vocabulary review so future practice can respond to your results.",
+    title: `Build your HSK ${state.studyTargetLevel} learning baseline`,
+    detail: "Start with target-level vocabulary review so future practice can respond to your results.",
     tool: "review",
   };
 }
@@ -9655,14 +9906,23 @@ function updateReviewProgressFromVocabularyResult(result) {
   saveReviewProgress(progress);
 }
 
-function buildReviewQueue(progress = ensureReviewProgress(), now = Date.now(), vocabulary = getAllVocabularyReviewItems()) {
+function buildReviewQueue(
+  progress = ensureReviewProgress(),
+  now = Date.now(),
+  vocabulary = getAllVocabularyReviewItems(),
+  targetLevel = state.studyTargetLevel,
+) {
   const due = [];
   const unseen = [];
   const upcoming = [];
+  const normalizedTargetLevel = [1, 2].includes(Number(targetLevel)) ? Number(targetLevel) : 1;
 
   vocabulary.forEach((item, sourceIndex) => {
     const record = progress[reviewItemKey(item)];
     if (!record) {
+      if (Number(getVocabularySetMeta(item).levelNumber) !== normalizedTargetLevel) {
+        return;
+      }
       unseen.push({ item, record: null, sourceIndex, statusLabel: "New", statusClass: "is-new" });
       return;
     }
@@ -9877,6 +10137,10 @@ function commitReviewAssessment(session, item, assessment) {
 
 function startActiveSession() {
   if (state.tool === "dashboard") {
+    if (!state.onboardingComplete || state.planSetupOpen) {
+      completeStudyPlanSetup();
+      return;
+    }
     const dashboard = getDashboardData();
     launchDashboardActivity(dashboard.nextActivity.tool, dashboard.nextActivity.mode || "");
     return;

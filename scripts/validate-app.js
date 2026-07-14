@@ -111,6 +111,7 @@ window.__tests = {
   PLACEMENT_VOCABULARY_PER_LEVEL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  STUDY_FOCUSES,
   TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
@@ -175,6 +176,7 @@ window.__tests = {
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
+  getStudyPlanPreview,
   getDashboardWeek,
   getHistoryActivityDays,
   getHistoryMistakeRetryData,
@@ -241,6 +243,7 @@ window.__tests = {
   scoreVocabularyMeaning,
   selectNextVocabularyRowAfter,
   sessionUsesAudioPrompt,
+  shouldStartSessionFromShortcut,
   speak,
   state,
   stopSpeech,
@@ -265,6 +268,7 @@ const {
   PLACEMENT_VOCABULARY_PER_LEVEL,
   PROGRESS_ACTIVITY_DAYS,
   REVIEW_SESSION_LENGTH,
+  STUDY_FOCUSES,
   TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
@@ -329,6 +333,7 @@ const {
   getDashboardData,
   getDashboardFocusInsight,
   getDashboardPronunciationAccuracy,
+  getStudyPlanPreview,
   getDashboardWeek,
   getHistoryActivityDays,
   getHistoryMistakeRetryData,
@@ -395,6 +400,7 @@ const {
   scoreVocabularyMeaning,
   selectNextVocabularyRowAfter,
   sessionUsesAudioPrompt,
+  shouldStartSessionFromShortcut,
   speak,
   state,
   stopSpeech,
@@ -633,7 +639,13 @@ assert(
 localStorageEntries.delete("chineseTrainerHistory");
 const backupStorageSnapshot = new Map(localStorageEntries);
 const backupTimestamp = Date.UTC(2026, 6, 15, 8, 30, 0);
-localStorageEntries.set("chineseTrainerSettings", JSON.stringify({ mode: "writing", voiceSpeed: "slow", studyTargetLevel: 2 }));
+localStorageEntries.set("chineseTrainerSettings", JSON.stringify({
+  mode: "writing",
+  voiceSpeed: "slow",
+  studyTargetLevel: 2,
+  studyFocus: "speaking",
+  onboardingComplete: true,
+}));
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
   { id: "backup-drill", type: "drill", mode: "reading" },
 ]));
@@ -650,6 +662,8 @@ assert(
 assert(
   learningBackup.data.history[0].id === "backup-drill" &&
     learningBackup.data.settings.studyTargetLevel === 2 &&
+    learningBackup.data.settings.studyFocus === "speaking" &&
+    learningBackup.data.settings.onboardingComplete === true &&
     learningBackup.data.reviewProgress["爱::ài"].stage === 2 &&
     learningBackup.data.savedVocabulary[0] === "爱::ài" &&
     learningBackup.data.savedSentences[0] === "library-love",
@@ -720,6 +734,22 @@ assert(missedReviewSchedule.reviewStage === 0 && missedReviewSchedule.nextDueAt 
 const reviewQueue = buildReviewQueue(reviewProgressFixture, reviewNow, reviewVocabulary.slice(0, 4));
 assert(reviewItemKey(reviewQueue[0].item) === reviewItemKey(reviewVocabulary[1]), "due review words should be prioritized ahead of new and upcoming words");
 assert(reviewQueue[0].statusLabel === "Due" && reviewQueue.some((entry) => entry.statusLabel === "New"), "review queue should distinguish due and new words");
+const firstHsk1ReviewItem = reviewVocabulary.find((item) => Number(getVocabularySetMeta(item).levelNumber) === 1);
+const firstHsk2ReviewItem = reviewVocabulary.find((item) => Number(getVocabularySetMeta(item).levelNumber) === 2);
+const hsk2BaselineQueue = buildReviewQueue({}, reviewNow, reviewVocabulary, 2);
+assert(
+  Number(getVocabularySetMeta(hsk2BaselineQueue[0].item).levelNumber) === 2 &&
+    hsk2BaselineQueue.every((entry) => entry.record || Number(getVocabularySetMeta(entry.item).levelNumber) === 2),
+  "a new HSK 2 learner should receive HSK 2 unseen words instead of an HSK 1 baseline",
+);
+const crossLevelDueQueue = buildReviewQueue({
+  [reviewItemKey(firstHsk1ReviewItem)]: { stage: 1, dueAt: reviewNow - 1, lapses: 0 },
+}, reviewNow, reviewVocabulary, 2);
+assert(
+  reviewItemKey(crossLevelDueQueue[0].item) === reviewItemKey(firstHsk1ReviewItem) &&
+    crossLevelDueQueue.some((entry) => reviewItemKey(entry.item) === reviewItemKey(firstHsk2ReviewItem) && entry.statusLabel === "New"),
+  "changing HSK targets should retain due words from earlier study while introducing new words from the selected level",
+);
 assert(formatReviewDueLabel(reviewNow, false, reviewNow) === "Due now", "missed words should clearly show that they are immediately due");
 assert(formatReviewDueLabel(reviewNow + 24 * 60 * 60 * 1000, true, reviewNow) === "Tomorrow", "one-day review intervals should use a clear tomorrow label");
 const firstPathSet = VOCABULARY_QUIZ_SETS[0];
@@ -811,6 +841,22 @@ assert(!isDashboardPlanRecordComplete({ type: "review", total: 2 }), "an early-e
 const dashboardPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow);
 assert(dashboardPlan.filter((activity) => activity.completed).length === 2, "Today should recognize completed review and pronunciation activities");
 assert(dashboardPlan.find((activity) => activity.id === "grammar") && !dashboardPlan.find((activity) => activity.id === "grammar").completed, "Today should introduce grammar when it has not been practiced");
+assert(Object.keys(STUDY_FOCUSES).join("|") === "balanced|speaking|literacy", "study setup should offer three distinct daily-plan focuses");
+const speakingDashboardPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow, "speaking");
+assert(
+  speakingDashboardPlan.map((activity) => `${activity.tool}:${activity.mode || ""}`).join("|") === "pronunciation:|drill:listening|review:",
+  "the listening and speaking focus should prioritize pronunciation and a listening drill",
+);
+const literacyDashboardPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow, "literacy");
+assert(
+  literacyDashboardPlan.map((activity) => `${activity.tool}:${activity.mode || ""}`).join("|") === "drill:writing|grammar:|review:",
+  "the reading and writing focus should prioritize writing and grammar",
+);
+assert(
+  getStudyPlanPreview("speaking")[1][0] === "Listening sentence drill" &&
+    getStudyPlanPreview("literacy")[0][0] === "Writing sentence drill",
+  "study setup previews should accurately reflect the plan that will be created",
+);
 const completedGrammarPlan = buildDashboardPlan([
   { type: "grammar", scope: "mixed", completedAt: new Date(dashboardNow).toISOString(), total: 10, correct: 8 },
   ...dashboardHistory,
@@ -829,6 +875,29 @@ assert(dueFocus.tool === "review" && dueFocus.title.includes("3 vocabulary words
 const dashboardData = getDashboardData(dashboardNow, dashboardHistory);
 assert(dashboardData.completedCount === 2 && dashboardData.nextActivity.id === "grammar", "Today should continue with the first incomplete adaptive activity");
 assert(stylesSource.includes(".dashboard-week-chart") && stylesSource.includes("body[data-tool=\"dashboard\"] .tool-controls"), "Today should have responsive dashboard styling and hide irrelevant global controls");
+assert(
+  appSource.includes('id="completeStudyPlan"') &&
+    appSource.includes('data-study-plan-level="${option.id}"') &&
+    appSource.includes('data-study-plan-focus="${id}"') &&
+    appSource.includes('id="editStudyPlan"'),
+  "new and returning learners should be able to create and edit a personalized study plan",
+);
+assert(
+  appSource.includes('state.onboardingComplete = typeof saved.onboardingComplete === "boolean"') &&
+    appSource.includes('state.onboardingComplete = true;'),
+  "study-plan onboarding should persist while treating pre-existing settings as a completed migration",
+);
+assert(
+  stylesSource.includes(".study-plan-layout") &&
+    stylesSource.includes(".study-plan-focus-grid") &&
+    stylesSource.includes(".dashboard-hero-actions"),
+  "study setup and the editable plan controls should have responsive product styling",
+);
+assert(shouldStartSessionFromShortcut(null), "Enter should still launch the primary action when focus is not inside a control");
+assert(
+  !shouldStartSessionFromShortcut({ closest: () => ({ tagName: "BUTTON" }) }),
+  "Enter on a focused setup button should use its native selection action instead of completing onboarding",
+);
 const emptyHsk1Roadmap = getHskRoadmapData(1, {
   history: [],
   progress: {},

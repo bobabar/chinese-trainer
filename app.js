@@ -12,7 +12,6 @@ const PROGRESS_MISTAKE_LIMIT = 6;
 const SETTINGS_KEY = "chineseTrainerSettings";
 const SETTINGS_VERSION = 2;
 const HISTORY_KEY = "chineseTrainerHistory";
-const RETIRED_MEMORY_PROGRESS_KEY = "chineseTrainerMemoryProgress";
 const REVIEW_PROGRESS_KEY = "chineseTrainerReviewProgress";
 const SAVED_VOCABULARY_KEY = "chineseTrainerSavedVocabulary";
 const HISTORY_LIMIT = 100;
@@ -391,7 +390,6 @@ function init() {
     throw new Error("Chinese Trainer could not find its required page elements.");
   }
 
-  purgeRetiredMemoryData();
   loadSettings();
   renderLevelOptions();
   syncVocabularyOptionControls();
@@ -7833,24 +7831,6 @@ function loadHistoryRecords() {
       : [];
   } catch {
     return [];
-  }
-}
-
-function purgeRetiredMemoryData() {
-  localStorage.removeItem(RETIRED_MEMORY_PROGRESS_KEY);
-
-  try {
-    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    if (!Array.isArray(parsed)) {
-      return;
-    }
-
-    const supportedRecords = parsed.filter((record) => record && SUPPORTED_HISTORY_TYPES.has(record.type));
-    if (supportedRecords.length !== parsed.length) {
-      saveHistoryRecords(supportedRecords);
-    }
-  } catch {
-    // Malformed history can still be removed with the History screen's clear action.
   }
 }
 

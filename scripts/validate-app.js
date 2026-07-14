@@ -183,7 +183,6 @@ window.__tests = {
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
-  purgeRetiredMemoryData,
   reviewItemKey,
   scoreEnglish,
   scorePinyin,
@@ -290,7 +289,6 @@ const {
   normalizeEnglish,
   normalizePinyinForCompare,
   parsePinyinSyllable,
-  purgeRetiredMemoryData,
   reviewItemKey,
   scoreEnglish,
   scorePinyin,
@@ -342,21 +340,14 @@ assert(
   "sentence drill modes should show Reading, Writing, then Listening",
 );
 assert(!/<body[^>]*data-mode=/i.test(indexSource), "initial page markup should not make the body look like a drill mode control");
-localStorageEntries.set("chineseTrainerMemoryProgress", JSON.stringify({ ren: { attempts: 1 } }));
 localStorageEntries.set("chineseTrainerHistory", JSON.stringify([
-  { id: "retired-memory", type: "memory" },
+  { id: "unsupported-record", type: "unsupported" },
   { id: "kept-drill", type: "drill" },
   { id: "kept-review", type: "review" },
 ]));
 assert(
   loadHistoryRecords().map((record) => record.id).join("|") === "kept-drill|kept-review",
-  "history loading should ignore records from retired tools",
-);
-purgeRetiredMemoryData();
-assert(!localStorageEntries.has("chineseTrainerMemoryProgress"), "retired memory progress should be removed from browser storage");
-assert(
-  JSON.parse(localStorageEntries.get("chineseTrainerHistory")).map((record) => record.id).join("|") === "kept-drill|kept-review",
-  "retired memory sessions should be removed from browser history",
+  "history loading should ignore unsupported record types",
 );
 localStorageEntries.delete("chineseTrainerHistory");
 const reviewVocabulary = getAllVocabularyReviewItems();

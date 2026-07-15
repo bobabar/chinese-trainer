@@ -541,6 +541,15 @@ const globalSearchResults = document.querySelector("#globalSearchResults");
 const globalSearchClose = document.querySelector("#globalSearchClose");
 const globalSearchSavedCount = document.querySelector("#globalSearchSavedCount");
 const globalSearchSavedActions = document.querySelector("#globalSearchSavedActions");
+const toolNavigation = document.querySelector("#toolNavigation");
+const mobileNavToggle = document.querySelector("#mobileNavToggle");
+const mobileNavClose = document.querySelector("#mobileNavClose");
+const mobileNavBackdrop = document.querySelector("#mobileNavBackdrop");
+const mobileMoreButton = document.querySelector("#mobileMoreButton");
+const mobileNavigationQuery = typeof window.matchMedia === "function"
+  ? window.matchMedia("(max-width: 980px)")
+  : { matches: false, addEventListener() {} };
+let mobileNavigationRestoreFocus = null;
 
 function init() {
   if (
@@ -565,6 +574,7 @@ function init() {
   renderLevelOptions();
   syncVocabularyOptionControls();
   bindTopLevelControls();
+  bindMobileNavigation();
   bindGlobalSearch();
   bindGlossTooltipAlignment();
   bindPwaLifecycle();
@@ -739,6 +749,7 @@ function bindTopLevelControls() {
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.addEventListener("click", () => {
       const nextTool = button.dataset.tool;
+      closeMobileNavigation({ restoreFocus: false });
       if (!TOOLS[nextTool] || nextTool === state.tool) return;
 
       const switchMessage = state.session?.type === "exam"
@@ -832,6 +843,71 @@ function bindTopLevelControls() {
     saveSettings();
     render();
   });
+}
+
+function bindMobileNavigation() {
+  mobileNavToggle?.addEventListener("click", openMobileNavigation);
+  mobileMoreButton?.addEventListener("click", openMobileNavigation);
+  mobileNavClose?.addEventListener("click", () => closeMobileNavigation());
+  mobileNavBackdrop?.addEventListener("click", () => closeMobileNavigation());
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.body.classList.contains("mobile-nav-open")) {
+      closeMobileNavigation();
+    }
+  });
+  mobileNavigationQuery.addEventListener?.("change", syncMobileNavigationMode);
+  syncMobileNavigationMode();
+}
+
+function openMobileNavigation(event) {
+  if (!mobileNavigationQuery.matches || !toolNavigation) return;
+  mobileNavigationRestoreFocus = event?.currentTarget instanceof HTMLElement
+    ? event.currentTarget
+    : document.activeElement;
+  document.body.classList.add("mobile-nav-open");
+  toolNavigation.removeAttribute("inert");
+  toolNavigation.setAttribute("aria-hidden", "false");
+  mobileNavToggle?.setAttribute("aria-expanded", "true");
+  mobileMoreButton?.setAttribute("aria-expanded", "true");
+  window.setTimeout(() => {
+    toolNavigation.querySelector(".tool-tab.active")?.focus({ preventScroll: true });
+  }, 180);
+}
+
+function closeMobileNavigation(options = {}) {
+  const wasOpen = document.body.classList.contains("mobile-nav-open");
+  document.body.classList.remove("mobile-nav-open");
+  mobileNavToggle?.setAttribute("aria-expanded", "false");
+  mobileMoreButton?.setAttribute("aria-expanded", "false");
+  if (mobileNavigationQuery.matches && toolNavigation) {
+    toolNavigation.setAttribute("aria-hidden", "true");
+    if (wasOpen) {
+      window.setTimeout(() => {
+        if (mobileNavigationQuery.matches && !document.body.classList.contains("mobile-nav-open")) {
+          toolNavigation.setAttribute("inert", "");
+        }
+      }, 220);
+    } else {
+      toolNavigation.setAttribute("inert", "");
+    }
+  }
+  if (wasOpen && options.restoreFocus !== false && mobileNavigationRestoreFocus instanceof HTMLElement) {
+    mobileNavigationRestoreFocus.focus({ preventScroll: true });
+  }
+  mobileNavigationRestoreFocus = null;
+}
+
+function syncMobileNavigationMode() {
+  if (!toolNavigation) return;
+  if (mobileNavigationQuery.matches) {
+    closeMobileNavigation({ restoreFocus: false });
+    return;
+  }
+  document.body.classList.remove("mobile-nav-open");
+  toolNavigation.removeAttribute("inert");
+  toolNavigation.removeAttribute("aria-hidden");
+  mobileNavToggle?.setAttribute("aria-expanded", "false");
+  mobileMoreButton?.setAttribute("aria-expanded", "false");
 }
 
 function bindGlobalSearch() {
@@ -2258,8 +2334,16 @@ function updateNavigationState() {
     element.hidden = state.tool !== "vocabulary" || state.vocabularyView !== "quiz";
   });
   document.querySelectorAll(".tool-tab").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tool === state.tool);
+    const active = button.dataset.tool === state.tool;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
+  const mobilePrimaryTools = new Set(["dashboard", "vocabulary", "review"]);
+  const moreActive = !mobilePrimaryTools.has(state.tool);
+  mobileMoreButton?.classList.toggle("active", moreActive);
+  if (moreActive) mobileMoreButton?.setAttribute("aria-current", "page");
+  else mobileMoreButton?.removeAttribute("aria-current");
   document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === state.mode);
   });
@@ -2502,7 +2586,9 @@ function renderDashboardHome() {
         ? "Next"
         : "Later";
     return `
-      <div class="dashboard-plan-row ${activity.completed ? "is-complete" : ""} ${activity.id === nextActivity.id ? "is-next" : ""}">
+      <div
+        class="dashboard-plan-row ${activity.completed ? "is-complete" : ""} ${activity.id === nextActivity.id ? "is-next" : ""}"
+        data-plan-tool="${escapeHtml(activity.tool)}">
         <span class="dashboard-plan-index" aria-hidden="true">${activity.completed ? "✓" : index + 1}</span>
         <div class="dashboard-plan-copy">
           <strong>${escapeHtml(activity.title)}</strong>
@@ -2527,8 +2613,8 @@ function renderDashboardHome() {
     <section class="workspace-panel dashboard-panel">
       <header class="dashboard-hero">
         <div class="dashboard-hero-copy">
-          <p class="dashboard-date">${escapeHtml(formatDashboardDate(dashboard.now))}</p>
           <h2>${escapeHtml(getDashboardGreeting(dashboard.now))}</h2>
+          <p class="dashboard-date">${escapeHtml(formatDashboardDate(dashboard.now))}</p>
           <p>${goalComplete
             ? "Your daily plan is complete. Extra practice now will strengthen what you learned."
             : `A ${studyFocus.label.toLowerCase()} plan built from your HSK target and recent practice.`}</p>

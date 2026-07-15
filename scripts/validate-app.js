@@ -508,6 +508,7 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
 [
   "index.html",
   "styles.css",
+  "modern.css",
   "app-config.js",
   "account.js",
   "app.js",

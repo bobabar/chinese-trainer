@@ -1469,6 +1469,12 @@ select {
   --set-soft: #f2f6ff;
 }
 
+.vocabulary-path-level.hsk-level-3 {
+  --set-accent: #be185d;
+  --set-border: #f2b8d2;
+  --set-soft: #fff4f8;
+}
+
 .vocabulary-path-level > summary {
   display: grid;
   grid-template-columns: 46px minmax(170px, 1fr) minmax(180px, 0.42fr) 14px;
@@ -2581,6 +2587,29 @@ body.global-search-open {
   --set-accent: #2563eb;
   --set-border: #bfd0ff;
   --set-soft: #f2f6ff;
+}
+
+.quiz-set-card.hsk-level-3 {
+  --set-accent: #be185d;
+  --set-border: #f2b8d2;
+  --set-soft: #fff4f8;
+}
+
+.vocabulary-curriculum-source {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.vocabulary-curriculum-source a {
+  color: var(--theme-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.vocabulary-curriculum-source a:hover {
+  text-decoration: underline;
 }
 
 .quiz-set-card:hover {
@@ -5286,6 +5315,10 @@ button:focus-visible {
   margin-top: 15px;
 }
 
+.study-plan-level-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .study-plan-choice {
   display: grid;
   align-content: center;
@@ -5783,7 +5816,7 @@ button:focus-visible {
 
 .dashboard-roadmap-levels {
   display: grid;
-  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  grid-template-columns: repeat(3, minmax(64px, 1fr));
   flex: 0 0 auto;
   padding: 3px;
   border: 1px solid var(--line);
@@ -6262,7 +6295,7 @@ button:focus-visible {
 
 .placement-result-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 22px 24px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -8284,6 +8317,11 @@ td.status-review {
     border-left: 0;
   }
 
+  .placement-result-stats > div:nth-child(5) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .placement-result-stats > div:nth-child(n + 3) {
     border-top: 1px solid var(--line);
   }
@@ -8391,6 +8429,10 @@ td.status-review {
   .study-plan-choice-grid {
     gap: 7px;
     margin-top: 12px;
+  }
+
+  .study-plan-level-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .study-plan-choice {
@@ -9153,8 +9195,9 @@ td.status-review {
     padding-left: 10px;
   }
 
-  .placement-result-stats > div:nth-child(3) {
+  .placement-result-stats > div:nth-child(2n + 1) {
     padding-left: 0;
+    border-left: 0;
   }
 
   .placement-result-stats strong {

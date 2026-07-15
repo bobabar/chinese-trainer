@@ -1,0 +1,6210 @@
+{
+  "version": "2025-11",
+  "effective": "2026-07",
+  "sourceLabel": "新版《HSK考试大纲》",
+  "sourceUrl": "https://hsk.cn-bj.ufileos.com/3.0/%E6%96%B0%E7%89%88HSK%E8%80%83%E8%AF%95%E5%A4%A7%E7%BA%B21219.pdf",
+  "levelCounts": {
+    "1": 300,
+    "2": 200,
+    "3": 500
+  },
+  "words": [
+    {
+      "index": 1,
+      "level": 1,
+      "word": "爱",
+      "pinyin": "ài"
+    },
+    {
+      "index": 2,
+      "level": 1,
+      "word": "八",
+      "pinyin": "bā"
+    },
+    {
+      "index": 3,
+      "level": 1,
+      "word": "爸爸",
+      "pinyin": "bàba"
+    },
+    {
+      "index": 4,
+      "level": 1,
+      "word": "吧",
+      "pinyin": "ba"
+    },
+    {
+      "index": 5,
+      "level": 1,
+      "word": "白天",
+      "pinyin": "báitiān"
+    },
+    {
+      "index": 6,
+      "level": 1,
+      "word": "百",
+      "pinyin": "bǎi"
+    },
+    {
+      "index": 7,
+      "level": 1,
+      "word": "半",
+      "pinyin": "bàn",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 8,
+      "level": 1,
+      "word": "包子",
+      "pinyin": "bāozi"
+    },
+    {
+      "index": 9,
+      "level": 1,
+      "word": "杯子",
+      "pinyin": "bēizi"
+    },
+    {
+      "index": 10,
+      "level": 1,
+      "word": "本",
+      "pinyin": "běn",
+      "sense": 1
+    },
+    {
+      "index": 11,
+      "level": 1,
+      "word": "边",
+      "pinyin": "biān"
+    },
+    {
+      "index": 12,
+      "level": 1,
+      "word": "病",
+      "pinyin": "bìng"
+    },
+    {
+      "index": 13,
+      "level": 1,
+      "word": "不",
+      "pinyin": "bù"
+    },
+    {
+      "index": 14,
+      "level": 1,
+      "word": "不客气",
+      "pinyin": "bú kèqi"
+    },
+    {
+      "index": 15,
+      "level": 1,
+      "word": "不要",
+      "pinyin": "búyào"
+    },
+    {
+      "index": 16,
+      "level": 1,
+      "word": "菜",
+      "pinyin": "cài"
+    },
+    {
+      "index": 17,
+      "level": 1,
+      "word": "茶",
+      "pinyin": "chá"
+    },
+    {
+      "index": 18,
+      "level": 1,
+      "word": "唱",
+      "pinyin": "chàng"
+    },
+    {
+      "index": 19,
+      "level": 1,
+      "word": "超市",
+      "pinyin": "chāoshì"
+    },
+    {
+      "index": 20,
+      "level": 1,
+      "word": "车",
+      "pinyin": "chē"
+    },
+    {
+      "index": 21,
+      "level": 1,
+      "word": "吃",
+      "pinyin": "chī"
+    },
+    {
+      "index": 22,
+      "level": 1,
+      "word": "出租车",
+      "pinyin": "chūzūchē"
+    },
+    {
+      "index": 23,
+      "level": 1,
+      "word": "穿",
+      "pinyin": "chuān"
+    },
+    {
+      "index": 24,
+      "level": 1,
+      "word": "打电话",
+      "pinyin": "dǎ diànhuà"
+    },
+    {
+      "index": 25,
+      "level": 1,
+      "word": "大",
+      "pinyin": "dà"
+    },
+    {
+      "index": 26,
+      "level": 1,
+      "word": "大家",
+      "pinyin": "dàjiā"
+    },
+    {
+      "index": 27,
+      "level": 1,
+      "word": "大学",
+      "pinyin": "dàxué"
+    },
+    {
+      "index": 28,
+      "level": 1,
+      "word": "大学生",
+      "pinyin": "dàxuéshēng"
+    },
+    {
+      "index": 29,
+      "level": 1,
+      "word": "到",
+      "pinyin": "dào"
+    },
+    {
+      "index": 30,
+      "level": 1,
+      "word": "的",
+      "pinyin": "de"
+    },
+    {
+      "index": 31,
+      "level": 1,
+      "word": "第",
+      "pinyin": "dì"
+    },
+    {
+      "index": 32,
+      "level": 1,
+      "word": "弟弟",
+      "pinyin": "dìdi"
+    },
+    {
+      "index": 33,
+      "level": 1,
+      "word": "点",
+      "pinyin": "diǎn",
+      "crossLevels": [
+        "3"
+      ],
+      "sense": 1
+    },
+    {
+      "index": 34,
+      "level": 1,
+      "word": "店",
+      "pinyin": "diàn"
+    },
+    {
+      "index": 35,
+      "level": 1,
+      "word": "电话",
+      "pinyin": "diànhuà"
+    },
+    {
+      "index": 36,
+      "level": 1,
+      "word": "电脑",
+      "pinyin": "diànnǎo"
+    },
+    {
+      "index": 37,
+      "level": 1,
+      "word": "电视",
+      "pinyin": "diànshì"
+    },
+    {
+      "index": 38,
+      "level": 1,
+      "word": "电影",
+      "pinyin": "diànyǐng"
+    },
+    {
+      "index": 39,
+      "level": 1,
+      "word": "电影院",
+      "pinyin": "diànyǐngyuàn"
+    },
+    {
+      "index": 40,
+      "level": 1,
+      "word": "东西",
+      "pinyin": "dōngxi"
+    },
+    {
+      "index": 41,
+      "level": 1,
+      "word": "都",
+      "pinyin": "dōu"
+    },
+    {
+      "index": 42,
+      "level": 1,
+      "word": "读",
+      "pinyin": "dú"
+    },
+    {
+      "index": 43,
+      "level": 1,
+      "word": "读书",
+      "pinyin": "dúshū"
+    },
+    {
+      "index": 44,
+      "level": 1,
+      "word": "对",
+      "pinyin": "duì",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 45,
+      "level": 1,
+      "word": "对不起",
+      "pinyin": "duìbuqǐ"
+    },
+    {
+      "index": 46,
+      "level": 1,
+      "word": "多",
+      "pinyin": "duō",
+      "crossLevels": [
+        "2"
+      ]
+    },
+    {
+      "index": 47,
+      "level": 1,
+      "word": "多少",
+      "pinyin": "duōshao"
+    },
+    {
+      "index": 48,
+      "level": 1,
+      "word": "儿子",
+      "pinyin": "érzi"
+    },
+    {
+      "index": 49,
+      "level": 1,
+      "word": "二",
+      "pinyin": "èr"
+    },
+    {
+      "index": 50,
+      "level": 1,
+      "word": "饭",
+      "pinyin": "fàn"
+    },
+    {
+      "index": 51,
+      "level": 1,
+      "word": "饭店",
+      "pinyin": "fàndiàn"
+    },
+    {
+      "index": 52,
+      "level": 1,
+      "word": "房间",
+      "pinyin": "fángjiān"
+    },
+    {
+      "index": 53,
+      "level": 1,
+      "word": "非常",
+      "pinyin": "fēicháng"
+    },
+    {
+      "index": 54,
+      "level": 1,
+      "word": "飞机",
+      "pinyin": "fēijī"
+    },
+    {
+      "index": 55,
+      "level": 1,
+      "word": "分",
+      "pinyin": "fēn",
+      "crossLevels": [
+        "3"
+      ]
+    },
+    {
+      "index": 56,
+      "level": 1,
+      "word": "分钟",
+      "pinyin": "fēnzhōng"
+    },
+    {
+      "index": 57,
+      "level": 1,
+      "word": "高兴",
+      "pinyin": "gāoxìng"
+    },
+    {
+      "index": 58,
+      "level": 1,
+      "word": "歌",
+      "pinyin": "gē"
+    },
+    {
+      "index": 59,
+      "level": 1,
+      "word": "哥哥",
+      "pinyin": "gēge"
+    },
+    {
+      "index": 60,
+      "level": 1,
+      "word": "个",
+      "pinyin": "gè"
+    },
+    {
+      "index": 61,
+      "level": 1,
+      "word": "给",
+      "pinyin": "gěi",
+      "crossLevels": [
+        "2"
+      ]
+    },
+    {
+      "index": 62,
+      "level": 1,
+      "word": "公司",
+      "pinyin": "gōngsī"
+    },
+    {
+      "index": 63,
+      "level": 1,
+      "word": "工作",
+      "pinyin": "gōngzuò"
+    },
+    {
+      "index": 64,
+      "level": 1,
+      "word": "狗",
+      "pinyin": "gǒu"
+    },
+    {
+      "index": 65,
+      "level": 1,
+      "word": "贵",
+      "pinyin": "guì"
+    },
+    {
+      "index": 66,
+      "level": 1,
+      "word": "国",
+      "pinyin": "guó"
+    },
+    {
+      "index": 67,
+      "level": 1,
+      "word": "还",
+      "pinyin": "hái"
+    },
+    {
+      "index": 68,
+      "level": 1,
+      "word": "孩子",
+      "pinyin": "háizi"
+    },
+    {
+      "index": 69,
+      "level": 1,
+      "word": "汉语",
+      "pinyin": "hànyǔ"
+    },
+    {
+      "index": 70,
+      "level": 1,
+      "word": "汉字",
+      "pinyin": "hànzì"
+    },
+    {
+      "index": 71,
+      "level": 1,
+      "word": "好",
+      "pinyin": "hǎo",
+      "crossLevels": [
+        "2",
+        "4"
+      ]
+    },
+    {
+      "index": 72,
+      "level": 1,
+      "word": "好吃",
+      "pinyin": "hǎochī"
+    },
+    {
+      "index": 73,
+      "level": 1,
+      "word": "好看",
+      "pinyin": "hǎokàn"
+    },
+    {
+      "index": 74,
+      "level": 1,
+      "word": "好听",
+      "pinyin": "hǎotīng"
+    },
+    {
+      "index": 75,
+      "level": 1,
+      "word": "好玩儿",
+      "pinyin": "hǎowánr"
+    },
+    {
+      "index": 76,
+      "level": 1,
+      "word": "号",
+      "pinyin": "hào"
+    },
+    {
+      "index": 77,
+      "level": 1,
+      "word": "喝",
+      "pinyin": "hē"
+    },
+    {
+      "index": 78,
+      "level": 1,
+      "word": "和",
+      "pinyin": "hé",
+      "sense": 1
+    },
+    {
+      "index": 79,
+      "level": 1,
+      "word": "很",
+      "pinyin": "hěn"
+    },
+    {
+      "index": 80,
+      "level": 1,
+      "word": "后",
+      "pinyin": "hòu"
+    },
+    {
+      "index": 81,
+      "level": 1,
+      "word": "回",
+      "pinyin": "huí",
+      "crossLevels": [
+        "3"
+      ]
+    },
+    {
+      "index": 82,
+      "level": 1,
+      "word": "会",
+      "pinyin": "huì",
+      "sense": 1
+    },
+    {
+      "index": 83,
+      "level": 1,
+      "word": "火车",
+      "pinyin": "huǒchē"
+    },
+    {
+      "index": 84,
+      "level": 1,
+      "word": "鸡蛋",
+      "pinyin": "jīdàn"
+    },
+    {
+      "index": 85,
+      "level": 1,
+      "word": "几",
+      "pinyin": "jǐ"
+    },
+    {
+      "index": 86,
+      "level": 1,
+      "word": "家",
+      "pinyin": "jiā",
+      "crossLevels": [
+        "3"
+      ]
+    },
+    {
+      "index": 87,
+      "level": 1,
+      "word": "家人",
+      "pinyin": "jiārén"
+    },
+    {
+      "index": 88,
+      "level": 1,
+      "word": "见",
+      "pinyin": "jiàn"
+    },
+    {
+      "index": 89,
+      "level": 1,
+      "word": "件",
+      "pinyin": "jiàn"
+    },
+    {
+      "index": 90,
+      "level": 1,
+      "word": "饺子",
+      "pinyin": "jiǎozi"
+    },
+    {
+      "index": 91,
+      "level": 1,
+      "word": "叫",
+      "pinyin": "jiào",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 92,
+      "level": 1,
+      "word": "姐姐",
+      "pinyin": "jiějie"
+    },
+    {
+      "index": 93,
+      "level": 1,
+      "word": "今年",
+      "pinyin": "jīnnián"
+    },
+    {
+      "index": 94,
+      "level": 1,
+      "word": "今天",
+      "pinyin": "jīntiān"
+    },
+    {
+      "index": 95,
+      "level": 1,
+      "word": "九",
+      "pinyin": "jiǔ"
+    },
+    {
+      "index": 96,
+      "level": 1,
+      "word": "觉得",
+      "pinyin": "juéde"
+    },
+    {
+      "index": 97,
+      "level": 1,
+      "word": "开",
+      "pinyin": "kāi"
+    },
+    {
+      "index": 98,
+      "level": 1,
+      "word": "开车",
+      "pinyin": "kāichē"
+    },
+    {
+      "index": 99,
+      "level": 1,
+      "word": "看",
+      "pinyin": "kàn"
+    },
+    {
+      "index": 100,
+      "level": 1,
+      "word": "看病",
+      "pinyin": "kànbìng"
+    },
+    {
+      "index": 101,
+      "level": 1,
+      "word": "看见",
+      "pinyin": "kànjiàn"
+    },
+    {
+      "index": 102,
+      "level": 1,
+      "word": "可以",
+      "pinyin": "kěyǐ"
+    },
+    {
+      "index": 103,
+      "level": 1,
+      "word": "课",
+      "pinyin": "kè"
+    },
+    {
+      "index": 104,
+      "level": 1,
+      "word": "口",
+      "pinyin": "kǒu"
+    },
+    {
+      "index": 105,
+      "level": 1,
+      "word": "块",
+      "pinyin": "kuài"
+    },
+    {
+      "index": 106,
+      "level": 1,
+      "word": "来",
+      "pinyin": "lái"
+    },
+    {
+      "index": 107,
+      "level": 1,
+      "word": "老师",
+      "pinyin": "lǎoshī"
+    },
+    {
+      "index": 108,
+      "level": 1,
+      "word": "了",
+      "pinyin": "le"
+    },
+    {
+      "index": 109,
+      "level": 1,
+      "word": "冷",
+      "pinyin": "lěng"
+    },
+    {
+      "index": 110,
+      "level": 1,
+      "word": "里",
+      "pinyin": "lǐ"
+    },
+    {
+      "index": 111,
+      "level": 1,
+      "word": "两",
+      "pinyin": "liǎng",
+      "sense": 1
+    },
+    {
+      "index": 112,
+      "level": 1,
+      "word": "零",
+      "pinyin": "líng"
+    },
+    {
+      "index": 113,
+      "level": 1,
+      "word": "六",
+      "pinyin": "liù"
+    },
+    {
+      "index": 114,
+      "level": 1,
+      "word": "妈妈",
+      "pinyin": "māma"
+    },
+    {
+      "index": 115,
+      "level": 1,
+      "word": "吗",
+      "pinyin": "ma"
+    },
+    {
+      "index": 116,
+      "level": 1,
+      "word": "买",
+      "pinyin": "mǎi"
+    },
+    {
+      "index": 117,
+      "level": 1,
+      "word": "卖",
+      "pinyin": "mài"
+    },
+    {
+      "index": 118,
+      "level": 1,
+      "word": "忙",
+      "pinyin": "máng"
+    },
+    {
+      "index": 119,
+      "level": 1,
+      "word": "猫",
+      "pinyin": "māo"
+    },
+    {
+      "index": 120,
+      "level": 1,
+      "word": "没关系",
+      "pinyin": "méi guānxi"
+    },
+    {
+      "index": 121,
+      "level": 1,
+      "word": "没事",
+      "pinyin": "méishì"
+    },
+    {
+      "index": 122,
+      "level": 1,
+      "word": "没有",
+      "pinyin": "méiyǒu"
+    },
+    {
+      "index": 123,
+      "level": 1,
+      "word": "妹妹",
+      "pinyin": "mèimei"
+    },
+    {
+      "index": 124,
+      "level": 1,
+      "word": "们",
+      "pinyin": "men"
+    },
+    {
+      "index": 125,
+      "level": 1,
+      "word": "米饭",
+      "pinyin": "mǐfàn"
+    },
+    {
+      "index": 126,
+      "level": 1,
+      "word": "面包",
+      "pinyin": "miànbāo"
+    },
+    {
+      "index": 127,
+      "level": 1,
+      "word": "面条儿",
+      "pinyin": "miàntiáor"
+    },
+    {
+      "index": 128,
+      "level": 1,
+      "word": "明年",
+      "pinyin": "míngnián"
+    },
+    {
+      "index": 129,
+      "level": 1,
+      "word": "明天",
+      "pinyin": "míngtiān"
+    },
+    {
+      "index": 130,
+      "level": 1,
+      "word": "名字",
+      "pinyin": "míngzi"
+    },
+    {
+      "index": 131,
+      "level": 1,
+      "word": "哪",
+      "pinyin": "nǎ"
+    },
+    {
+      "index": 132,
+      "level": 1,
+      "word": "哪个",
+      "pinyin": "nǎge"
+    },
+    {
+      "index": 133,
+      "level": 1,
+      "word": "哪里",
+      "pinyin": "nǎlǐ"
+    },
+    {
+      "index": 134,
+      "level": 1,
+      "word": "哪儿",
+      "pinyin": "nǎr"
+    },
+    {
+      "index": 135,
+      "level": 1,
+      "word": "哪些",
+      "pinyin": "nǎxiē"
+    },
+    {
+      "index": 136,
+      "level": 1,
+      "word": "那",
+      "pinyin": "nà",
+      "crossLevels": [
+        "2"
+      ]
+    },
+    {
+      "index": 137,
+      "level": 1,
+      "word": "那边",
+      "pinyin": "nàbiān"
+    },
+    {
+      "index": 138,
+      "level": 1,
+      "word": "那个",
+      "pinyin": "nàge"
+    },
+    {
+      "index": 139,
+      "level": 1,
+      "word": "那里",
+      "pinyin": "nàlǐ"
+    },
+    {
+      "index": 140,
+      "level": 1,
+      "word": "那儿",
+      "pinyin": "nàr"
+    },
+    {
+      "index": 141,
+      "level": 1,
+      "word": "那些",
+      "pinyin": "nàxiē"
+    },
+    {
+      "index": 142,
+      "level": 1,
+      "word": "男",
+      "pinyin": "nán"
+    },
+    {
+      "index": 143,
+      "level": 1,
+      "word": "男朋友",
+      "pinyin": "nánpéngyou"
+    },
+    {
+      "index": 144,
+      "level": 1,
+      "word": "呢",
+      "pinyin": "ne"
+    },
+    {
+      "index": 145,
+      "level": 1,
+      "word": "能",
+      "pinyin": "néng"
+    },
+    {
+      "index": 146,
+      "level": 1,
+      "word": "你",
+      "pinyin": "nǐ"
+    },
+    {
+      "index": 147,
+      "level": 1,
+      "word": "你好",
+      "pinyin": "nǐ hǎo"
+    },
+    {
+      "index": 148,
+      "level": 1,
+      "word": "你们",
+      "pinyin": "nǐmen"
+    },
+    {
+      "index": 149,
+      "level": 1,
+      "word": "年",
+      "pinyin": "nián"
+    },
+    {
+      "index": 150,
+      "level": 1,
+      "word": "您",
+      "pinyin": "nín"
+    },
+    {
+      "index": 151,
+      "level": 1,
+      "word": "牛奶",
+      "pinyin": "niúnǎi"
+    },
+    {
+      "index": 152,
+      "level": 1,
+      "word": "女",
+      "pinyin": "nǚ"
+    },
+    {
+      "index": 153,
+      "level": 1,
+      "word": "女儿",
+      "pinyin": "nǚ’ér"
+    },
+    {
+      "index": 154,
+      "level": 1,
+      "word": "女朋友",
+      "pinyin": "nǚpéngyou"
+    },
+    {
+      "index": 155,
+      "level": 1,
+      "word": "女士",
+      "pinyin": "nǚshì"
+    },
+    {
+      "index": 156,
+      "level": 1,
+      "word": "朋友",
+      "pinyin": "péngyou"
+    },
+    {
+      "index": 157,
+      "level": 1,
+      "word": "便宜",
+      "pinyin": "piányi"
+    },
+    {
+      "index": 158,
+      "level": 1,
+      "word": "漂亮",
+      "pinyin": "piàoliang"
+    },
+    {
+      "index": 159,
+      "level": 1,
+      "word": "苹果",
+      "pinyin": "píngguǒ"
+    },
+    {
+      "index": 160,
+      "level": 1,
+      "word": "七",
+      "pinyin": "qī"
+    },
+    {
+      "index": 161,
+      "level": 1,
+      "word": "起床",
+      "pinyin": "qǐchuáng"
+    },
+    {
+      "index": 162,
+      "level": 1,
+      "word": "千",
+      "pinyin": "qiān"
+    },
+    {
+      "index": 163,
+      "level": 1,
+      "word": "前",
+      "pinyin": "qián"
+    },
+    {
+      "index": 164,
+      "level": 1,
+      "word": "钱",
+      "pinyin": "qián"
+    },
+    {
+      "index": 165,
+      "level": 1,
+      "word": "请",
+      "pinyin": "qǐng"
+    },
+    {
+      "index": 166,
+      "level": 1,
+      "word": "请问",
+      "pinyin": "qǐngwèn"
+    },
+    {
+      "index": 167,
+      "level": 1,
+      "word": "去",
+      "pinyin": "qù"
+    },
+    {
+      "index": 168,
+      "level": 1,
+      "word": "去年",
+      "pinyin": "qùnián"
+    },
+    {
+      "index": 169,
+      "level": 1,
+      "word": "热",
+      "pinyin": "rè"
+    },
+    {
+      "index": 170,
+      "level": 1,
+      "word": "人",
+      "pinyin": "rén"
+    },
+    {
+      "index": 171,
+      "level": 1,
+      "word": "认识",
+      "pinyin": "rènshi"
+    },
+    {
+      "index": 172,
+      "level": 1,
+      "word": "日",
+      "pinyin": "rì",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 173,
+      "level": 1,
+      "word": "三",
+      "pinyin": "sān"
+    },
+    {
+      "index": 174,
+      "level": 1,
+      "word": "商店",
+      "pinyin": "shāngdiàn"
+    },
+    {
+      "index": 175,
+      "level": 1,
+      "word": "上",
+      "pinyin": "shàng"
+    },
+    {
+      "index": 176,
+      "level": 1,
+      "word": "上班",
+      "pinyin": "shàngbān"
+    },
+    {
+      "index": 177,
+      "level": 1,
+      "word": "上课",
+      "pinyin": "shàngkè"
+    },
+    {
+      "index": 178,
+      "level": 1,
+      "word": "上午",
+      "pinyin": "shàngwǔ"
+    },
+    {
+      "index": 179,
+      "level": 1,
+      "word": "上学",
+      "pinyin": "shàngxué"
+    },
+    {
+      "index": 180,
+      "level": 1,
+      "word": "少",
+      "pinyin": "shǎo"
+    },
+    {
+      "index": 181,
+      "level": 1,
+      "word": "谁",
+      "pinyin": "shéi/shuí"
+    },
+    {
+      "index": 182,
+      "level": 1,
+      "word": "什么",
+      "pinyin": "shénme"
+    },
+    {
+      "index": 183,
+      "level": 1,
+      "word": "生病",
+      "pinyin": "shēngbìng"
+    },
+    {
+      "index": 184,
+      "level": 1,
+      "word": "十",
+      "pinyin": "shí"
+    },
+    {
+      "index": 185,
+      "level": 1,
+      "word": "时候",
+      "pinyin": "shíhou"
+    },
+    {
+      "index": 186,
+      "level": 1,
+      "word": "时间",
+      "pinyin": "shíjiān"
+    },
+    {
+      "index": 187,
+      "level": 1,
+      "word": "事",
+      "pinyin": "shì"
+    },
+    {
+      "index": 188,
+      "level": 1,
+      "word": "是",
+      "pinyin": "shì"
+    },
+    {
+      "index": 189,
+      "level": 1,
+      "word": "手机",
+      "pinyin": "shǒujī"
+    },
+    {
+      "index": 190,
+      "level": 1,
+      "word": "书",
+      "pinyin": "shū"
+    },
+    {
+      "index": 191,
+      "level": 1,
+      "word": "书店",
+      "pinyin": "shūdiàn"
+    },
+    {
+      "index": 192,
+      "level": 1,
+      "word": "水",
+      "pinyin": "shuǐ"
+    },
+    {
+      "index": 193,
+      "level": 1,
+      "word": "水果",
+      "pinyin": "shuǐguǒ"
+    },
+    {
+      "index": 194,
+      "level": 1,
+      "word": "睡",
+      "pinyin": "shuì"
+    },
+    {
+      "index": 195,
+      "level": 1,
+      "word": "睡觉",
+      "pinyin": "shuìjiào"
+    },
+    {
+      "index": 196,
+      "level": 1,
+      "word": "说",
+      "pinyin": "shuō"
+    },
+    {
+      "index": 197,
+      "level": 1,
+      "word": "说话",
+      "pinyin": "shuōhuà"
+    },
+    {
+      "index": 198,
+      "level": 1,
+      "word": "四",
+      "pinyin": "sì"
+    },
+    {
+      "index": 199,
+      "level": 1,
+      "word": "岁",
+      "pinyin": "suì"
+    },
+    {
+      "index": 200,
+      "level": 1,
+      "word": "他",
+      "pinyin": "tā"
+    },
+    {
+      "index": 201,
+      "level": 1,
+      "word": "它",
+      "pinyin": "tā"
+    },
+    {
+      "index": 202,
+      "level": 1,
+      "word": "她",
+      "pinyin": "tā"
+    },
+    {
+      "index": 203,
+      "level": 1,
+      "word": "他们",
+      "pinyin": "tāmen"
+    },
+    {
+      "index": 204,
+      "level": 1,
+      "word": "它们",
+      "pinyin": "tāmen"
+    },
+    {
+      "index": 205,
+      "level": 1,
+      "word": "她们",
+      "pinyin": "tāmen"
+    },
+    {
+      "index": 206,
+      "level": 1,
+      "word": "太",
+      "pinyin": "tài"
+    },
+    {
+      "index": 207,
+      "level": 1,
+      "word": "天",
+      "pinyin": "tiān"
+    },
+    {
+      "index": 208,
+      "level": 1,
+      "word": "天气",
+      "pinyin": "tiānqì"
+    },
+    {
+      "index": 209,
+      "level": 1,
+      "word": "听",
+      "pinyin": "tīng"
+    },
+    {
+      "index": 210,
+      "level": 1,
+      "word": "听见",
+      "pinyin": "tīngjiàn"
+    },
+    {
+      "index": 211,
+      "level": 1,
+      "word": "同学",
+      "pinyin": "tóngxué"
+    },
+    {
+      "index": 212,
+      "level": 1,
+      "word": "外",
+      "pinyin": "wài"
+    },
+    {
+      "index": 213,
+      "level": 1,
+      "word": "外边",
+      "pinyin": "wàibian"
+    },
+    {
+      "index": 214,
+      "level": 1,
+      "word": "玩",
+      "pinyin": "wán"
+    },
+    {
+      "index": 215,
+      "level": 1,
+      "word": "晚",
+      "pinyin": "wǎn"
+    },
+    {
+      "index": 216,
+      "level": 1,
+      "word": "晚饭",
+      "pinyin": "wǎnfàn"
+    },
+    {
+      "index": 217,
+      "level": 1,
+      "word": "晚上",
+      "pinyin": "wǎnshang"
+    },
+    {
+      "index": 218,
+      "level": 1,
+      "word": "喂",
+      "pinyin": "wèi",
+      "sense": 1
+    },
+    {
+      "index": 219,
+      "level": 1,
+      "word": "问",
+      "pinyin": "wèn"
+    },
+    {
+      "index": 220,
+      "level": 1,
+      "word": "问题",
+      "pinyin": "wèntí"
+    },
+    {
+      "index": 221,
+      "level": 1,
+      "word": "我",
+      "pinyin": "wǒ"
+    },
+    {
+      "index": 222,
+      "level": 1,
+      "word": "我们",
+      "pinyin": "wǒmen"
+    },
+    {
+      "index": 223,
+      "level": 1,
+      "word": "五",
+      "pinyin": "wǔ"
+    },
+    {
+      "index": 224,
+      "level": 1,
+      "word": "午饭",
+      "pinyin": "wǔfàn"
+    },
+    {
+      "index": 225,
+      "level": 1,
+      "word": "喜欢",
+      "pinyin": "xǐhuan"
+    },
+    {
+      "index": 226,
+      "level": 1,
+      "word": "下",
+      "pinyin": "xià"
+    },
+    {
+      "index": 227,
+      "level": 1,
+      "word": "下雨",
+      "pinyin": "xià yǔ"
+    },
+    {
+      "index": 228,
+      "level": 1,
+      "word": "下班",
+      "pinyin": "xiàbān"
+    },
+    {
+      "index": 229,
+      "level": 1,
+      "word": "下课",
+      "pinyin": "xiàkè"
+    },
+    {
+      "index": 230,
+      "level": 1,
+      "word": "下午",
+      "pinyin": "xiàwǔ"
+    },
+    {
+      "index": 231,
+      "level": 1,
+      "word": "先生",
+      "pinyin": "xiānsheng"
+    },
+    {
+      "index": 232,
+      "level": 1,
+      "word": "现在",
+      "pinyin": "xiànzài"
+    },
+    {
+      "index": 233,
+      "level": 1,
+      "word": "想",
+      "pinyin": "xiǎng"
+    },
+    {
+      "index": 234,
+      "level": 1,
+      "word": "小",
+      "pinyin": "xiǎo"
+    },
+    {
+      "index": 235,
+      "level": 1,
+      "word": "小朋友",
+      "pinyin": "xiǎopéngyǒu"
+    },
+    {
+      "index": 236,
+      "level": 1,
+      "word": "小时",
+      "pinyin": "xiǎoshí"
+    },
+    {
+      "index": 237,
+      "level": 1,
+      "word": "小学",
+      "pinyin": "xiǎoxué"
+    },
+    {
+      "index": 238,
+      "level": 1,
+      "word": "小学生",
+      "pinyin": "xiǎoxuéshēng"
+    },
+    {
+      "index": 239,
+      "level": 1,
+      "word": "些",
+      "pinyin": "xiē"
+    },
+    {
+      "index": 240,
+      "level": 1,
+      "word": "写",
+      "pinyin": "xiě"
+    },
+    {
+      "index": 241,
+      "level": 1,
+      "word": "谢谢",
+      "pinyin": "xièxie"
+    },
+    {
+      "index": 242,
+      "level": 1,
+      "word": "新",
+      "pinyin": "xīn"
+    },
+    {
+      "index": 243,
+      "level": 1,
+      "word": "星期",
+      "pinyin": "xīngqī"
+    },
+    {
+      "index": 244,
+      "level": 1,
+      "word": "星期日",
+      "pinyin": "xīngqīrì"
+    },
+    {
+      "index": 245,
+      "level": 1,
+      "word": "星期天",
+      "pinyin": "xīngqītiān"
+    },
+    {
+      "index": 246,
+      "level": 1,
+      "word": "休息",
+      "pinyin": "xiūxi"
+    },
+    {
+      "index": 247,
+      "level": 1,
+      "word": "学",
+      "pinyin": "xué"
+    },
+    {
+      "index": 248,
+      "level": 1,
+      "word": "学生",
+      "pinyin": "xuéshēng"
+    },
+    {
+      "index": 249,
+      "level": 1,
+      "word": "学习",
+      "pinyin": "xuéxí"
+    },
+    {
+      "index": 250,
+      "level": 1,
+      "word": "学校",
+      "pinyin": "xuéxiào"
+    },
+    {
+      "index": 251,
+      "level": 1,
+      "word": "雪",
+      "pinyin": "xuě"
+    },
+    {
+      "index": 252,
+      "level": 1,
+      "word": "要",
+      "pinyin": "yào"
+    },
+    {
+      "index": 253,
+      "level": 1,
+      "word": "也",
+      "pinyin": "yě"
+    },
+    {
+      "index": 254,
+      "level": 1,
+      "word": "一",
+      "pinyin": "yī"
+    },
+    {
+      "index": 255,
+      "level": 1,
+      "word": "衣服",
+      "pinyin": "yīfu"
+    },
+    {
+      "index": 256,
+      "level": 1,
+      "word": "医生",
+      "pinyin": "yīshēng"
+    },
+    {
+      "index": 257,
+      "level": 1,
+      "word": "医院",
+      "pinyin": "yīyuàn"
+    },
+    {
+      "index": 258,
+      "level": 1,
+      "word": "一半",
+      "pinyin": "yíbàn"
+    },
+    {
+      "index": 259,
+      "level": 1,
+      "word": "一下",
+      "pinyin": "yíxià",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 260,
+      "level": 1,
+      "word": "椅子",
+      "pinyin": "yǐzi"
+    },
+    {
+      "index": 261,
+      "level": 1,
+      "word": "一点儿",
+      "pinyin": "yìdiǎnr"
+    },
+    {
+      "index": 262,
+      "level": 1,
+      "word": "一些",
+      "pinyin": "yìxiē"
+    },
+    {
+      "index": 263,
+      "level": 1,
+      "word": "有",
+      "pinyin": "yǒu"
+    },
+    {
+      "index": 264,
+      "level": 1,
+      "word": "有的",
+      "pinyin": "yǒude"
+    },
+    {
+      "index": 265,
+      "level": 1,
+      "word": "有点儿",
+      "pinyin": "yǒudiǎnr"
+    },
+    {
+      "index": 266,
+      "level": 1,
+      "word": "有些",
+      "pinyin": "yǒuxiē",
+      "crossLevels": [
+        "3"
+      ]
+    },
+    {
+      "index": 267,
+      "level": 1,
+      "word": "雨",
+      "pinyin": "yǔ"
+    },
+    {
+      "index": 268,
+      "level": 1,
+      "word": "元",
+      "pinyin": "yuán"
+    },
+    {
+      "index": 269,
+      "level": 1,
+      "word": "月",
+      "pinyin": "yuè"
+    },
+    {
+      "index": 270,
+      "level": 1,
+      "word": "再",
+      "pinyin": "zài"
+    },
+    {
+      "index": 271,
+      "level": 1,
+      "word": "在",
+      "pinyin": "zài"
+    },
+    {
+      "index": 272,
+      "level": 1,
+      "word": "再见",
+      "pinyin": "zàijiàn"
+    },
+    {
+      "index": 273,
+      "level": 1,
+      "word": "早",
+      "pinyin": "zǎo"
+    },
+    {
+      "index": 274,
+      "level": 1,
+      "word": "早饭",
+      "pinyin": "zǎofàn"
+    },
+    {
+      "index": 275,
+      "level": 1,
+      "word": "早上",
+      "pinyin": "zǎoshang"
+    },
+    {
+      "index": 276,
+      "level": 1,
+      "word": "怎么",
+      "pinyin": "zěnme"
+    },
+    {
+      "index": 277,
+      "level": 1,
+      "word": "怎么样",
+      "pinyin": "zěnmeyàng"
+    },
+    {
+      "index": 278,
+      "level": 1,
+      "word": "找",
+      "pinyin": "zhǎo"
+    },
+    {
+      "index": 279,
+      "level": 1,
+      "word": "这",
+      "pinyin": "zhè"
+    },
+    {
+      "index": 280,
+      "level": 1,
+      "word": "这边",
+      "pinyin": "zhèbiān"
+    },
+    {
+      "index": 281,
+      "level": 1,
+      "word": "这个",
+      "pinyin": "zhège"
+    },
+    {
+      "index": 282,
+      "level": 1,
+      "word": "这里",
+      "pinyin": "zhèlǐ"
+    },
+    {
+      "index": 283,
+      "level": 1,
+      "word": "这儿",
+      "pinyin": "zhèr"
+    },
+    {
+      "index": 284,
+      "level": 1,
+      "word": "这些",
+      "pinyin": "zhèxiē"
+    },
+    {
+      "index": 285,
+      "level": 1,
+      "word": "真",
+      "pinyin": "zhēn",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 286,
+      "level": 1,
+      "word": "正在",
+      "pinyin": "zhèngzài"
+    },
+    {
+      "index": 287,
+      "level": 1,
+      "word": "只",
+      "pinyin": "zhī"
+    },
+    {
+      "index": 288,
+      "level": 1,
+      "word": "知道",
+      "pinyin": "zhīdào"
+    },
+    {
+      "index": 289,
+      "level": 1,
+      "word": "中国",
+      "pinyin": "zhōngguó"
+    },
+    {
+      "index": 290,
+      "level": 1,
+      "word": "中文",
+      "pinyin": "zhōngwén"
+    },
+    {
+      "index": 291,
+      "level": 1,
+      "word": "中午",
+      "pinyin": "zhōngwǔ"
+    },
+    {
+      "index": 292,
+      "level": 1,
+      "word": "中学",
+      "pinyin": "zhōngxué"
+    },
+    {
+      "index": 293,
+      "level": 1,
+      "word": "中学生",
+      "pinyin": "zhōngxuéshēng"
+    },
+    {
+      "index": 294,
+      "level": 1,
+      "word": "住",
+      "pinyin": "zhù"
+    },
+    {
+      "index": 295,
+      "level": 1,
+      "word": "桌子",
+      "pinyin": "zhuōzi"
+    },
+    {
+      "index": 296,
+      "level": 1,
+      "word": "字",
+      "pinyin": "zì"
+    },
+    {
+      "index": 297,
+      "level": 1,
+      "word": "昨天",
+      "pinyin": "zuótiān"
+    },
+    {
+      "index": 298,
+      "level": 1,
+      "word": "坐",
+      "pinyin": "zuò"
+    },
+    {
+      "index": 299,
+      "level": 1,
+      "word": "做",
+      "pinyin": "zuò"
+    },
+    {
+      "index": 300,
+      "level": 1,
+      "word": "做饭",
+      "pinyin": "zuò fàn"
+    },
+    {
+      "index": 301,
+      "level": 2,
+      "word": "啊",
+      "pinyin": "a"
+    },
+    {
+      "index": 302,
+      "level": 2,
+      "word": "爱好",
+      "pinyin": "àihào"
+    },
+    {
+      "index": 303,
+      "level": 2,
+      "word": "白色",
+      "pinyin": "báisè"
+    },
+    {
+      "index": 304,
+      "level": 2,
+      "word": "班",
+      "pinyin": "bān",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 305,
+      "level": 2,
+      "word": "帮",
+      "pinyin": "bāng"
+    },
+    {
+      "index": 306,
+      "level": 2,
+      "word": "帮忙",
+      "pinyin": "bāngmáng"
+    },
+    {
+      "index": 307,
+      "level": 2,
+      "word": "包",
+      "pinyin": "bāo"
+    },
+    {
+      "index": 308,
+      "level": 2,
+      "word": "本子",
+      "pinyin": "běnzi"
+    },
+    {
+      "index": 309,
+      "level": 2,
+      "word": "比",
+      "pinyin": "bǐ"
+    },
+    {
+      "index": 310,
+      "level": 2,
+      "word": "笔",
+      "pinyin": "bǐ",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 311,
+      "level": 2,
+      "word": "别",
+      "pinyin": "bié",
+      "sense": 1
+    },
+    {
+      "index": 312,
+      "level": 2,
+      "word": "不错",
+      "pinyin": "búcuò"
+    },
+    {
+      "index": 313,
+      "level": 2,
+      "word": "不好意思",
+      "pinyin": "bù hǎoyìsi"
+    },
+    {
+      "index": 314,
+      "level": 2,
+      "word": "长",
+      "pinyin": "cháng"
+    },
+    {
+      "index": 315,
+      "level": 2,
+      "word": "车站",
+      "pinyin": "chēzhàn"
+    },
+    {
+      "index": 316,
+      "level": 2,
+      "word": "出",
+      "pinyin": "chū"
+    },
+    {
+      "index": 317,
+      "level": 2,
+      "word": "出国",
+      "pinyin": "chūguó"
+    },
+    {
+      "index": 318,
+      "level": 2,
+      "word": "出来",
+      "pinyin": "chūlái"
+    },
+    {
+      "index": 319,
+      "level": 2,
+      "word": "出门",
+      "pinyin": "chūmén"
+    },
+    {
+      "index": 320,
+      "level": 2,
+      "word": "出去",
+      "pinyin": "chūqù"
+    },
+    {
+      "index": 321,
+      "level": 2,
+      "word": "床",
+      "pinyin": "chuáng"
+    },
+    {
+      "index": 322,
+      "level": 2,
+      "word": "词",
+      "pinyin": "cí"
+    },
+    {
+      "index": 323,
+      "level": 2,
+      "word": "次",
+      "pinyin": "cì",
+      "crossLevels": [
+        "7-9"
+      ]
+    },
+    {
+      "index": 324,
+      "level": 2,
+      "word": "从",
+      "pinyin": "cóng",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 325,
+      "level": 2,
+      "word": "从小",
+      "pinyin": "cóngxiǎo"
+    },
+    {
+      "index": 326,
+      "level": 2,
+      "word": "错",
+      "pinyin": "cuò"
+    },
+    {
+      "index": 327,
+      "level": 2,
+      "word": "打",
+      "pinyin": "dǎ",
+      "sense": 1
+    },
+    {
+      "index": 328,
+      "level": 2,
+      "word": "打车",
+      "pinyin": "dǎchē"
+    },
+    {
+      "index": 329,
+      "level": 2,
+      "word": "打开",
+      "pinyin": "dǎkāi"
+    },
+    {
+      "index": 330,
+      "level": 2,
+      "word": "但",
+      "pinyin": "dàn",
+      "crossLevels": [
+        "7-9"
+      ]
+    },
+    {
+      "index": 331,
+      "level": 2,
+      "word": "但是",
+      "pinyin": "dànshì"
+    },
+    {
+      "index": 332,
+      "level": 2,
+      "word": "得",
+      "pinyin": "de"
+    },
+    {
+      "index": 333,
+      "level": 2,
+      "word": "地",
+      "pinyin": "de"
+    },
+    {
+      "index": 334,
+      "level": 2,
+      "word": "等",
+      "pinyin": "děng",
+      "crossLevels": [
+        "4"
+      ],
+      "sense": 1
+    },
+    {
+      "index": 335,
+      "level": 2,
+      "word": "地铁",
+      "pinyin": "dìtiě"
+    },
+    {
+      "index": 336,
+      "level": 2,
+      "word": "点",
+      "pinyin": "diǎn",
+      "crossLevels": [
+        "4"
+      ],
+      "sense": 2
+    },
+    {
+      "index": 337,
+      "level": 2,
+      "word": "懂",
+      "pinyin": "dǒng"
+    },
+    {
+      "index": 338,
+      "level": 2,
+      "word": "动",
+      "pinyin": "dòng"
+    },
+    {
+      "index": 339,
+      "level": 2,
+      "word": "饭馆",
+      "pinyin": "fànguǎn"
+    },
+    {
+      "index": 340,
+      "level": 2,
+      "word": "飞",
+      "pinyin": "fēi"
+    },
+    {
+      "index": 341,
+      "level": 2,
+      "word": "高",
+      "pinyin": "gāo"
+    },
+    {
+      "index": 342,
+      "level": 2,
+      "word": "高中",
+      "pinyin": "gāozhōng"
+    },
+    {
+      "index": 343,
+      "level": 2,
+      "word": "告诉",
+      "pinyin": "gàosu"
+    },
+    {
+      "index": 344,
+      "level": 2,
+      "word": "个子",
+      "pinyin": "gèzi"
+    },
+    {
+      "index": 345,
+      "level": 2,
+      "word": "跟",
+      "pinyin": "gēn",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 346,
+      "level": 2,
+      "word": "公交车",
+      "pinyin": "gōngjiāochē"
+    },
+    {
+      "index": 347,
+      "level": 2,
+      "word": "过",
+      "pinyin": "guò"
+    },
+    {
+      "index": 348,
+      "level": 2,
+      "word": "过来",
+      "pinyin": "guòlái"
+    },
+    {
+      "index": 349,
+      "level": 2,
+      "word": "过年",
+      "pinyin": "guònián"
+    },
+    {
+      "index": 350,
+      "level": 2,
+      "word": "过去",
+      "pinyin": "guòqù",
+      "sense": 1
+    },
+    {
+      "index": 351,
+      "level": 2,
+      "word": "过",
+      "pinyin": "guo"
+    },
+    {
+      "index": 352,
+      "level": 2,
+      "word": "还是",
+      "pinyin": "háishi"
+    },
+    {
+      "index": 353,
+      "level": 2,
+      "word": "黑色",
+      "pinyin": "hēisè"
+    },
+    {
+      "index": 354,
+      "level": 2,
+      "word": "红茶",
+      "pinyin": "hóngchá"
+    },
+    {
+      "index": 355,
+      "level": 2,
+      "word": "红色",
+      "pinyin": "hóngsè"
+    },
+    {
+      "index": 356,
+      "level": 2,
+      "word": "后面",
+      "pinyin": "hòumiàn"
+    },
+    {
+      "index": 357,
+      "level": 2,
+      "word": "花",
+      "pinyin": "huā",
+      "sense": 1
+    },
+    {
+      "index": 358,
+      "level": 2,
+      "word": "花",
+      "pinyin": "huā",
+      "crossLevels": [
+        "6"
+      ],
+      "sense": 2
+    },
+    {
+      "index": 359,
+      "level": 2,
+      "word": "画",
+      "pinyin": "huà"
+    },
+    {
+      "index": 360,
+      "level": 2,
+      "word": "坏",
+      "pinyin": "huài"
+    },
+    {
+      "index": 361,
+      "level": 2,
+      "word": "回来",
+      "pinyin": "huílái"
+    },
+    {
+      "index": 362,
+      "level": 2,
+      "word": "回去",
+      "pinyin": "huíqù"
+    },
+    {
+      "index": 363,
+      "level": 2,
+      "word": "机场",
+      "pinyin": "jīchǎng"
+    },
+    {
+      "index": 364,
+      "level": 2,
+      "word": "机票",
+      "pinyin": "jīpiào"
+    },
+    {
+      "index": 365,
+      "level": 2,
+      "word": "记得",
+      "pinyin": "jìde"
+    },
+    {
+      "index": 366,
+      "level": 2,
+      "word": "间",
+      "pinyin": "jiān",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 367,
+      "level": 2,
+      "word": "教",
+      "pinyin": "jiāo"
+    },
+    {
+      "index": 368,
+      "level": 2,
+      "word": "教室",
+      "pinyin": "jiàoshì"
+    },
+    {
+      "index": 369,
+      "level": 2,
+      "word": "介绍",
+      "pinyin": "jièshào"
+    },
+    {
+      "index": 370,
+      "level": 2,
+      "word": "进",
+      "pinyin": "jìn"
+    },
+    {
+      "index": 371,
+      "level": 2,
+      "word": "近",
+      "pinyin": "jìn"
+    },
+    {
+      "index": 372,
+      "level": 2,
+      "word": "进来",
+      "pinyin": "jìnlái"
+    },
+    {
+      "index": 373,
+      "level": 2,
+      "word": "进去",
+      "pinyin": "jìnqù"
+    },
+    {
+      "index": 374,
+      "level": 2,
+      "word": "经常",
+      "pinyin": "jīngcháng"
+    },
+    {
+      "index": 375,
+      "level": 2,
+      "word": "酒店",
+      "pinyin": "jiǔdiàn"
+    },
+    {
+      "index": 376,
+      "level": 2,
+      "word": "就",
+      "pinyin": "jiù",
+      "crossLevels": [
+        "7-9"
+      ]
+    },
+    {
+      "index": 377,
+      "level": 2,
+      "word": "咖啡",
+      "pinyin": "kāfēi"
+    },
+    {
+      "index": 378,
+      "level": 2,
+      "word": "开始",
+      "pinyin": "kāishǐ"
+    },
+    {
+      "index": 379,
+      "level": 2,
+      "word": "开学",
+      "pinyin": "kāixué"
+    },
+    {
+      "index": 380,
+      "level": 2,
+      "word": "考",
+      "pinyin": "kǎo"
+    },
+    {
+      "index": 381,
+      "level": 2,
+      "word": "考试",
+      "pinyin": "kǎoshì"
+    },
+    {
+      "index": 382,
+      "level": 2,
+      "word": "可能",
+      "pinyin": "kěnéng"
+    },
+    {
+      "index": 383,
+      "level": 2,
+      "word": "裤子",
+      "pinyin": "kùzi"
+    },
+    {
+      "index": 384,
+      "level": 2,
+      "word": "快",
+      "pinyin": "kuài"
+    },
+    {
+      "index": 385,
+      "level": 2,
+      "word": "快乐",
+      "pinyin": "kuàilè"
+    },
+    {
+      "index": 386,
+      "level": 2,
+      "word": "快要",
+      "pinyin": "kuàiyào"
+    },
+    {
+      "index": 387,
+      "level": 2,
+      "word": "篮球",
+      "pinyin": "lánqiú"
+    },
+    {
+      "index": 388,
+      "level": 2,
+      "word": "累",
+      "pinyin": "lèi"
+    },
+    {
+      "index": 389,
+      "level": 2,
+      "word": "离",
+      "pinyin": "lí"
+    },
+    {
+      "index": 390,
+      "level": 2,
+      "word": "里面",
+      "pinyin": "lǐmiàn"
+    },
+    {
+      "index": 391,
+      "level": 2,
+      "word": "楼",
+      "pinyin": "lóu"
+    },
+    {
+      "index": 392,
+      "level": 2,
+      "word": "路",
+      "pinyin": "lù"
+    },
+    {
+      "index": 393,
+      "level": 2,
+      "word": "路上",
+      "pinyin": "lùshang"
+    },
+    {
+      "index": 394,
+      "level": 2,
+      "word": "旅游",
+      "pinyin": "lǚyóu"
+    },
+    {
+      "index": 395,
+      "level": 2,
+      "word": "绿茶",
+      "pinyin": "lǜchá"
+    },
+    {
+      "index": 396,
+      "level": 2,
+      "word": "绿色",
+      "pinyin": "lǜsè",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 397,
+      "level": 2,
+      "word": "慢",
+      "pinyin": "màn"
+    },
+    {
+      "index": 398,
+      "level": 2,
+      "word": "没意思",
+      "pinyin": "méi yìsi"
+    },
+    {
+      "index": 399,
+      "level": 2,
+      "word": "每",
+      "pinyin": "měi",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 400,
+      "level": 2,
+      "word": "门",
+      "pinyin": "mén"
+    },
+    {
+      "index": 401,
+      "level": 2,
+      "word": "门口",
+      "pinyin": "ménkǒu"
+    },
+    {
+      "index": 402,
+      "level": 2,
+      "word": "门票",
+      "pinyin": "ménpiào"
+    },
+    {
+      "index": 403,
+      "level": 2,
+      "word": "面",
+      "pinyin": "miàn",
+      "crossLevels": [
+        "5"
+      ],
+      "sense": 1
+    },
+    {
+      "index": 404,
+      "level": 2,
+      "word": "名",
+      "pinyin": "míng"
+    },
+    {
+      "index": 405,
+      "level": 2,
+      "word": "拿",
+      "pinyin": "ná"
+    },
+    {
+      "index": 406,
+      "level": 2,
+      "word": "那么",
+      "pinyin": "nàme"
+    },
+    {
+      "index": 407,
+      "level": 2,
+      "word": "那样",
+      "pinyin": "nàyàng"
+    },
+    {
+      "index": 408,
+      "level": 2,
+      "word": "奶茶",
+      "pinyin": "nǎichá"
+    },
+    {
+      "index": 409,
+      "level": 2,
+      "word": "奶奶",
+      "pinyin": "nǎinai"
+    },
+    {
+      "index": 410,
+      "level": 2,
+      "word": "男孩儿",
+      "pinyin": "nánháir"
+    },
+    {
+      "index": 411,
+      "level": 2,
+      "word": "鸟",
+      "pinyin": "niǎo"
+    },
+    {
+      "index": 412,
+      "level": 2,
+      "word": "女孩儿",
+      "pinyin": "nǚháir"
+    },
+    {
+      "index": 413,
+      "level": 2,
+      "word": "旁边",
+      "pinyin": "pángbiān"
+    },
+    {
+      "index": 414,
+      "level": 2,
+      "word": "跑",
+      "pinyin": "pǎo"
+    },
+    {
+      "index": 415,
+      "level": 2,
+      "word": "跑步",
+      "pinyin": "pǎobù"
+    },
+    {
+      "index": 416,
+      "level": 2,
+      "word": "票",
+      "pinyin": "piào"
+    },
+    {
+      "index": 417,
+      "level": 2,
+      "word": "妻子",
+      "pinyin": "qīzi"
+    },
+    {
+      "index": 418,
+      "level": 2,
+      "word": "起来",
+      "pinyin": "qǐlái"
+    },
+    {
+      "index": 419,
+      "level": 2,
+      "word": "前面",
+      "pinyin": "qiánmiàn"
+    },
+    {
+      "index": 420,
+      "level": 2,
+      "word": "晴",
+      "pinyin": "qíng"
+    },
+    {
+      "index": 421,
+      "level": 2,
+      "word": "球",
+      "pinyin": "qiú"
+    },
+    {
+      "index": 422,
+      "level": 2,
+      "word": "让",
+      "pinyin": "ràng",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 423,
+      "level": 2,
+      "word": "肉",
+      "pinyin": "ròu"
+    },
+    {
+      "index": 424,
+      "level": 2,
+      "word": "商场",
+      "pinyin": "shāngchǎng"
+    },
+    {
+      "index": 425,
+      "level": 2,
+      "word": "上来",
+      "pinyin": "shànglái"
+    },
+    {
+      "index": 426,
+      "level": 2,
+      "word": "上面",
+      "pinyin": "shàngmiàn"
+    },
+    {
+      "index": 427,
+      "level": 2,
+      "word": "上去",
+      "pinyin": "shàngqù"
+    },
+    {
+      "index": 428,
+      "level": 2,
+      "word": "上网",
+      "pinyin": "shàngwǎng"
+    },
+    {
+      "index": 429,
+      "level": 2,
+      "word": "身体",
+      "pinyin": "shēntǐ"
+    },
+    {
+      "index": 430,
+      "level": 2,
+      "word": "生日",
+      "pinyin": "shēngrì"
+    },
+    {
+      "index": 431,
+      "level": 2,
+      "word": "时",
+      "pinyin": "shí",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 432,
+      "level": 2,
+      "word": "事情",
+      "pinyin": "shìqing"
+    },
+    {
+      "index": 433,
+      "level": 2,
+      "word": "手",
+      "pinyin": "shǒu"
+    },
+    {
+      "index": 434,
+      "level": 2,
+      "word": "手表",
+      "pinyin": "shǒubiǎo"
+    },
+    {
+      "index": 435,
+      "level": 2,
+      "word": "书包",
+      "pinyin": "shūbāo"
+    },
+    {
+      "index": 436,
+      "level": 2,
+      "word": "舒服",
+      "pinyin": "shūfu"
+    },
+    {
+      "index": 437,
+      "level": 2,
+      "word": "送",
+      "pinyin": "sòng"
+    },
+    {
+      "index": 438,
+      "level": 2,
+      "word": "虽然",
+      "pinyin": "suīrán"
+    },
+    {
+      "index": 439,
+      "level": 2,
+      "word": "所以",
+      "pinyin": "suǒyǐ"
+    },
+    {
+      "index": 440,
+      "level": 2,
+      "word": "疼",
+      "pinyin": "téng",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 441,
+      "level": 2,
+      "word": "踢",
+      "pinyin": "tī"
+    },
+    {
+      "index": 442,
+      "level": 2,
+      "word": "题",
+      "pinyin": "tí"
+    },
+    {
+      "index": 443,
+      "level": 2,
+      "word": "条",
+      "pinyin": "tiáo",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 444,
+      "level": 2,
+      "word": "跳舞",
+      "pinyin": "tiàowǔ"
+    },
+    {
+      "index": 445,
+      "level": 2,
+      "word": "头",
+      "pinyin": "tóu",
+      "crossLevels": [
+        "3",
+        "5"
+      ]
+    },
+    {
+      "index": 446,
+      "level": 2,
+      "word": "外国",
+      "pinyin": "wàiguó"
+    },
+    {
+      "index": 447,
+      "level": 2,
+      "word": "外面",
+      "pinyin": "wàimiàn"
+    },
+    {
+      "index": 448,
+      "level": 2,
+      "word": "完",
+      "pinyin": "wán"
+    },
+    {
+      "index": 449,
+      "level": 2,
+      "word": "万",
+      "pinyin": "wàn"
+    },
+    {
+      "index": 450,
+      "level": 2,
+      "word": "往",
+      "pinyin": "wǎng"
+    },
+    {
+      "index": 451,
+      "level": 2,
+      "word": "网上",
+      "pinyin": "wǎngshang"
+    },
+    {
+      "index": 452,
+      "level": 2,
+      "word": "忘",
+      "pinyin": "wàng"
+    },
+    {
+      "index": 453,
+      "level": 2,
+      "word": "位",
+      "pinyin": "wèi"
+    },
+    {
+      "index": 454,
+      "level": 2,
+      "word": "为什么",
+      "pinyin": "wèi shénme"
+    },
+    {
+      "index": 455,
+      "level": 2,
+      "word": "希望",
+      "pinyin": "xīwàng"
+    },
+    {
+      "index": 456,
+      "level": 2,
+      "word": "洗",
+      "pinyin": "xǐ"
+    },
+    {
+      "index": 457,
+      "level": 2,
+      "word": "洗手间",
+      "pinyin": "xǐshǒujiān"
+    },
+    {
+      "index": 458,
+      "level": 2,
+      "word": "下来",
+      "pinyin": "xiàlái"
+    },
+    {
+      "index": 459,
+      "level": 2,
+      "word": "下面",
+      "pinyin": "xiàmiàn"
+    },
+    {
+      "index": 460,
+      "level": 2,
+      "word": "下去",
+      "pinyin": "xiàqù"
+    },
+    {
+      "index": 461,
+      "level": 2,
+      "word": "小孩儿",
+      "pinyin": "xiǎoháir"
+    },
+    {
+      "index": 462,
+      "level": 2,
+      "word": "小时候",
+      "pinyin": "xiǎoshíhou"
+    },
+    {
+      "index": 463,
+      "level": 2,
+      "word": "笑",
+      "pinyin": "xiào"
+    },
+    {
+      "index": 464,
+      "level": 2,
+      "word": "姓",
+      "pinyin": "xìng"
+    },
+    {
+      "index": 465,
+      "level": 2,
+      "word": "姓名",
+      "pinyin": "xìngmíng"
+    },
+    {
+      "index": 466,
+      "level": 2,
+      "word": "颜色",
+      "pinyin": "yánsè"
+    },
+    {
+      "index": 467,
+      "level": 2,
+      "word": "眼睛",
+      "pinyin": "yǎnjing"
+    },
+    {
+      "index": 468,
+      "level": 2,
+      "word": "药",
+      "pinyin": "yào"
+    },
+    {
+      "index": 469,
+      "level": 2,
+      "word": "药店",
+      "pinyin": "yàodiàn"
+    },
+    {
+      "index": 470,
+      "level": 2,
+      "word": "爷爷",
+      "pinyin": "yéye"
+    },
+    {
+      "index": 471,
+      "level": 2,
+      "word": "一会儿",
+      "pinyin": "yíhuìr",
+      "crossLevels": [
+        "3"
+      ]
+    },
+    {
+      "index": 472,
+      "level": 2,
+      "word": "已经",
+      "pinyin": "yǐjīng"
+    },
+    {
+      "index": 473,
+      "level": 2,
+      "word": "一起",
+      "pinyin": "yìqǐ"
+    },
+    {
+      "index": 474,
+      "level": 2,
+      "word": "意思",
+      "pinyin": "yìsi"
+    },
+    {
+      "index": 475,
+      "level": 2,
+      "word": "阴",
+      "pinyin": "yīn"
+    },
+    {
+      "index": 476,
+      "level": 2,
+      "word": "因为",
+      "pinyin": "yīnwèi"
+    },
+    {
+      "index": 477,
+      "level": 2,
+      "word": "游",
+      "pinyin": "yóu"
+    },
+    {
+      "index": 478,
+      "level": 2,
+      "word": "游泳",
+      "pinyin": "yóuyǒng"
+    },
+    {
+      "index": 479,
+      "level": 2,
+      "word": "有意思",
+      "pinyin": "yǒu yìsi"
+    },
+    {
+      "index": 480,
+      "level": 2,
+      "word": "有时",
+      "pinyin": "yǒushí"
+    },
+    {
+      "index": 481,
+      "level": 2,
+      "word": "右",
+      "pinyin": "yòu"
+    },
+    {
+      "index": 482,
+      "level": 2,
+      "word": "右边",
+      "pinyin": "yòubian"
+    },
+    {
+      "index": 483,
+      "level": 2,
+      "word": "鱼",
+      "pinyin": "yú"
+    },
+    {
+      "index": 484,
+      "level": 2,
+      "word": "远",
+      "pinyin": "yuǎn"
+    },
+    {
+      "index": 485,
+      "level": 2,
+      "word": "运动",
+      "pinyin": "yùndòng"
+    },
+    {
+      "index": 486,
+      "level": 2,
+      "word": "站",
+      "pinyin": "zhàn",
+      "sense": 1
+    },
+    {
+      "index": 487,
+      "level": 2,
+      "word": "丈夫",
+      "pinyin": "zhàngfu"
+    },
+    {
+      "index": 488,
+      "level": 2,
+      "word": "这么",
+      "pinyin": "zhème"
+    },
+    {
+      "index": 489,
+      "level": 2,
+      "word": "这样",
+      "pinyin": "zhèyàng"
+    },
+    {
+      "index": 490,
+      "level": 2,
+      "word": "着",
+      "pinyin": "zhe"
+    },
+    {
+      "index": 491,
+      "level": 2,
+      "word": "正",
+      "pinyin": "zhèng",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 492,
+      "level": 2,
+      "word": "周",
+      "pinyin": "zhōu",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 493,
+      "level": 2,
+      "word": "准备",
+      "pinyin": "zhǔnbèi"
+    },
+    {
+      "index": 494,
+      "level": 2,
+      "word": "自己",
+      "pinyin": "zìjǐ"
+    },
+    {
+      "index": 495,
+      "level": 2,
+      "word": "走",
+      "pinyin": "zǒu"
+    },
+    {
+      "index": 496,
+      "level": 2,
+      "word": "走路",
+      "pinyin": "zǒulù"
+    },
+    {
+      "index": 497,
+      "level": 2,
+      "word": "足球",
+      "pinyin": "zúqiú"
+    },
+    {
+      "index": 498,
+      "level": 2,
+      "word": "最",
+      "pinyin": "zuì"
+    },
+    {
+      "index": 499,
+      "level": 2,
+      "word": "左",
+      "pinyin": "zuǒ"
+    },
+    {
+      "index": 500,
+      "level": 2,
+      "word": "左边",
+      "pinyin": "zuǒbian"
+    },
+    {
+      "index": 501,
+      "level": 3,
+      "word": "阿姨",
+      "pinyin": "āyí"
+    },
+    {
+      "index": 502,
+      "level": 3,
+      "word": "矮",
+      "pinyin": "ǎi"
+    },
+    {
+      "index": 503,
+      "level": 3,
+      "word": "爱人",
+      "pinyin": "àiren"
+    },
+    {
+      "index": 504,
+      "level": 3,
+      "word": "安静",
+      "pinyin": "ānjìng"
+    },
+    {
+      "index": 505,
+      "level": 3,
+      "word": "安全",
+      "pinyin": "ānquán"
+    },
+    {
+      "index": 506,
+      "level": 3,
+      "word": "把",
+      "pinyin": "bǎ"
+    },
+    {
+      "index": 507,
+      "level": 3,
+      "word": "搬",
+      "pinyin": "bān"
+    },
+    {
+      "index": 508,
+      "level": 3,
+      "word": "班级",
+      "pinyin": "bānjí"
+    },
+    {
+      "index": 509,
+      "level": 3,
+      "word": "搬家",
+      "pinyin": "bānjiā"
+    },
+    {
+      "index": 510,
+      "level": 3,
+      "word": "办",
+      "pinyin": "bàn"
+    },
+    {
+      "index": 511,
+      "level": 3,
+      "word": "办法",
+      "pinyin": "bànfǎ"
+    },
+    {
+      "index": 512,
+      "level": 3,
+      "word": "办公室",
+      "pinyin": "bàngōngshì"
+    },
+    {
+      "index": 513,
+      "level": 3,
+      "word": "半天",
+      "pinyin": "bàntiān"
+    },
+    {
+      "index": 514,
+      "level": 3,
+      "word": "帮助",
+      "pinyin": "bāngzhù"
+    },
+    {
+      "index": 515,
+      "level": 3,
+      "word": "饱",
+      "pinyin": "bǎo"
+    },
+    {
+      "index": 516,
+      "level": 3,
+      "word": "报纸",
+      "pinyin": "bàozhǐ"
+    },
+    {
+      "index": 517,
+      "level": 3,
+      "word": "北",
+      "pinyin": "běi"
+    },
+    {
+      "index": 518,
+      "level": 3,
+      "word": "北方",
+      "pinyin": "běifāng"
+    },
+    {
+      "index": 519,
+      "level": 3,
+      "word": "被",
+      "pinyin": "bèi"
+    },
+    {
+      "index": 520,
+      "level": 3,
+      "word": "笔记",
+      "pinyin": "bǐjì"
+    },
+    {
+      "index": 521,
+      "level": 3,
+      "word": "比较",
+      "pinyin": "bǐjiào"
+    },
+    {
+      "index": 522,
+      "level": 3,
+      "word": "笔记本",
+      "pinyin": "bǐjìběn"
+    },
+    {
+      "index": 523,
+      "level": 3,
+      "word": "比如",
+      "pinyin": "bǐrú"
+    },
+    {
+      "index": 524,
+      "level": 3,
+      "word": "比赛",
+      "pinyin": "bǐsài"
+    },
+    {
+      "index": 525,
+      "level": 3,
+      "word": "必须",
+      "pinyin": "bìxū"
+    },
+    {
+      "index": 526,
+      "level": 3,
+      "word": "变",
+      "pinyin": "biàn"
+    },
+    {
+      "index": 527,
+      "level": 3,
+      "word": "遍",
+      "pinyin": "biàn"
+    },
+    {
+      "index": 528,
+      "level": 3,
+      "word": "变成",
+      "pinyin": "biànchéng"
+    },
+    {
+      "index": 529,
+      "level": 3,
+      "word": "变化",
+      "pinyin": "biànhuà"
+    },
+    {
+      "index": 530,
+      "level": 3,
+      "word": "表演",
+      "pinyin": "biǎoyǎn"
+    },
+    {
+      "index": 531,
+      "level": 3,
+      "word": "别的",
+      "pinyin": "biéde"
+    },
+    {
+      "index": 532,
+      "level": 3,
+      "word": "别人",
+      "pinyin": "biérén"
+    },
+    {
+      "index": 533,
+      "level": 3,
+      "word": "宾馆",
+      "pinyin": "bīnguǎn"
+    },
+    {
+      "index": 534,
+      "level": 3,
+      "word": "冰",
+      "pinyin": "bīng",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 535,
+      "level": 3,
+      "word": "冰激凌",
+      "pinyin": "bīngjīlíng"
+    },
+    {
+      "index": 536,
+      "level": 3,
+      "word": "冰箱",
+      "pinyin": "bīngxiāng"
+    },
+    {
+      "index": 537,
+      "level": 3,
+      "word": "病人",
+      "pinyin": "bìngrén"
+    },
+    {
+      "index": 538,
+      "level": 3,
+      "word": "不但",
+      "pinyin": "búdàn"
+    },
+    {
+      "index": 539,
+      "level": 3,
+      "word": "不见",
+      "pinyin": "bújiàn"
+    },
+    {
+      "index": 540,
+      "level": 3,
+      "word": "不用",
+      "pinyin": "búyòng"
+    },
+    {
+      "index": 541,
+      "level": 3,
+      "word": "不同",
+      "pinyin": "bù tóng"
+    },
+    {
+      "index": 542,
+      "level": 3,
+      "word": "不久",
+      "pinyin": "bùjiǔ"
+    },
+    {
+      "index": 543,
+      "level": 3,
+      "word": "不行",
+      "pinyin": "bùxíng"
+    },
+    {
+      "index": 544,
+      "level": 3,
+      "word": "才",
+      "pinyin": "cái",
+      "sense": 1
+    },
+    {
+      "index": 545,
+      "level": 3,
+      "word": "菜单",
+      "pinyin": "càidān"
+    },
+    {
+      "index": 546,
+      "level": 3,
+      "word": "参加",
+      "pinyin": "cānjiā"
+    },
+    {
+      "index": 547,
+      "level": 3,
+      "word": "草",
+      "pinyin": "cǎo"
+    },
+    {
+      "index": 548,
+      "level": 3,
+      "word": "草地",
+      "pinyin": "cǎodì"
+    },
+    {
+      "index": 549,
+      "level": 3,
+      "word": "层",
+      "pinyin": "céng"
+    },
+    {
+      "index": 550,
+      "level": 3,
+      "word": "查",
+      "pinyin": "chá"
+    },
+    {
+      "index": 551,
+      "level": 3,
+      "word": "差",
+      "pinyin": "chà"
+    },
+    {
+      "index": 552,
+      "level": 3,
+      "word": "差不多",
+      "pinyin": "chàbuduō"
+    },
+    {
+      "index": 553,
+      "level": 3,
+      "word": "尝",
+      "pinyin": "cháng"
+    },
+    {
+      "index": 554,
+      "level": 3,
+      "word": "常",
+      "pinyin": "cháng"
+    },
+    {
+      "index": 555,
+      "level": 3,
+      "word": "常见",
+      "pinyin": "cháng jiàn"
+    },
+    {
+      "index": 556,
+      "level": 3,
+      "word": "常用",
+      "pinyin": "cháng yòng"
+    },
+    {
+      "index": 557,
+      "level": 3,
+      "word": "常常",
+      "pinyin": "chángcháng"
+    },
+    {
+      "index": 558,
+      "level": 3,
+      "word": "衬衫",
+      "pinyin": "chènshān"
+    },
+    {
+      "index": 559,
+      "level": 3,
+      "word": "成绩",
+      "pinyin": "chéngjì"
+    },
+    {
+      "index": 560,
+      "level": 3,
+      "word": "城市",
+      "pinyin": "chéngshì"
+    },
+    {
+      "index": 561,
+      "level": 3,
+      "word": "迟到",
+      "pinyin": "chídào"
+    },
+    {
+      "index": 562,
+      "level": 3,
+      "word": "出发",
+      "pinyin": "chūfā"
+    },
+    {
+      "index": 563,
+      "level": 3,
+      "word": "出生",
+      "pinyin": "chūshēng"
+    },
+    {
+      "index": 564,
+      "level": 3,
+      "word": "出院",
+      "pinyin": "chūyuàn"
+    },
+    {
+      "index": 565,
+      "level": 3,
+      "word": "初中",
+      "pinyin": "chūzhōng"
+    },
+    {
+      "index": 566,
+      "level": 3,
+      "word": "除了",
+      "pinyin": "chúle"
+    },
+    {
+      "index": 567,
+      "level": 3,
+      "word": "船",
+      "pinyin": "chuán"
+    },
+    {
+      "index": 568,
+      "level": 3,
+      "word": "春天",
+      "pinyin": "chūntiān"
+    },
+    {
+      "index": 569,
+      "level": 3,
+      "word": "词典",
+      "pinyin": "cídiǎn"
+    },
+    {
+      "index": 570,
+      "level": 3,
+      "word": "聪明",
+      "pinyin": "cōngmíng"
+    },
+    {
+      "index": 571,
+      "level": 3,
+      "word": "打扫",
+      "pinyin": "dǎsǎo"
+    },
+    {
+      "index": 572,
+      "level": 3,
+      "word": "打算",
+      "pinyin": "dǎsuàn"
+    },
+    {
+      "index": 573,
+      "level": 3,
+      "word": "大概",
+      "pinyin": "dàgài",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 574,
+      "level": 3,
+      "word": "大人",
+      "pinyin": "dàren"
+    },
+    {
+      "index": 575,
+      "level": 3,
+      "word": "大小",
+      "pinyin": "dàxiǎo"
+    },
+    {
+      "index": 576,
+      "level": 3,
+      "word": "大熊猫",
+      "pinyin": "dàxióngmāo"
+    },
+    {
+      "index": 577,
+      "level": 3,
+      "word": "大衣",
+      "pinyin": "dàyī"
+    },
+    {
+      "index": 578,
+      "level": 3,
+      "word": "带",
+      "pinyin": "dài",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 579,
+      "level": 3,
+      "word": "担心",
+      "pinyin": "dānxīn"
+    },
+    {
+      "index": 580,
+      "level": 3,
+      "word": "蛋糕",
+      "pinyin": "dàngāo"
+    },
+    {
+      "index": 581,
+      "level": 3,
+      "word": "当然",
+      "pinyin": "dāngrán"
+    },
+    {
+      "index": 582,
+      "level": 3,
+      "word": "到处",
+      "pinyin": "dàochù"
+    },
+    {
+      "index": 583,
+      "level": 3,
+      "word": "得",
+      "pinyin": "dé"
+    },
+    {
+      "index": 584,
+      "level": 3,
+      "word": "得到",
+      "pinyin": "dédào"
+    },
+    {
+      "index": 585,
+      "level": 3,
+      "word": "得分",
+      "pinyin": "défēn"
+    },
+    {
+      "index": 586,
+      "level": 3,
+      "word": "的话",
+      "pinyin": "dehuà"
+    },
+    {
+      "index": 587,
+      "level": 3,
+      "word": "得",
+      "pinyin": "děi"
+    },
+    {
+      "index": 588,
+      "level": 3,
+      "word": "灯",
+      "pinyin": "dēng"
+    },
+    {
+      "index": 589,
+      "level": 3,
+      "word": "地",
+      "pinyin": "dì"
+    },
+    {
+      "index": 590,
+      "level": 3,
+      "word": "地点",
+      "pinyin": "dìdiǎn"
+    },
+    {
+      "index": 591,
+      "level": 3,
+      "word": "地方",
+      "pinyin": "dìfang"
+    },
+    {
+      "index": 592,
+      "level": 3,
+      "word": "地图",
+      "pinyin": "dìtú"
+    },
+    {
+      "index": 593,
+      "level": 3,
+      "word": "电",
+      "pinyin": "diàn",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 594,
+      "level": 3,
+      "word": "电梯",
+      "pinyin": "diàntī"
+    },
+    {
+      "index": 595,
+      "level": 3,
+      "word": "电子书",
+      "pinyin": "diànzǐshū"
+    },
+    {
+      "index": 596,
+      "level": 3,
+      "word": "丢",
+      "pinyin": "diū"
+    },
+    {
+      "index": 597,
+      "level": 3,
+      "word": "东",
+      "pinyin": "dōng"
+    },
+    {
+      "index": 598,
+      "level": 3,
+      "word": "东北",
+      "pinyin": "dōngběi"
+    },
+    {
+      "index": 599,
+      "level": 3,
+      "word": "东方",
+      "pinyin": "dōngfāng"
+    },
+    {
+      "index": 600,
+      "level": 3,
+      "word": "东南",
+      "pinyin": "dōngnán"
+    },
+    {
+      "index": 601,
+      "level": 3,
+      "word": "冬天",
+      "pinyin": "dōngtiān"
+    },
+    {
+      "index": 602,
+      "level": 3,
+      "word": "懂得",
+      "pinyin": "dǒngde"
+    },
+    {
+      "index": 603,
+      "level": 3,
+      "word": "动物",
+      "pinyin": "dòngwù"
+    },
+    {
+      "index": 604,
+      "level": 3,
+      "word": "动物园",
+      "pinyin": "dòngwùyuán"
+    },
+    {
+      "index": 605,
+      "level": 3,
+      "word": "短",
+      "pinyin": "duǎn"
+    },
+    {
+      "index": 606,
+      "level": 3,
+      "word": "短裤",
+      "pinyin": "duǎnkù"
+    },
+    {
+      "index": 607,
+      "level": 3,
+      "word": "段",
+      "pinyin": "duàn"
+    },
+    {
+      "index": 608,
+      "level": 3,
+      "word": "锻炼",
+      "pinyin": "duànliàn"
+    },
+    {
+      "index": 609,
+      "level": 3,
+      "word": "对话",
+      "pinyin": "duìhuà"
+    },
+    {
+      "index": 610,
+      "level": 3,
+      "word": "饿",
+      "pinyin": "è"
+    },
+    {
+      "index": 611,
+      "level": 3,
+      "word": "而且",
+      "pinyin": "érqiě"
+    },
+    {
+      "index": 612,
+      "level": 3,
+      "word": "耳朵",
+      "pinyin": "ěrduo"
+    },
+    {
+      "index": 613,
+      "level": 3,
+      "word": "耳机",
+      "pinyin": "ěrjī"
+    },
+    {
+      "index": 614,
+      "level": 3,
+      "word": "发",
+      "pinyin": "fā"
+    },
+    {
+      "index": 615,
+      "level": 3,
+      "word": "发烧",
+      "pinyin": "fāshāo"
+    },
+    {
+      "index": 616,
+      "level": 3,
+      "word": "发生",
+      "pinyin": "fāshēng"
+    },
+    {
+      "index": 617,
+      "level": 3,
+      "word": "发现",
+      "pinyin": "fāxiàn"
+    },
+    {
+      "index": 618,
+      "level": 3,
+      "word": "发展",
+      "pinyin": "fāzhǎn"
+    },
+    {
+      "index": 619,
+      "level": 3,
+      "word": "方便",
+      "pinyin": "fāngbiàn"
+    },
+    {
+      "index": 620,
+      "level": 3,
+      "word": "方便面",
+      "pinyin": "fāngbiànmiàn"
+    },
+    {
+      "index": 621,
+      "level": 3,
+      "word": "方法",
+      "pinyin": "fāngfǎ"
+    },
+    {
+      "index": 622,
+      "level": 3,
+      "word": "方向",
+      "pinyin": "fāngxiàng"
+    },
+    {
+      "index": 623,
+      "level": 3,
+      "word": "房子",
+      "pinyin": "fángzi"
+    },
+    {
+      "index": 624,
+      "level": 3,
+      "word": "放",
+      "pinyin": "fàng"
+    },
+    {
+      "index": 625,
+      "level": 3,
+      "word": "放假",
+      "pinyin": "fàngjià"
+    },
+    {
+      "index": 626,
+      "level": 3,
+      "word": "放心",
+      "pinyin": "fàngxīn"
+    },
+    {
+      "index": 627,
+      "level": 3,
+      "word": "放学",
+      "pinyin": "fàngxué"
+    },
+    {
+      "index": 628,
+      "level": 3,
+      "word": "分开",
+      "pinyin": "fēnkāi"
+    },
+    {
+      "index": 629,
+      "level": 3,
+      "word": "风",
+      "pinyin": "fēng"
+    },
+    {
+      "index": 630,
+      "level": 3,
+      "word": "封",
+      "pinyin": "fēng",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 631,
+      "level": 3,
+      "word": "夫妻",
+      "pinyin": "fūqī"
+    },
+    {
+      "index": 632,
+      "level": 3,
+      "word": "服务",
+      "pinyin": "fúwù"
+    },
+    {
+      "index": 633,
+      "level": 3,
+      "word": "附近",
+      "pinyin": "fùjìn"
+    },
+    {
+      "index": 634,
+      "level": 3,
+      "word": "复习",
+      "pinyin": "fùxí"
+    },
+    {
+      "index": 635,
+      "level": 3,
+      "word": "该",
+      "pinyin": "gāi",
+      "sense": 1
+    },
+    {
+      "index": 636,
+      "level": 3,
+      "word": "干净",
+      "pinyin": "gānjìng"
+    },
+    {
+      "index": 637,
+      "level": 3,
+      "word": "感兴趣",
+      "pinyin": "gǎn xìngqù"
+    },
+    {
+      "index": 638,
+      "level": 3,
+      "word": "感到",
+      "pinyin": "gǎndào"
+    },
+    {
+      "index": 639,
+      "level": 3,
+      "word": "感冒",
+      "pinyin": "gǎnmào"
+    },
+    {
+      "index": 640,
+      "level": 3,
+      "word": "干",
+      "pinyin": "gàn"
+    },
+    {
+      "index": 641,
+      "level": 3,
+      "word": "刚",
+      "pinyin": "gāng"
+    },
+    {
+      "index": 642,
+      "level": 3,
+      "word": "刚才",
+      "pinyin": "gāngcái"
+    },
+    {
+      "index": 643,
+      "level": 3,
+      "word": "刚刚",
+      "pinyin": "gānggāng"
+    },
+    {
+      "index": 644,
+      "level": 3,
+      "word": "高铁",
+      "pinyin": "gāotiě"
+    },
+    {
+      "index": 645,
+      "level": 3,
+      "word": "根据",
+      "pinyin": "gēnjù",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 646,
+      "level": 3,
+      "word": "更",
+      "pinyin": "gèng"
+    },
+    {
+      "index": 647,
+      "level": 3,
+      "word": "公斤",
+      "pinyin": "gōngjīn"
+    },
+    {
+      "index": 648,
+      "level": 3,
+      "word": "公园",
+      "pinyin": "gōngyuán"
+    },
+    {
+      "index": 649,
+      "level": 3,
+      "word": "工作日",
+      "pinyin": "gōngzuòrì"
+    },
+    {
+      "index": 650,
+      "level": 3,
+      "word": "故事",
+      "pinyin": "gùshi"
+    },
+    {
+      "index": 651,
+      "level": 3,
+      "word": "刮",
+      "pinyin": "guā"
+    },
+    {
+      "index": 652,
+      "level": 3,
+      "word": "关",
+      "pinyin": "guān",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 653,
+      "level": 3,
+      "word": "关机",
+      "pinyin": "guānjī"
+    },
+    {
+      "index": 654,
+      "level": 3,
+      "word": "关系",
+      "pinyin": "guānxì",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 655,
+      "level": 3,
+      "word": "关心",
+      "pinyin": "guānxīn"
+    },
+    {
+      "index": 656,
+      "level": 3,
+      "word": "关于",
+      "pinyin": "guānyú"
+    },
+    {
+      "index": 657,
+      "level": 3,
+      "word": "关注",
+      "pinyin": "guānzhù"
+    },
+    {
+      "index": 658,
+      "level": 3,
+      "word": "国家",
+      "pinyin": "guójiā"
+    },
+    {
+      "index": 659,
+      "level": 3,
+      "word": "过节",
+      "pinyin": "guòjié"
+    },
+    {
+      "index": 660,
+      "level": 3,
+      "word": "过去",
+      "pinyin": "guòqù",
+      "sense": 2
+    },
+    {
+      "index": 661,
+      "level": 3,
+      "word": "海",
+      "pinyin": "hǎi"
+    },
+    {
+      "index": 662,
+      "level": 3,
+      "word": "害怕",
+      "pinyin": "hàipà"
+    },
+    {
+      "index": 663,
+      "level": 3,
+      "word": "好多",
+      "pinyin": "hǎoduō"
+    },
+    {
+      "index": 664,
+      "level": 3,
+      "word": "好久",
+      "pinyin": "hǎojiǔ"
+    },
+    {
+      "index": 665,
+      "level": 3,
+      "word": "好像",
+      "pinyin": "hǎoxiàng"
+    },
+    {
+      "index": 666,
+      "level": 3,
+      "word": "号码",
+      "pinyin": "hàomǎ"
+    },
+    {
+      "index": 667,
+      "level": 3,
+      "word": "河",
+      "pinyin": "hé"
+    },
+    {
+      "index": 668,
+      "level": 3,
+      "word": "合适",
+      "pinyin": "héshì"
+    },
+    {
+      "index": 669,
+      "level": 3,
+      "word": "黑板",
+      "pinyin": "hēibǎn"
+    },
+    {
+      "index": 670,
+      "level": 3,
+      "word": "红绿灯",
+      "pinyin": "hóng-lǜdēng"
+    },
+    {
+      "index": 671,
+      "level": 3,
+      "word": "后来",
+      "pinyin": "hòulái"
+    },
+    {
+      "index": 672,
+      "level": 3,
+      "word": "后年",
+      "pinyin": "hòunián"
+    },
+    {
+      "index": 673,
+      "level": 3,
+      "word": "后天",
+      "pinyin": "hòutiān"
+    },
+    {
+      "index": 674,
+      "level": 3,
+      "word": "护照",
+      "pinyin": "hùzhào"
+    },
+    {
+      "index": 675,
+      "level": 3,
+      "word": "花园",
+      "pinyin": "huāyuán"
+    },
+    {
+      "index": 676,
+      "level": 3,
+      "word": "画家",
+      "pinyin": "huàjiā"
+    },
+    {
+      "index": 677,
+      "level": 3,
+      "word": "欢迎",
+      "pinyin": "huānyíng"
+    },
+    {
+      "index": 678,
+      "level": 3,
+      "word": "还",
+      "pinyin": "huán"
+    },
+    {
+      "index": 679,
+      "level": 3,
+      "word": "环境",
+      "pinyin": "huánjìng"
+    },
+    {
+      "index": 680,
+      "level": 3,
+      "word": "换",
+      "pinyin": "huàn"
+    },
+    {
+      "index": 681,
+      "level": 3,
+      "word": "黄色",
+      "pinyin": "huángsè"
+    },
+    {
+      "index": 682,
+      "level": 3,
+      "word": "回答",
+      "pinyin": "huídá"
+    },
+    {
+      "index": 683,
+      "level": 3,
+      "word": "会",
+      "pinyin": "huì",
+      "sense": 2
+    },
+    {
+      "index": 684,
+      "level": 3,
+      "word": "会议",
+      "pinyin": "huìyì"
+    },
+    {
+      "index": 685,
+      "level": 3,
+      "word": "或",
+      "pinyin": "huò",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 686,
+      "level": 3,
+      "word": "或者",
+      "pinyin": "huòzhě"
+    },
+    {
+      "index": 687,
+      "level": 3,
+      "word": "鸡",
+      "pinyin": "jī"
+    },
+    {
+      "index": 688,
+      "level": 3,
+      "word": "几乎",
+      "pinyin": "jīhū"
+    },
+    {
+      "index": 689,
+      "level": 3,
+      "word": "机会",
+      "pinyin": "jīhuì"
+    },
+    {
+      "index": 690,
+      "level": 3,
+      "word": "极",
+      "pinyin": "jí"
+    },
+    {
+      "index": 691,
+      "level": 3,
+      "word": "急",
+      "pinyin": "jí"
+    },
+    {
+      "index": 692,
+      "level": 3,
+      "word": "记",
+      "pinyin": "jì"
+    },
+    {
+      "index": 693,
+      "level": 3,
+      "word": "季",
+      "pinyin": "jì"
+    },
+    {
+      "index": 694,
+      "level": 3,
+      "word": "季节",
+      "pinyin": "jìjié"
+    },
+    {
+      "index": 695,
+      "level": 3,
+      "word": "加",
+      "pinyin": "jiā"
+    },
+    {
+      "index": 696,
+      "level": 3,
+      "word": "假期",
+      "pinyin": "jiàqī"
+    },
+    {
+      "index": 697,
+      "level": 3,
+      "word": "坚持",
+      "pinyin": "jiānchí"
+    },
+    {
+      "index": 698,
+      "level": 3,
+      "word": "检查",
+      "pinyin": "jiǎnchá"
+    },
+    {
+      "index": 699,
+      "level": 3,
+      "word": "简单",
+      "pinyin": "jiǎndān"
+    },
+    {
+      "index": 700,
+      "level": 3,
+      "word": "检票",
+      "pinyin": "jiǎnpiào"
+    },
+    {
+      "index": 701,
+      "level": 3,
+      "word": "健康",
+      "pinyin": "jiànkāng"
+    },
+    {
+      "index": 702,
+      "level": 3,
+      "word": "见面",
+      "pinyin": "jiànmiàn"
+    },
+    {
+      "index": 703,
+      "level": 3,
+      "word": "讲",
+      "pinyin": "jiǎng"
+    },
+    {
+      "index": 704,
+      "level": 3,
+      "word": "角",
+      "pinyin": "jiǎo"
+    },
+    {
+      "index": 705,
+      "level": 3,
+      "word": "脚",
+      "pinyin": "jiǎo"
+    },
+    {
+      "index": 706,
+      "level": 3,
+      "word": "接",
+      "pinyin": "jiē"
+    },
+    {
+      "index": 707,
+      "level": 3,
+      "word": "街",
+      "pinyin": "jiē"
+    },
+    {
+      "index": 708,
+      "level": 3,
+      "word": "节",
+      "pinyin": "jié",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 709,
+      "level": 3,
+      "word": "结婚",
+      "pinyin": "jiéhūn"
+    },
+    {
+      "index": 710,
+      "level": 3,
+      "word": "节目",
+      "pinyin": "jiémù"
+    },
+    {
+      "index": 711,
+      "level": 3,
+      "word": "节日",
+      "pinyin": "jiérì"
+    },
+    {
+      "index": 712,
+      "level": 3,
+      "word": "结束",
+      "pinyin": "jiéshù"
+    },
+    {
+      "index": 713,
+      "level": 3,
+      "word": "解决",
+      "pinyin": "jiějué"
+    },
+    {
+      "index": 714,
+      "level": 3,
+      "word": "姐妹",
+      "pinyin": "jiěmèi"
+    },
+    {
+      "index": 715,
+      "level": 3,
+      "word": "借",
+      "pinyin": "jiè"
+    },
+    {
+      "index": 716,
+      "level": 3,
+      "word": "斤",
+      "pinyin": "jīn"
+    },
+    {
+      "index": 717,
+      "level": 3,
+      "word": "经过",
+      "pinyin": "jīngguò"
+    },
+    {
+      "index": 718,
+      "level": 3,
+      "word": "经理",
+      "pinyin": "jīnglǐ"
+    },
+    {
+      "index": 719,
+      "level": 3,
+      "word": "久",
+      "pinyin": "jiǔ"
+    },
+    {
+      "index": 720,
+      "level": 3,
+      "word": "酒",
+      "pinyin": "jiǔ"
+    },
+    {
+      "index": 721,
+      "level": 3,
+      "word": "旧",
+      "pinyin": "jiù"
+    },
+    {
+      "index": 722,
+      "level": 3,
+      "word": "句",
+      "pinyin": "jù"
+    },
+    {
+      "index": 723,
+      "level": 3,
+      "word": "句子",
+      "pinyin": "jùzi"
+    },
+    {
+      "index": 724,
+      "level": 3,
+      "word": "决定",
+      "pinyin": "juédìng"
+    },
+    {
+      "index": 725,
+      "level": 3,
+      "word": "卡",
+      "pinyin": "kǎ"
+    },
+    {
+      "index": 726,
+      "level": 3,
+      "word": "开花",
+      "pinyin": "kāihuā"
+    },
+    {
+      "index": 727,
+      "level": 3,
+      "word": "开会",
+      "pinyin": "kāihuì"
+    },
+    {
+      "index": 728,
+      "level": 3,
+      "word": "开机",
+      "pinyin": "kāijī"
+    },
+    {
+      "index": 729,
+      "level": 3,
+      "word": "开心",
+      "pinyin": "kāixīn"
+    },
+    {
+      "index": 730,
+      "level": 3,
+      "word": "看来",
+      "pinyin": "kànlái"
+    },
+    {
+      "index": 731,
+      "level": 3,
+      "word": "可",
+      "pinyin": "kě",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 732,
+      "level": 3,
+      "word": "渴",
+      "pinyin": "kě"
+    },
+    {
+      "index": 733,
+      "level": 3,
+      "word": "可爱",
+      "pinyin": "kě’ài"
+    },
+    {
+      "index": 734,
+      "level": 3,
+      "word": "可是",
+      "pinyin": "kěshì"
+    },
+    {
+      "index": 735,
+      "level": 3,
+      "word": "刻",
+      "pinyin": "kè",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 736,
+      "level": 3,
+      "word": "课本",
+      "pinyin": "kèběn"
+    },
+    {
+      "index": 737,
+      "level": 3,
+      "word": "客人",
+      "pinyin": "kèrén"
+    },
+    {
+      "index": 738,
+      "level": 3,
+      "word": "课文",
+      "pinyin": "kèwén"
+    },
+    {
+      "index": 739,
+      "level": 3,
+      "word": "空调",
+      "pinyin": "kōngtiáo"
+    },
+    {
+      "index": 740,
+      "level": 3,
+      "word": "哭",
+      "pinyin": "kū"
+    },
+    {
+      "index": 741,
+      "level": 3,
+      "word": "筷子",
+      "pinyin": "kuàizi"
+    },
+    {
+      "index": 742,
+      "level": 3,
+      "word": "矿泉水",
+      "pinyin": "kuàngquánshuǐ"
+    },
+    {
+      "index": 743,
+      "level": 3,
+      "word": "来自",
+      "pinyin": "láizì"
+    },
+    {
+      "index": 744,
+      "level": 3,
+      "word": "蓝",
+      "pinyin": "lán"
+    },
+    {
+      "index": 745,
+      "level": 3,
+      "word": "老",
+      "pinyin": "lǎo",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 746,
+      "level": 3,
+      "word": "老人",
+      "pinyin": "lǎorén"
+    },
+    {
+      "index": 747,
+      "level": 3,
+      "word": "离开",
+      "pinyin": "líkāi"
+    },
+    {
+      "index": 748,
+      "level": 3,
+      "word": "礼物",
+      "pinyin": "lǐwù"
+    },
+    {
+      "index": 749,
+      "level": 3,
+      "word": "历史",
+      "pinyin": "lìshǐ"
+    },
+    {
+      "index": 750,
+      "level": 3,
+      "word": "脸",
+      "pinyin": "liǎn"
+    },
+    {
+      "index": 751,
+      "level": 3,
+      "word": "练",
+      "pinyin": "liàn"
+    },
+    {
+      "index": 752,
+      "level": 3,
+      "word": "练习",
+      "pinyin": "liànxí"
+    },
+    {
+      "index": 753,
+      "level": 3,
+      "word": "凉快",
+      "pinyin": "liángkuai"
+    },
+    {
+      "index": 754,
+      "level": 3,
+      "word": "辆",
+      "pinyin": "liàng"
+    },
+    {
+      "index": 755,
+      "level": 3,
+      "word": "聊",
+      "pinyin": "liáo"
+    },
+    {
+      "index": 756,
+      "level": 3,
+      "word": "聊天儿",
+      "pinyin": "liáotiānr"
+    },
+    {
+      "index": 757,
+      "level": 3,
+      "word": "了解",
+      "pinyin": "liǎojiě"
+    },
+    {
+      "index": 758,
+      "level": 3,
+      "word": "邻居",
+      "pinyin": "línjū"
+    },
+    {
+      "index": 759,
+      "level": 3,
+      "word": "留学",
+      "pinyin": "liúxué"
+    },
+    {
+      "index": 760,
+      "level": 3,
+      "word": "留学生",
+      "pinyin": "liúxuéshēng"
+    },
+    {
+      "index": 761,
+      "level": 3,
+      "word": "楼梯",
+      "pinyin": "lóutī"
+    },
+    {
+      "index": 762,
+      "level": 3,
+      "word": "路边",
+      "pinyin": "lùbiān"
+    },
+    {
+      "index": 763,
+      "level": 3,
+      "word": "路口",
+      "pinyin": "lùkǒu"
+    },
+    {
+      "index": 764,
+      "level": 3,
+      "word": "马",
+      "pinyin": "mǎ"
+    },
+    {
+      "index": 765,
+      "level": 3,
+      "word": "马路",
+      "pinyin": "mǎlù"
+    },
+    {
+      "index": 766,
+      "level": 3,
+      "word": "马上",
+      "pinyin": "mǎshàng"
+    },
+    {
+      "index": 767,
+      "level": 3,
+      "word": "满意",
+      "pinyin": "mǎnyì"
+    },
+    {
+      "index": 768,
+      "level": 3,
+      "word": "毛",
+      "pinyin": "máo",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 769,
+      "level": 3,
+      "word": "米",
+      "pinyin": "mǐ"
+    },
+    {
+      "index": 770,
+      "level": 3,
+      "word": "面前",
+      "pinyin": "miànqián"
+    },
+    {
+      "index": 771,
+      "level": 3,
+      "word": "明白",
+      "pinyin": "míngbai"
+    },
+    {
+      "index": 772,
+      "level": 3,
+      "word": "名单",
+      "pinyin": "míngdān"
+    },
+    {
+      "index": 773,
+      "level": 3,
+      "word": "名人",
+      "pinyin": "míngrén"
+    },
+    {
+      "index": 774,
+      "level": 3,
+      "word": "南",
+      "pinyin": "nán"
+    },
+    {
+      "index": 775,
+      "level": 3,
+      "word": "难",
+      "pinyin": "nán",
+      "crossLevels": [
+        "6"
+      ]
+    },
+    {
+      "index": 776,
+      "level": 3,
+      "word": "南方",
+      "pinyin": "nánfāng"
+    },
+    {
+      "index": 777,
+      "level": 3,
+      "word": "难过",
+      "pinyin": "nánguò"
+    },
+    {
+      "index": 778,
+      "level": 3,
+      "word": "难看",
+      "pinyin": "nánkàn"
+    },
+    {
+      "index": 779,
+      "level": 3,
+      "word": "男人",
+      "pinyin": "nánrén"
+    },
+    {
+      "index": 780,
+      "level": 3,
+      "word": "男生",
+      "pinyin": "nánshēng"
+    },
+    {
+      "index": 781,
+      "level": 3,
+      "word": "难题",
+      "pinyin": "nántí"
+    },
+    {
+      "index": 782,
+      "level": 3,
+      "word": "难听",
+      "pinyin": "nántīng"
+    },
+    {
+      "index": 783,
+      "level": 3,
+      "word": "年级",
+      "pinyin": "niánjí"
+    },
+    {
+      "index": 784,
+      "level": 3,
+      "word": "年轻",
+      "pinyin": "niánqīng"
+    },
+    {
+      "index": 785,
+      "level": 3,
+      "word": "牛",
+      "pinyin": "niú",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 786,
+      "level": 3,
+      "word": "努力",
+      "pinyin": "nǔlì"
+    },
+    {
+      "index": 787,
+      "level": 3,
+      "word": "女人",
+      "pinyin": "nǚrén"
+    },
+    {
+      "index": 788,
+      "level": 3,
+      "word": "女生",
+      "pinyin": "nǚshēng"
+    },
+    {
+      "index": 789,
+      "level": 3,
+      "word": "爬",
+      "pinyin": "pá"
+    },
+    {
+      "index": 790,
+      "level": 3,
+      "word": "怕",
+      "pinyin": "pà",
+      "crossLevels": [
+        "4"
+      ]
+    },
+    {
+      "index": 791,
+      "level": 3,
+      "word": "拍照",
+      "pinyin": "pāizhào"
+    },
+    {
+      "index": 792,
+      "level": 3,
+      "word": "盘子",
+      "pinyin": "pánzi"
+    },
+    {
+      "index": 793,
+      "level": 3,
+      "word": "胖",
+      "pinyin": "pàng"
+    },
+    {
+      "index": 794,
+      "level": 3,
+      "word": "啤酒",
+      "pinyin": "píjiǔ"
+    },
+    {
+      "index": 795,
+      "level": 3,
+      "word": "平时",
+      "pinyin": "píngshí"
+    },
+    {
+      "index": 796,
+      "level": 3,
+      "word": "瓶子",
+      "pinyin": "píngzi"
+    },
+    {
+      "index": 797,
+      "level": 3,
+      "word": "骑",
+      "pinyin": "qí"
+    },
+    {
+      "index": 798,
+      "level": 3,
+      "word": "奇怪",
+      "pinyin": "qíguài"
+    },
+    {
+      "index": 799,
+      "level": 3,
+      "word": "其实",
+      "pinyin": "qíshí"
+    },
+    {
+      "index": 800,
+      "level": 3,
+      "word": "其他",
+      "pinyin": "qítā"
+    },
+    {
+      "index": 801,
+      "level": 3,
+      "word": "起",
+      "pinyin": "qǐ",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 802,
+      "level": 3,
+      "word": "起飞",
+      "pinyin": "qǐfēi"
+    },
+    {
+      "index": 803,
+      "level": 3,
+      "word": "汽车",
+      "pinyin": "qìchē"
+    },
+    {
+      "index": 804,
+      "level": 3,
+      "word": "铅笔",
+      "pinyin": "qiānbǐ"
+    },
+    {
+      "index": 805,
+      "level": 3,
+      "word": "前年",
+      "pinyin": "qiánnián"
+    },
+    {
+      "index": 806,
+      "level": 3,
+      "word": "前天",
+      "pinyin": "qiántiān"
+    },
+    {
+      "index": 807,
+      "level": 3,
+      "word": "清楚",
+      "pinyin": "qīngchu"
+    },
+    {
+      "index": 808,
+      "level": 3,
+      "word": "请假",
+      "pinyin": "qǐngjià"
+    },
+    {
+      "index": 809,
+      "level": 3,
+      "word": "请客",
+      "pinyin": "qǐngkè"
+    },
+    {
+      "index": 810,
+      "level": 3,
+      "word": "秋天",
+      "pinyin": "qiūtiān"
+    },
+    {
+      "index": 811,
+      "level": 3,
+      "word": "球场",
+      "pinyin": "qiúchǎng"
+    },
+    {
+      "index": 812,
+      "level": 3,
+      "word": "裙子",
+      "pinyin": "qúnzi"
+    },
+    {
+      "index": 813,
+      "level": 3,
+      "word": "然后",
+      "pinyin": "ránhòu"
+    },
+    {
+      "index": 814,
+      "level": 3,
+      "word": "热情",
+      "pinyin": "rèqíng"
+    },
+    {
+      "index": 815,
+      "level": 3,
+      "word": "认得",
+      "pinyin": "rènde"
+    },
+    {
+      "index": 816,
+      "level": 3,
+      "word": "认为",
+      "pinyin": "rènwéi"
+    },
+    {
+      "index": 817,
+      "level": 3,
+      "word": "认真",
+      "pinyin": "rènzhēn"
+    },
+    {
+      "index": 818,
+      "level": 3,
+      "word": "容易",
+      "pinyin": "róngyì"
+    },
+    {
+      "index": 819,
+      "level": 3,
+      "word": "如果",
+      "pinyin": "rúguǒ"
+    },
+    {
+      "index": 820,
+      "level": 3,
+      "word": "伞",
+      "pinyin": "sǎn"
+    },
+    {
+      "index": 821,
+      "level": 3,
+      "word": "扫",
+      "pinyin": "sǎo"
+    },
+    {
+      "index": 822,
+      "level": 3,
+      "word": "沙发",
+      "pinyin": "shāfā"
+    },
+    {
+      "index": 823,
+      "level": 3,
+      "word": "山",
+      "pinyin": "shān"
+    },
+    {
+      "index": 824,
+      "level": 3,
+      "word": "上衣",
+      "pinyin": "shàngyī"
+    },
+    {
+      "index": 825,
+      "level": 3,
+      "word": "勺子",
+      "pinyin": "sháozi"
+    },
+    {
+      "index": 826,
+      "level": 3,
+      "word": "身边",
+      "pinyin": "shēnbiān"
+    },
+    {
+      "index": 827,
+      "level": 3,
+      "word": "身高",
+      "pinyin": "shēngāo"
+    },
+    {
+      "index": 828,
+      "level": 3,
+      "word": "声",
+      "pinyin": "shēng"
+    },
+    {
+      "index": 829,
+      "level": 3,
+      "word": "生活",
+      "pinyin": "shēnghuó"
+    },
+    {
+      "index": 830,
+      "level": 3,
+      "word": "生气",
+      "pinyin": "shēngqì"
+    },
+    {
+      "index": 831,
+      "level": 3,
+      "word": "声音",
+      "pinyin": "shēngyīn"
+    },
+    {
+      "index": 832,
+      "level": 3,
+      "word": "市",
+      "pinyin": "shì"
+    },
+    {
+      "index": 833,
+      "level": 3,
+      "word": "试",
+      "pinyin": "shì"
+    },
+    {
+      "index": 834,
+      "level": 3,
+      "word": "室",
+      "pinyin": "shì"
+    },
+    {
+      "index": 835,
+      "level": 3,
+      "word": "世界",
+      "pinyin": "shìjiè"
+    },
+    {
+      "index": 836,
+      "level": 3,
+      "word": "收",
+      "pinyin": "shōu"
+    },
+    {
+      "index": 837,
+      "level": 3,
+      "word": "收到",
+      "pinyin": "shōudào"
+    },
+    {
+      "index": 838,
+      "level": 3,
+      "word": "受",
+      "pinyin": "shòu"
+    },
+    {
+      "index": 839,
+      "level": 3,
+      "word": "瘦",
+      "pinyin": "shòu"
+    },
+    {
+      "index": 840,
+      "level": 3,
+      "word": "受到",
+      "pinyin": "shòudào"
+    },
+    {
+      "index": 841,
+      "level": 3,
+      "word": "叔叔",
+      "pinyin": "shūshu"
+    },
+    {
+      "index": 842,
+      "level": 3,
+      "word": "树",
+      "pinyin": "shù"
+    },
+    {
+      "index": 843,
+      "level": 3,
+      "word": "数学",
+      "pinyin": "shùxué"
+    },
+    {
+      "index": 844,
+      "level": 3,
+      "word": "刷",
+      "pinyin": "shuā"
+    },
+    {
+      "index": 845,
+      "level": 3,
+      "word": "双",
+      "pinyin": "shuāng"
+    },
+    {
+      "index": 846,
+      "level": 3,
+      "word": "水平",
+      "pinyin": "shuǐpíng"
+    },
+    {
+      "index": 847,
+      "level": 3,
+      "word": "司机",
+      "pinyin": "sījī"
+    },
+    {
+      "index": 848,
+      "level": 3,
+      "word": "四季",
+      "pinyin": "sìjì"
+    },
+    {
+      "index": 849,
+      "level": 3,
+      "word": "太阳",
+      "pinyin": "tàiyáng"
+    },
+    {
+      "index": 850,
+      "level": 3,
+      "word": "糖",
+      "pinyin": "táng"
+    },
+    {
+      "index": 851,
+      "level": 3,
+      "word": "特别",
+      "pinyin": "tèbié"
+    },
+    {
+      "index": 852,
+      "level": 3,
+      "word": "提高",
+      "pinyin": "tígāo"
+    },
+    {
+      "index": 853,
+      "level": 3,
+      "word": "体育",
+      "pinyin": "tǐyù"
+    },
+    {
+      "index": 854,
+      "level": 3,
+      "word": "体育馆",
+      "pinyin": "tǐyùguǎn"
+    },
+    {
+      "index": 855,
+      "level": 3,
+      "word": "甜",
+      "pinyin": "tián"
+    },
+    {
+      "index": 856,
+      "level": 3,
+      "word": "跳",
+      "pinyin": "tiào"
+    },
+    {
+      "index": 857,
+      "level": 3,
+      "word": "听说",
+      "pinyin": "tīngshuō"
+    },
+    {
+      "index": 858,
+      "level": 3,
+      "word": "挺",
+      "pinyin": "tǐng",
+      "crossLevels": [
+        "7-9"
+      ]
+    },
+    {
+      "index": 859,
+      "level": 3,
+      "word": "同事",
+      "pinyin": "tóngshì"
+    },
+    {
+      "index": 860,
+      "level": 3,
+      "word": "同意",
+      "pinyin": "tóngyì"
+    },
+    {
+      "index": 861,
+      "level": 3,
+      "word": "头发",
+      "pinyin": "tóufa"
+    },
+    {
+      "index": 862,
+      "level": 3,
+      "word": "突然",
+      "pinyin": "tūrán"
+    },
+    {
+      "index": 863,
+      "level": 3,
+      "word": "图书馆",
+      "pinyin": "túshūguǎn"
+    },
+    {
+      "index": 864,
+      "level": 3,
+      "word": "腿",
+      "pinyin": "tuǐ"
+    },
+    {
+      "index": 865,
+      "level": 3,
+      "word": "外地",
+      "pinyin": "wàidì"
+    },
+    {
+      "index": 866,
+      "level": 3,
+      "word": "外卖",
+      "pinyin": "wàimài"
+    },
+    {
+      "index": 867,
+      "level": 3,
+      "word": "外语",
+      "pinyin": "wàiyǔ"
+    },
+    {
+      "index": 868,
+      "level": 3,
+      "word": "完成",
+      "pinyin": "wánchéng"
+    },
+    {
+      "index": 869,
+      "level": 3,
+      "word": "碗",
+      "pinyin": "wǎn"
+    },
+    {
+      "index": 870,
+      "level": 3,
+      "word": "晚点",
+      "pinyin": "wǎndiǎn"
+    },
+    {
+      "index": 871,
+      "level": 3,
+      "word": "晚会",
+      "pinyin": "wǎnhuì"
+    },
+    {
+      "index": 872,
+      "level": 3,
+      "word": "网球",
+      "pinyin": "wǎngqiú"
+    },
+    {
+      "index": 873,
+      "level": 3,
+      "word": "网站",
+      "pinyin": "wǎngzhàn"
+    },
+    {
+      "index": 874,
+      "level": 3,
+      "word": "忘记",
+      "pinyin": "wàngjì"
+    },
+    {
+      "index": 875,
+      "level": 3,
+      "word": "为",
+      "pinyin": "wèi"
+    },
+    {
+      "index": 876,
+      "level": 3,
+      "word": "为了",
+      "pinyin": "wèile"
+    },
+    {
+      "index": 877,
+      "level": 3,
+      "word": "卫生间",
+      "pinyin": "wèishēngjiān"
+    },
+    {
+      "index": 878,
+      "level": 3,
+      "word": "文化",
+      "pinyin": "wénhuà"
+    },
+    {
+      "index": 879,
+      "level": 3,
+      "word": "屋子",
+      "pinyin": "wūzi"
+    },
+    {
+      "index": 880,
+      "level": 3,
+      "word": "西",
+      "pinyin": "xī"
+    },
+    {
+      "index": 881,
+      "level": 3,
+      "word": "西北",
+      "pinyin": "xīběi"
+    },
+    {
+      "index": 882,
+      "level": 3,
+      "word": "西方",
+      "pinyin": "xīfāng"
+    },
+    {
+      "index": 883,
+      "level": 3,
+      "word": "西瓜",
+      "pinyin": "xīguā"
+    },
+    {
+      "index": 884,
+      "level": 3,
+      "word": "西南",
+      "pinyin": "xīnán"
+    },
+    {
+      "index": 885,
+      "level": 3,
+      "word": "习惯",
+      "pinyin": "xíguàn"
+    },
+    {
+      "index": 886,
+      "level": 3,
+      "word": "喜爱",
+      "pinyin": "xǐ’ài"
+    },
+    {
+      "index": 887,
+      "level": 3,
+      "word": "洗衣机",
+      "pinyin": "xǐyījī"
+    },
+    {
+      "index": 888,
+      "level": 3,
+      "word": "洗澡",
+      "pinyin": "xǐzǎo"
+    },
+    {
+      "index": 889,
+      "level": 3,
+      "word": "夏天",
+      "pinyin": "xiàtiān"
+    },
+    {
+      "index": 890,
+      "level": 3,
+      "word": "先",
+      "pinyin": "xiān"
+    },
+    {
+      "index": 891,
+      "level": 3,
+      "word": "香蕉",
+      "pinyin": "xiāngjiāo"
+    },
+    {
+      "index": 892,
+      "level": 3,
+      "word": "相信",
+      "pinyin": "xiāngxìn"
+    },
+    {
+      "index": 893,
+      "level": 3,
+      "word": "箱子",
+      "pinyin": "xiāngzi"
+    },
+    {
+      "index": 894,
+      "level": 3,
+      "word": "向",
+      "pinyin": "xiàng"
+    },
+    {
+      "index": 895,
+      "level": 3,
+      "word": "像",
+      "pinyin": "xiàng",
+      "crossLevels": [
+        "4",
+        "7-9"
+      ]
+    },
+    {
+      "index": 896,
+      "level": 3,
+      "word": "相机",
+      "pinyin": "xiàngjī"
+    },
+    {
+      "index": 897,
+      "level": 3,
+      "word": "小区",
+      "pinyin": "xiǎoqū"
+    },
+    {
+      "index": 898,
+      "level": 3,
+      "word": "小心",
+      "pinyin": "xiǎoxīn"
+    },
+    {
+      "index": 899,
+      "level": 3,
+      "word": "校园",
+      "pinyin": "xiàoyuán"
+    },
+    {
+      "index": 900,
+      "level": 3,
+      "word": "校长",
+      "pinyin": "xiàozhǎng"
+    },
+    {
+      "index": 901,
+      "level": 3,
+      "word": "鞋",
+      "pinyin": "xié"
+    },
+    {
+      "index": 902,
+      "level": 3,
+      "word": "心里",
+      "pinyin": "xīnlǐ"
+    },
+    {
+      "index": 903,
+      "level": 3,
+      "word": "新年",
+      "pinyin": "xīnnián"
+    },
+    {
+      "index": 904,
+      "level": 3,
+      "word": "新闻",
+      "pinyin": "xīnwén"
+    },
+    {
+      "index": 905,
+      "level": 3,
+      "word": "新鲜",
+      "pinyin": "xīnxiān"
+    },
+    {
+      "index": 906,
+      "level": 3,
+      "word": "信",
+      "pinyin": "xìn"
+    },
+    {
+      "index": 907,
+      "level": 3,
+      "word": "信用卡",
+      "pinyin": "xìnyòngkǎ"
+    },
+    {
+      "index": 908,
+      "level": 3,
+      "word": "行",
+      "pinyin": "xíng"
+    },
+    {
+      "index": 909,
+      "level": 3,
+      "word": "行李",
+      "pinyin": "xíngli"
+    },
+    {
+      "index": 910,
+      "level": 3,
+      "word": "兴趣",
+      "pinyin": "xìngqù"
+    },
+    {
+      "index": 911,
+      "level": 3,
+      "word": "休假",
+      "pinyin": "xiūjià"
+    },
+    {
+      "index": 912,
+      "level": 3,
+      "word": "需要",
+      "pinyin": "xūyào"
+    },
+    {
+      "index": 913,
+      "level": 3,
+      "word": "选",
+      "pinyin": "xuǎn"
+    },
+    {
+      "index": 914,
+      "level": 3,
+      "word": "选择",
+      "pinyin": "xuǎnzé"
+    },
+    {
+      "index": 915,
+      "level": 3,
+      "word": "学期",
+      "pinyin": "xuéqī"
+    },
+    {
+      "index": 916,
+      "level": 3,
+      "word": "牙",
+      "pinyin": "yá"
+    },
+    {
+      "index": 917,
+      "level": 3,
+      "word": "牙刷",
+      "pinyin": "yáshuā"
+    },
+    {
+      "index": 918,
+      "level": 3,
+      "word": "羊",
+      "pinyin": "yáng"
+    },
+    {
+      "index": 919,
+      "level": 3,
+      "word": "养",
+      "pinyin": "yǎng"
+    },
+    {
+      "index": 920,
+      "level": 3,
+      "word": "要求",
+      "pinyin": "yāoqiú"
+    },
+    {
+      "index": 921,
+      "level": 3,
+      "word": "页",
+      "pinyin": "yè"
+    },
+    {
+      "index": 922,
+      "level": 3,
+      "word": "一定",
+      "pinyin": "yídìng"
+    },
+    {
+      "index": 923,
+      "level": 3,
+      "word": "一共",
+      "pinyin": "yígòng"
+    },
+    {
+      "index": 924,
+      "level": 3,
+      "word": "一块儿",
+      "pinyin": "yíkuàir"
+    },
+    {
+      "index": 925,
+      "level": 3,
+      "word": "一样",
+      "pinyin": "yíyàng"
+    },
+    {
+      "index": 926,
+      "level": 3,
+      "word": "以后",
+      "pinyin": "yǐhòu"
+    },
+    {
+      "index": 927,
+      "level": 3,
+      "word": "以前",
+      "pinyin": "yǐqián"
+    },
+    {
+      "index": 928,
+      "level": 3,
+      "word": "以上",
+      "pinyin": "yǐshàng"
+    },
+    {
+      "index": 929,
+      "level": 3,
+      "word": "以外",
+      "pinyin": "yǐwài"
+    },
+    {
+      "index": 930,
+      "level": 3,
+      "word": "以为",
+      "pinyin": "yǐwéi"
+    },
+    {
+      "index": 931,
+      "level": 3,
+      "word": "以下",
+      "pinyin": "yǐxià"
+    },
+    {
+      "index": 932,
+      "level": 3,
+      "word": "一般",
+      "pinyin": "yìbān"
+    },
+    {
+      "index": 933,
+      "level": 3,
+      "word": "一边",
+      "pinyin": "yìbiān"
+    },
+    {
+      "index": 934,
+      "level": 3,
+      "word": "一直",
+      "pinyin": "yìzhí"
+    },
+    {
+      "index": 935,
+      "level": 3,
+      "word": "音乐",
+      "pinyin": "yīnyuè"
+    },
+    {
+      "index": 936,
+      "level": 3,
+      "word": "银行",
+      "pinyin": "yínháng"
+    },
+    {
+      "index": 937,
+      "level": 3,
+      "word": "银行卡",
+      "pinyin": "yínhángkǎ"
+    },
+    {
+      "index": 938,
+      "level": 3,
+      "word": "饮料",
+      "pinyin": "yǐnliào"
+    },
+    {
+      "index": 939,
+      "level": 3,
+      "word": "应该",
+      "pinyin": "yīnggāi"
+    },
+    {
+      "index": 940,
+      "level": 3,
+      "word": "影响",
+      "pinyin": "yǐngxiǎng"
+    },
+    {
+      "index": 941,
+      "level": 3,
+      "word": "用",
+      "pinyin": "yòng"
+    },
+    {
+      "index": 942,
+      "level": 3,
+      "word": "邮件",
+      "pinyin": "yóujiàn"
+    },
+    {
+      "index": 943,
+      "level": 3,
+      "word": "游客",
+      "pinyin": "yóukè"
+    },
+    {
+      "index": 944,
+      "level": 3,
+      "word": "游戏",
+      "pinyin": "yóuxì"
+    },
+    {
+      "index": 945,
+      "level": 3,
+      "word": "邮箱",
+      "pinyin": "yóuxiāng"
+    },
+    {
+      "index": 946,
+      "level": 3,
+      "word": "有关",
+      "pinyin": "yǒuguān"
+    },
+    {
+      "index": 947,
+      "level": 3,
+      "word": "有名",
+      "pinyin": "yǒumíng"
+    },
+    {
+      "index": 948,
+      "level": 3,
+      "word": "有用",
+      "pinyin": "yǒuyòng"
+    },
+    {
+      "index": 949,
+      "level": 3,
+      "word": "又",
+      "pinyin": "yòu"
+    },
+    {
+      "index": 950,
+      "level": 3,
+      "word": "羽毛球",
+      "pinyin": "yǔmáoqiú"
+    },
+    {
+      "index": 951,
+      "level": 3,
+      "word": "语言",
+      "pinyin": "yǔyán"
+    },
+    {
+      "index": 952,
+      "level": 3,
+      "word": "雨衣",
+      "pinyin": "yǔyī"
+    },
+    {
+      "index": 953,
+      "level": 3,
+      "word": "遇到",
+      "pinyin": "yùdào"
+    },
+    {
+      "index": 954,
+      "level": 3,
+      "word": "遇见",
+      "pinyin": "yùjiàn"
+    },
+    {
+      "index": 955,
+      "level": 3,
+      "word": "园",
+      "pinyin": "yuán"
+    },
+    {
+      "index": 956,
+      "level": 3,
+      "word": "员",
+      "pinyin": "yuán"
+    },
+    {
+      "index": 957,
+      "level": 3,
+      "word": "愿意",
+      "pinyin": "yuànyì"
+    },
+    {
+      "index": 958,
+      "level": 3,
+      "word": "越",
+      "pinyin": "yuè"
+    },
+    {
+      "index": 959,
+      "level": 3,
+      "word": "月亮",
+      "pinyin": "yuèliang"
+    },
+    {
+      "index": 960,
+      "level": 3,
+      "word": "运动会",
+      "pinyin": "yùndònghuì"
+    },
+    {
+      "index": 961,
+      "level": 3,
+      "word": "运动员",
+      "pinyin": "yùndòngyuán"
+    },
+    {
+      "index": 962,
+      "level": 3,
+      "word": "咱们",
+      "pinyin": "zánmen"
+    },
+    {
+      "index": 963,
+      "level": 3,
+      "word": "脏",
+      "pinyin": "zāng"
+    },
+    {
+      "index": 964,
+      "level": 3,
+      "word": "怎么办",
+      "pinyin": "zěnme bàn"
+    },
+    {
+      "index": 965,
+      "level": 3,
+      "word": "怎样",
+      "pinyin": "zěnyàng"
+    },
+    {
+      "index": 966,
+      "level": 3,
+      "word": "站",
+      "pinyin": "zhàn",
+      "sense": 2
+    },
+    {
+      "index": 967,
+      "level": 3,
+      "word": "张",
+      "pinyin": "zhāng"
+    },
+    {
+      "index": 968,
+      "level": 3,
+      "word": "长",
+      "pinyin": "zhǎng"
+    },
+    {
+      "index": 969,
+      "level": 3,
+      "word": "着急",
+      "pinyin": "zháojí"
+    },
+    {
+      "index": 970,
+      "level": 3,
+      "word": "照",
+      "pinyin": "zhào"
+    },
+    {
+      "index": 971,
+      "level": 3,
+      "word": "照顾",
+      "pinyin": "zhàogù"
+    },
+    {
+      "index": 972,
+      "level": 3,
+      "word": "照片",
+      "pinyin": "zhàopiàn"
+    },
+    {
+      "index": 973,
+      "level": 3,
+      "word": "照相",
+      "pinyin": "zhàoxiàng"
+    },
+    {
+      "index": 974,
+      "level": 3,
+      "word": "直到",
+      "pinyin": "zhídào"
+    },
+    {
+      "index": 975,
+      "level": 3,
+      "word": "只",
+      "pinyin": "zhǐ"
+    },
+    {
+      "index": 976,
+      "level": 3,
+      "word": "纸",
+      "pinyin": "zhǐ"
+    },
+    {
+      "index": 977,
+      "level": 3,
+      "word": "只能",
+      "pinyin": "zhǐ néng"
+    },
+    {
+      "index": 978,
+      "level": 3,
+      "word": "只是",
+      "pinyin": "zhǐshì"
+    },
+    {
+      "index": 979,
+      "level": 3,
+      "word": "只要",
+      "pinyin": "zhǐyào"
+    },
+    {
+      "index": 980,
+      "level": 3,
+      "word": "只有",
+      "pinyin": "zhǐyǒu"
+    },
+    {
+      "index": 981,
+      "level": 3,
+      "word": "中",
+      "pinyin": "zhōng"
+    },
+    {
+      "index": 982,
+      "level": 3,
+      "word": "中间",
+      "pinyin": "zhōngjiān"
+    },
+    {
+      "index": 983,
+      "level": 3,
+      "word": "终于",
+      "pinyin": "zhōngyú"
+    },
+    {
+      "index": 984,
+      "level": 3,
+      "word": "种",
+      "pinyin": "zhǒng"
+    },
+    {
+      "index": 985,
+      "level": 3,
+      "word": "重要",
+      "pinyin": "zhòngyào"
+    },
+    {
+      "index": 986,
+      "level": 3,
+      "word": "周末",
+      "pinyin": "zhōumò"
+    },
+    {
+      "index": 987,
+      "level": 3,
+      "word": "主要",
+      "pinyin": "zhǔyào"
+    },
+    {
+      "index": 988,
+      "level": 3,
+      "word": "注意",
+      "pinyin": "zhùyì"
+    },
+    {
+      "index": 989,
+      "level": 3,
+      "word": "住院",
+      "pinyin": "zhùyuàn"
+    },
+    {
+      "index": 990,
+      "level": 3,
+      "word": "字典",
+      "pinyin": "zìdiǎn"
+    },
+    {
+      "index": 991,
+      "level": 3,
+      "word": "自行车",
+      "pinyin": "zìxíngchē"
+    },
+    {
+      "index": 992,
+      "level": 3,
+      "word": "子",
+      "pinyin": "zi"
+    },
+    {
+      "index": 993,
+      "level": 3,
+      "word": "总",
+      "pinyin": "zǒng",
+      "crossLevels": [
+        "5"
+      ]
+    },
+    {
+      "index": 994,
+      "level": 3,
+      "word": "总是",
+      "pinyin": "zǒngshì"
+    },
+    {
+      "index": 995,
+      "level": 3,
+      "word": "嘴",
+      "pinyin": "zuǐ"
+    },
+    {
+      "index": 996,
+      "level": 3,
+      "word": "最好",
+      "pinyin": "zuìhǎo"
+    },
+    {
+      "index": 997,
+      "level": 3,
+      "word": "最后",
+      "pinyin": "zuìhòu"
+    },
+    {
+      "index": 998,
+      "level": 3,
+      "word": "最近",
+      "pinyin": "zuìjìn"
+    },
+    {
+      "index": 999,
+      "level": 3,
+      "word": "做客",
+      "pinyin": "zuòkè"
+    },
+    {
+      "index": 1000,
+      "level": 3,
+      "word": "作业",
+      "pinyin": "zuòyè"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const TONE_LISTENING_SESSION_LENGTH = 15;
 const GRAMMAR_SESSION_LENGTH = 10;
-const PLACEMENT_SESSION_LENGTH = 20;
+const PLACEMENT_SESSION_LENGTH = 30;
 const PLACEMENT_VOCABULARY_PER_LEVEL = 6;
 const PLACEMENT_GRAMMAR_PER_LEVEL = 4;
 const PRONUNCIATION_MAX_HAN_LENGTH = 12;
@@ -139,23 +139,37 @@ const PLACEMENT_VOCABULARY = {
     { zh: "医生", meaning: "doctor" },
     { zh: "觉得", meaning: "to think; feel" },
     { zh: "电影", meaning: "movie" },
-    { zh: "机场", meaning: "airport" },
-    { zh: "介绍", meaning: "to introduce" },
-    { zh: "回答", meaning: "to answer" },
+    { zh: "饭店", meaning: "restaurant" },
+    { zh: "火车", meaning: "train" },
+    { zh: "买", meaning: "to buy" },
   ],
   2: [
+    { zh: "爱好", meaning: "hobby; interest" },
+    { zh: "帮忙", meaning: "to help" },
+    { zh: "比", meaning: "to compare; than" },
+    { zh: "车站", meaning: "station" },
+    { zh: "地铁", meaning: "subway" },
+    { zh: "考试", meaning: "exam; test" },
+    { zh: "机场", meaning: "airport" },
+    { zh: "介绍", meaning: "to introduce" },
+    { zh: "篮球", meaning: "basketball" },
+    { zh: "旅游", meaning: "to travel; tourism" },
+    { zh: "可能", meaning: "possible; might" },
+    { zh: "跳舞", meaning: "to dance" },
+  ],
+  3: [
     { zh: "安静", meaning: "quiet" },
     { zh: "安全", meaning: "safe" },
     { zh: "办法", meaning: "method; solution" },
-    { zh: "报名", meaning: "to register" },
     { zh: "必须", meaning: "must" },
-    { zh: "便宜", meaning: "inexpensive" },
     { zh: "参加", meaning: "to participate" },
     { zh: "成绩", meaning: "result; grade" },
     { zh: "出发", meaning: "to set out" },
     { zh: "打算", meaning: "to plan" },
-    { zh: "地铁", meaning: "subway" },
-    { zh: "复习", meaning: "to review" },
+    { zh: "发现", meaning: "to discover" },
+    { zh: "回答", meaning: "to answer" },
+    { zh: "解决", meaning: "to solve" },
+    { zh: "照顾", meaning: "to look after" },
   ],
 };
 
@@ -197,6 +211,9 @@ const SENTENCES = [];
 const RAW_VOCABULARY_QUIZ_SETS = Array.isArray(window.VOCABULARY_QUIZ_SETS)
   ? window.VOCABULARY_QUIZ_SETS
   : [];
+const VOCABULARY_CURRICULUM = window.VOCABULARY_CURRICULUM && typeof window.VOCABULARY_CURRICULUM === "object"
+  ? window.VOCABULARY_CURRICULUM
+  : null;
 const VOCABULARY_QUIZ_SETS = buildVocabularyQuizSets(RAW_VOCABULARY_QUIZ_SETS);
 const GRAMMAR_LESSONS = Array.isArray(window.GRAMMAR_LESSONS)
   ? window.GRAMMAR_LESSONS
@@ -592,7 +609,7 @@ function loadSettings() {
     if (["written", "speaking"].includes(saved.examMode)) {
       state.examMode = saved.examMode;
     }
-    state.studyTargetLevel = [1, 2].includes(Number(saved.studyTargetLevel))
+    state.studyTargetLevel = [1, 2, 3].includes(Number(saved.studyTargetLevel))
       ? Number(saved.studyTargetLevel)
       : state.grammarLevel;
     state.studyFocus = STUDY_FOCUSES[saved.studyFocus] ? saved.studyFocus : "balanced";
@@ -2250,7 +2267,8 @@ function getStudyFocus(focus = state.studyFocus) {
   return STUDY_FOCUSES[focus] || STUDY_FOCUSES.balanced;
 }
 
-function getStudyPlanPreview(focus = state.studyPlanFocusChoice) {
+function getStudyPlanPreview(focus = state.studyPlanFocusChoice, levelChoice = state.studyPlanLevelChoice) {
+  const isHsk3 = String(levelChoice) === "3";
   if (focus === "speaking") {
     return [
       ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
@@ -2261,14 +2279,18 @@ function getStudyPlanPreview(focus = state.studyPlanFocusChoice) {
   if (focus === "literacy") {
     return [
       ["Writing sentence drill", "Produce Chinese from an English prompt"],
-      ["Grammar pattern practice", "Use core structures in context"],
+      isHsk3
+        ? ["Reading sentence drill", "Build comprehension with complete Chinese sentences"]
+        : ["Grammar pattern practice", "Use core structures in context"],
       ["HSK vocabulary review", "Keep target-level words active with spaced practice"],
     ];
   }
   return [
     ["HSK vocabulary review", "Build recall with a target-level adaptive queue"],
     ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
-    ["Grammar or sentence practice", "Rotate language skills using recent results"],
+    isHsk3
+      ? ["Reading or writing practice", "Rotate sentence skills using recent results"]
+      : ["Grammar or sentence practice", "Rotate language skills using recent results"],
   ];
 }
 
@@ -2277,10 +2299,11 @@ function renderStudyPlanSetup() {
   const levelChoice = state.studyPlanLevelChoice;
   const focusChoice = STUDY_FOCUSES[state.studyPlanFocusChoice] ? state.studyPlanFocusChoice : "balanced";
   const selectedFocus = getStudyFocus(focusChoice);
-  const preview = getStudyPlanPreview(focusChoice);
+  const preview = getStudyPlanPreview(focusChoice, levelChoice);
   const levelOptions = [
     { id: "1", label: "HSK 1", detail: "Build the foundation" },
     { id: "2", label: "HSK 2", detail: "Continue beyond the basics" },
+    { id: "3", label: "HSK 3", detail: "Build exam-ready independence" },
     { id: "placement", label: "Not sure", detail: "Take the level check" },
   ];
 
@@ -2551,7 +2574,7 @@ function renderDashboardHome() {
   document.querySelectorAll("[data-roadmap-level]").forEach((button) => {
     button.addEventListener("click", () => {
       const level = Number(button.dataset.roadmapLevel);
-      if (![1, 2].includes(level) || level === state.studyTargetLevel) {
+      if (![1, 2, 3].includes(level) || level === state.studyTargetLevel) {
         return;
       }
       setStudyTargetLevel(level);
@@ -2606,7 +2629,7 @@ function getHskRoadmapData(
     sets = VOCABULARY_QUIZ_SETS,
   } = {},
 ) {
-  const targetLevel = [1, 2].includes(Number(level)) ? Number(level) : 1;
+  const targetLevel = [1, 2, 3].includes(Number(level)) ? Number(level) : 1;
   const vocabularyPath = getVocabularyPathData(progress, now, sets);
   const vocabularyLevel = vocabularyPath.levels.find((item) => Number(item.levelNumber) === targetLevel) || {
     label: `HSK ${targetLevel}`,
@@ -2637,7 +2660,33 @@ function getHskRoadmapData(
   );
   const grammarStarted = lessons.filter((lesson) => lesson.progress.attempts).length;
   const grammarStrong = lessons.filter((lesson) => lesson.progress.status === "Strong").length;
+  const writtenExamAttempts = history.filter((record) =>
+    record.type === "exam" &&
+    record.examMode !== "speaking" &&
+    Number(record.level) === targetLevel &&
+    Number(record.maxScore) > 0,
+  );
+  const examBestPercent = writtenExamAttempts.reduce((best, record) =>
+    Math.max(best, Math.round((Number(record.scaledScore || 0) / Number(record.maxScore)) * 100)),
+  0);
   const benchmarkTotal = vocabularyLevel.parts.length * benchmarkModes.length;
+  const knowledgeMilestone = targetLevel === 3
+    ? {
+        id: "exam",
+        label: "Mock exam readiness",
+        current: Math.min(70, examBestPercent),
+        total: 70,
+        detail: writtenExamAttempts.length
+          ? `Best timed mock score: ${examBestPercent}% · target 70%`
+          : "Complete a timed HSK 3 written mock · target 70%",
+      }
+    : {
+        id: "grammar",
+        label: "Grammar patterns",
+        current: grammarStrong,
+        total: lessons.length,
+        detail: `${grammarStrong} of ${lessons.length} core patterns strong`,
+      };
   const milestones = [
     {
       id: "coverage",
@@ -2653,13 +2702,7 @@ function getHskRoadmapData(
       total: vocabularyLevel.totals.total,
       detail: `${vocabularyLevel.totals.strong} words retained through spaced review`,
     },
-    {
-      id: "grammar",
-      label: "Grammar patterns",
-      current: grammarStrong,
-      total: lessons.length,
-      detail: `${grammarStrong} of ${lessons.length} core patterns strong`,
-    },
+    knowledgeMilestone,
     {
       id: "benchmarks",
       label: "Quiz benchmarks",
@@ -2679,6 +2722,8 @@ function getHskRoadmapData(
     lessons,
     grammarStarted,
     grammarStrong,
+    examBestPercent,
+    writtenExamAttempts,
     benchmarkModes,
     passedBenchmarks,
     latestPlacement,
@@ -2703,9 +2748,9 @@ function getHskRoadmapMilestoneStatus(current, total) {
 }
 
 function setStudyTargetLevel(level) {
-  const targetLevel = [1, 2].includes(Number(level)) ? Number(level) : 1;
+  const targetLevel = [1, 2, 3].includes(Number(level)) ? Number(level) : 1;
   state.studyTargetLevel = targetLevel;
-  state.grammarLevel = targetLevel;
+  state.grammarLevel = Math.min(2, targetLevel);
   state.grammarLessonId = "";
   const firstTargetSet = VOCABULARY_QUIZ_SETS.find((set) =>
     Number(getVocabularySetMeta(set).levelNumber) === targetLevel,
@@ -2802,6 +2847,17 @@ function getHskRoadmapRecommendation(roadmap) {
     };
   }
 
+  if (roadmap.level === 3 && roadmap.examBestPercent < 70) {
+    return {
+      type: "exam",
+      level: 3,
+      label: roadmap.writtenExamAttempts.length ? "Improve HSK 3 mock score" : "Take an HSK 3 mock exam",
+      detail: roadmap.writtenExamAttempts.length
+        ? `Personal best ${roadmap.examBestPercent}% · target 70%`
+        : "Timed written paper with exam-style sections",
+    };
+  }
+
   return {
     type: "review",
     label: `Maintain ${roadmap.levelLabel}`,
@@ -2816,11 +2872,11 @@ function buildHskRoadmapMarkup(roadmap) {
       <header class="dashboard-roadmap-header">
         <div>
           <h3 id="dashboardRoadmapHeading">HSK mastery roadmap</h3>
-          <p>A balanced path across vocabulary coverage, retention, grammar, and timed benchmarks.</p>
+          <p>A balanced path across vocabulary coverage, retention, knowledge checks, and timed benchmarks.</p>
         </div>
         <div class="dashboard-roadmap-controls">
           <div class="dashboard-roadmap-levels" role="group" aria-label="Target HSK level">
-            ${[1, 2].map((level) => `
+            ${[1, 2, 3].map((level) => `
               <button type="button" data-roadmap-level="${level}" aria-pressed="${roadmap.level === level}" class="${roadmap.level === level ? "active" : ""}">HSK ${level}</button>
             `).join("")}
           </div>
@@ -2906,6 +2962,15 @@ function launchHskRoadmapAction(action) {
     render();
     return;
   }
+  if (action.type === "exam") {
+    state.tool = "exam";
+    state.examLevel = HSK_EXAM_LEVELS.includes(Number(action.level)) ? Number(action.level) : state.studyTargetLevel;
+    state.examMode = "written";
+    state.examScreen = "home";
+    saveSettings();
+    render();
+    return;
+  }
 
   state.tool = "review";
   saveSettings();
@@ -2927,7 +2992,7 @@ function getPlacementVocabularyPool(level, vocabulary = getAllVocabularyReviewIt
 
 function buildPlacementSessionItems() {
   const items = [];
-  [1, 2].forEach((level) => {
+  [1, 2, 3].forEach((level) => {
     const vocabularyPool = getPlacementVocabularyPool(level);
     shuffle(vocabularyPool).slice(0, PLACEMENT_VOCABULARY_PER_LEVEL).forEach((entry) => {
       const options = shuffle([
@@ -2949,22 +3014,49 @@ function buildPlacementSessionItems() {
       });
     });
 
-    shuffle(GRAMMAR_LESSONS.filter((lesson) => lesson.level === level))
+    if (level <= 2) {
+      shuffle(GRAMMAR_LESSONS.filter((lesson) => lesson.level === level))
+        .slice(0, PLACEMENT_GRAMMAR_PER_LEVEL)
+        .forEach((lesson) => {
+          const question = shuffle(lesson.questions)[0];
+          items.push({
+            id: `placement-language-${question ? `${lesson.id}-${lesson.questions.indexOf(question) + 1}` : lesson.id}`,
+            kind: "language",
+            level,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            lessonPattern: lesson.pattern,
+            prompt: question?.prompt || "",
+            translation: question?.translation || "",
+            answer: question?.answer || "",
+            options: [...(question?.options || [])],
+            explanation: question?.explanation || lesson.summary,
+          });
+        });
+      return;
+    }
+
+    const readingQuestions = HSK_MOCK_EXAMS.levels[3]?.sections
+      ?.find((section) => section.id === "reading")
+      ?.parts.flatMap((part) => part.questions)
+      .filter((question) => question.type === "choice" && question.choices.every((choice) => choice.label)) || [];
+    const readingDistractors = readingQuestions.flatMap((question) => question.choices.map((choice) => choice.label));
+    shuffle(readingQuestions)
       .slice(0, PLACEMENT_GRAMMAR_PER_LEVEL)
-      .forEach((lesson) => {
-        const question = shuffle(lesson.questions)[0];
+      .forEach((question) => {
+        const answer = question.choices.find((choice) => choice.id === question.answer)?.label || "";
         items.push({
-          id: `placement-grammar-${question ? `${lesson.id}-${lesson.questions.indexOf(question) + 1}` : lesson.id}`,
-          kind: "grammar",
+          id: `placement-language-${question.id}`,
+          kind: "language",
           level,
-          lessonId: lesson.id,
-          lessonTitle: lesson.title,
-          lessonPattern: lesson.pattern,
-          prompt: question?.prompt || "",
-          translation: question?.translation || "",
-          answer: question?.answer || "",
-          options: [...(question?.options || [])],
-          explanation: question?.explanation || lesson.summary,
+          prompt: question.prompt,
+          translation: question.instruction || "Choose the best answer.",
+          answer,
+          options: uniqueStrings([
+            ...question.choices.map((choice) => choice.label),
+            ...shuffle(readingDistractors),
+          ]).slice(0, 4),
+          explanation: `The best answer is ${answer}.`,
         });
       });
   });
@@ -3010,7 +3102,7 @@ function renderPlacementSession() {
   const assessment = session.currentAssessment;
   const correct = session.answers.filter((answer) => answer.correct).length;
   const progress = Math.round(((session.index + (assessment ? 1 : 0)) / session.items.length) * 100);
-  const prompt = item.kind === "grammar"
+  const prompt = item.kind === "language"
     ? buildGrammarPromptMarkup(item.prompt)
     : escapeHtml(item.prompt);
 
@@ -3019,7 +3111,7 @@ function renderPlacementSession() {
       <header class="placement-session-header">
         <div>
           <span>Quick level check</span>
-          <strong>${item.kind === "grammar" ? "Grammar in context" : "Vocabulary recognition"}</strong>
+          <strong>${item.kind === "language" ? "Language in context" : "Vocabulary recognition"}</strong>
         </div>
         <div class="placement-session-score"><span>Score</span><strong>${correct}/${session.answers.length}</strong></div>
         <button class="ghost-btn" type="button" id="exitPlacementCheck">Exit check</button>
@@ -3031,7 +3123,7 @@ function renderPlacementSession() {
 
       <section class="placement-question-panel ${assessment ? "is-answered" : ""}">
         <div class="placement-question-copy">
-          <span>${item.kind === "grammar" ? "Choose the best answer" : "What does this word mean?"}</span>
+          <span>${item.kind === "language" ? "Choose the best answer" : "What does this word mean?"}</span>
           <h2 class="chinese-text ${item.kind === "vocabulary" ? "is-vocabulary" : ""}" lang="zh-CN">${prompt}</h2>
           <p>${escapeHtml(item.translation)}</p>
         </div>
@@ -3074,7 +3166,7 @@ function buildPlacementChoiceMarkup(item, choice, assessment) {
   return `
     <button class="${classes}" type="button" data-placement-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
       <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
-      <span class="choice-text ${item.kind === "grammar" ? "chinese-text" : ""}" ${item.kind === "grammar" ? 'lang="zh-CN"' : ""}>${escapeHtml(choice.text)}</span>
+      <span class="choice-text ${item.kind === "language" ? "chinese-text" : ""}" ${item.kind === "language" ? 'lang="zh-CN"' : ""}>${escapeHtml(choice.text)}</span>
     </button>
   `;
 }
@@ -3084,7 +3176,7 @@ function buildPlacementFeedbackMarkup(item, assessment) {
     <section class="placement-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
       <div>
         <strong>${assessment.correct ? "Correct" : "Review this one"}</strong>
-        <span>Answer: <b class="${item.kind === "grammar" ? "chinese-text" : ""}">${escapeHtml(item.answer)}</b></span>
+        <span>Answer: <b class="${item.kind === "language" ? "chinese-text" : ""}">${escapeHtml(item.answer)}</b></span>
       </div>
       ${item.kind === "vocabulary" ? `<p class="tone-pinyin">${buildToneColoredPinyinMarkup(item.pinyin)}</p>` : ""}
       <p>${escapeHtml(item.explanation)}</p>
@@ -3153,10 +3245,11 @@ function getPlacementResultStats(result) {
     levels: {
       1: buildStats(answers.filter((answer) => answer.item.level === 1)),
       2: buildStats(answers.filter((answer) => answer.item.level === 2)),
+      3: buildStats(answers.filter((answer) => answer.item.level === 3)),
     },
     skills: {
       vocabulary: buildStats(answers.filter((answer) => answer.item.kind === "vocabulary")),
-      grammar: buildStats(answers.filter((answer) => answer.item.kind === "grammar")),
+      language: buildStats(answers.filter((answer) => answer.item.kind === "language")),
     },
   };
 }
@@ -3171,10 +3264,17 @@ function getPlacementRecommendation(result) {
     };
   }
   if (stats.levels[2].accuracy >= 0.7) {
+    if (stats.levels[3].accuracy >= 0.7) {
+      return {
+        level: 3,
+        band: "HSK 3 consolidation",
+        summary: "You recognize much of HSK 3. Focus on retention, speed, and performance in timed mock exams.",
+      };
+    }
     return {
-      level: 2,
-      band: "HSK 2 consolidation",
-      summary: "You recognize much of HSK 2. Focus on retention, speed, and accurate use in context.",
+      level: 3,
+      band: "Ready for HSK 3",
+      summary: "Your HSK 2 foundation is ready. Start building HSK 3 vocabulary and exam confidence.",
     };
   }
   return {
@@ -3190,13 +3290,13 @@ function renderPlacementResults() {
   const recommendation = getPlacementRecommendation(result);
   const rows = result.answers.map((answer, index) => {
     const item = answer.item;
-    const prompt = item.kind === "grammar"
+    const prompt = item.kind === "language"
       ? buildGrammarPromptMarkup(item.prompt)
       : `${escapeHtml(item.prompt)} <small>${buildToneColoredPinyinMarkup(item.pinyin)}</small>`;
     return `
       <tr class="${answer.correct ? "found" : "missed"}">
         <td>${index + 1}</td>
-        <td>HSK ${item.level} ${item.kind === "grammar" ? "Grammar" : "Vocabulary"}</td>
+        <td>HSK ${item.level} ${item.kind === "language" ? "Language use" : "Vocabulary"}</td>
         <td class="chinese-text">${prompt}</td>
         <td>${escapeHtml(answer.answer)}</td>
         <td>${escapeHtml(item.answer)}</td>
@@ -3210,7 +3310,7 @@ function renderPlacementResults() {
       <header class="results-header">
         <div>
           <h2>Level check complete</h2>
-          <p>${stats.total.correct} of ${stats.total.total} correct across vocabulary and grammar.</p>
+          <p>${stats.total.correct} of ${stats.total.total} correct across vocabulary and language use.</p>
         </div>
         <div class="result-actions">
           <button class="secondary-btn" type="button" id="retakePlacement">Retake check</button>
@@ -3231,8 +3331,9 @@ function renderPlacementResults() {
         ${[
           ["HSK 1", stats.levels[1]],
           ["HSK 2", stats.levels[2]],
+          ["HSK 3", stats.levels[3]],
           ["Vocabulary", stats.skills.vocabulary],
-          ["Grammar", stats.skills.grammar],
+          ["Language use", stats.skills.language],
         ].map(([label, item]) => `
           <div>
             <span>${label}</span>
@@ -3316,19 +3417,22 @@ function buildDashboardPlan(history, review, now = Date.now(), focus = state.stu
     ];
   }
   if (selectedFocus === "literacy") {
+    const knowledgeActivity = state.studyTargetLevel === 3
+      ? buildFocusedDrillActivity(history, "reading", now)
+      : {
+          id: "grammar",
+          tool: "grammar",
+          title: "Grammar pattern practice",
+          detail: "10 contextual questions from your current HSK level",
+          completed: history.some((record) =>
+            record.type === "grammar" &&
+            localDateKey(Date.parse(record.completedAt)) === todayKey &&
+            isDashboardPlanRecordComplete(record),
+          ),
+        };
     return [
       buildFocusedDrillActivity(history, "writing", now),
-      {
-        id: "grammar",
-        tool: "grammar",
-        title: "Grammar pattern practice",
-        detail: "10 contextual questions from your current HSK level",
-        completed: history.some((record) =>
-          record.type === "grammar" &&
-          localDateKey(Date.parse(record.completedAt)) === todayKey &&
-          isDashboardPlanRecordComplete(record),
-        ),
-      },
+      knowledgeActivity,
       reviewActivity,
     ];
   }
@@ -3357,6 +3461,9 @@ function buildFocusedDrillActivity(history, mode, now = Date.now()) {
 }
 
 function getRecommendedLanguageActivity(history, drillMode = getRecommendedDrillMode(history), drillLabel = MODES[drillMode]?.label || "Reading", now = Date.now()) {
+  if (state.studyTargetLevel === 3) {
+    return buildFocusedDrillActivity(history, drillMode, now);
+  }
   const todayKey = localDateKey(now);
   const completedGrammarToday = history.some((record) => record.type === "grammar" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
   const completedDrillToday = history.some((record) => record.type === "drill" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
@@ -4335,6 +4442,7 @@ function renderVocabularyHome() {
         <div>
           <h2>${mode.label} Vocabulary Quiz</h2>
           <p>${mode.task}</p>
+          ${buildVocabularyCurriculumSourceMarkup()}
         </div>
       </div>
 
@@ -4418,6 +4526,18 @@ function buildVocabularyViewSwitcher() {
   `;
 }
 
+function buildVocabularyCurriculumSourceMarkup() {
+  if (!VOCABULARY_CURRICULUM?.sourceUrl) {
+    return "";
+  }
+  return `
+    <p class="vocabulary-curriculum-source">
+      Official 2025 HSK syllabus · issued ${escapeHtml(VOCABULARY_CURRICULUM.version || "2025-11")} · effective ${escapeHtml(VOCABULARY_CURRICULUM.effective || "2026-07")}
+      <a href="${escapeHtml(VOCABULARY_CURRICULUM.sourceUrl)}" target="_blank" rel="noopener noreferrer">View source</a>
+    </p>
+  `;
+}
+
 function bindVocabularyViewSwitcher() {
   document.querySelectorAll(".vocabulary-view-switcher button[data-vocabulary-view]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4447,7 +4567,8 @@ function renderVocabularyPath() {
       <div class="mode-heading vocabulary-path-heading">
         <div>
           <h2>HSK Vocabulary Path</h2>
-          <p>Move through the complete HSK 1 and HSK 2 vocabulary curriculum, one focused part at a time.</p>
+          <p>Move through the complete HSK 1–3 vocabulary curriculum, one focused part at a time.</p>
+          ${buildVocabularyCurriculumSourceMarkup()}
         </div>
         <button class="primary-btn shortcut-btn vocabulary-path-continue" type="button" id="continueVocabularyPath" ${recommended ? "" : "disabled"}>
           <span>${recommendedMeta ? `Continue ${escapeHtml(recommendedMeta.levelLabel)} ${escapeHtml(recommendedMeta.partLabel)}` : "No parts available"}</span>
@@ -4665,7 +4786,8 @@ function renderVocabularyLibrary() {
       <div class="mode-heading vocabulary-library-heading">
         <div>
           <h2>Vocabulary Word Library</h2>
-          <p>Search the complete HSK 1 and HSK 2 collection, hear each word, and save vocabulary for adaptive review.</p>
+          <p>Search the complete HSK 1–3 collection, hear each word, and save vocabulary for adaptive review.</p>
+          ${buildVocabularyCurriculumSourceMarkup()}
         </div>
         <button class="primary-btn vocabulary-saved-review-btn" type="button" id="reviewSavedVocabulary" ${validSavedCount ? "" : "disabled"}>
           Review saved${validSavedCount ? ` (${validSavedCount})` : ""}
@@ -4698,6 +4820,7 @@ function renderVocabularyLibrary() {
             <option value="all" ${state.vocabularyLibraryLevel === "all" ? "selected" : ""}>All levels</option>
             <option value="1" ${state.vocabularyLibraryLevel === "1" ? "selected" : ""}>HSK 1</option>
             <option value="2" ${state.vocabularyLibraryLevel === "2" ? "selected" : ""}>HSK 2</option>
+            <option value="3" ${state.vocabularyLibraryLevel === "3" ? "selected" : ""}>HSK 3</option>
           </select>
         </label>
         <label class="field compact-field">
@@ -8171,7 +8294,7 @@ function getHistoryRecordPresentation(record) {
       : `${record.scaledScore || 0}/${record.maxScore || 0} estimated · ${formatTimer(record.elapsedSeconds || 0)}`;
   } else if (record.type === "placement") {
     typeLabel = "Level check";
-    modeLabel = "HSK 1–2 · Vocabulary and grammar";
+    modeLabel = "HSK 1–3 · Vocabulary and language use";
     resultLabel = `HSK ${record.recommendedLevel || 1} recommended · ${record.correct}/${record.total} correct`;
   } else if (record.type === "pronunciation") {
     typeLabel = "Pronunciation";
@@ -8179,7 +8302,7 @@ function getHistoryRecordPresentation(record) {
     resultLabel = `${Math.round((record.averageScore || 0) * 100)}% recognized · ${record.total} sentences`;
   } else if (record.type === "tone") {
     typeLabel = "Tone listening";
-    modeLabel = "HSK 1 & 2 vocabulary";
+    modeLabel = "HSK 1–3 vocabulary";
     resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
   } else if (record.type === "map") {
     typeLabel = "Geography";
@@ -11992,6 +12115,9 @@ function getVocabularySetReviewItems(set) {
 }
 
 function reviewItemKey(item) {
+  if (typeof item?.reviewKey === "string" && item.reviewKey.trim()) {
+    return item.reviewKey.trim();
+  }
   const zh = String(item?.zh || "").trim();
   const pinyin = normalizePinyinForCompare(item?.pinyin || "");
   return zh && pinyin ? `${zh}|${pinyin}` : "";
@@ -12125,7 +12251,7 @@ function buildReviewQueue(
   const due = [];
   const unseen = [];
   const upcoming = [];
-  const normalizedTargetLevel = [1, 2].includes(Number(targetLevel)) ? Number(targetLevel) : 1;
+  const normalizedTargetLevel = [1, 2, 3].includes(Number(targetLevel)) ? Number(targetLevel) : 1;
 
   vocabulary.forEach((item, sourceIndex) => {
     const record = progress[reviewItemKey(item)];
@@ -13408,6 +13534,7 @@ function buildHistoryRecord(result) {
       levelScores: {
         1: { correct: stats.levels[1].correct, total: stats.levels[1].total },
         2: { correct: stats.levels[2].correct, total: stats.levels[2].total },
+        3: { correct: stats.levels[3].correct, total: stats.levels[3].total },
       },
       answers: result.answers.map((answer, index) => ({
         index,
@@ -14540,7 +14667,9 @@ function buildVocabularyQuizSets(sourceSets) {
 function dedupeVocabularyWords(words) {
   const seen = new Set();
   return words.filter((word) => {
-    const key = `${word.zh}::${word.pinyin}`;
+    const key = Number.isInteger(word.officialIndex)
+      ? `official:${word.officialIndex}`
+      : `${word.zh}::${word.pinyin}`;
     if (seen.has(key)) {
       return false;
     }

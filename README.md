@@ -35,14 +35,14 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 
 - First-run study setup turns an HSK target or level check plus a learning focus into an editable daily plan, while existing learners migrate without interruption.
 - Today turns saved progress into a three-session daily plan, recommends the next activity, and shows a seven-day practice streak and learning snapshot.
-- The HSK mastery roadmap connects vocabulary coverage, spaced retention, grammar strength, and separate Pinyin and Audio benchmarks into a persistent HSK 1 or HSK 2 study target with a direct next action.
-- A 20-question HSK 1–2 placement check samples vocabulary and grammar, explains each answer, recommends a starting roadmap, and saves the result for later review.
+- The HSK mastery roadmap connects vocabulary coverage, spaced retention, language knowledge, separate Pinyin and Audio benchmarks, and HSK 3 mock readiness into a persistent HSK 1, 2, or 3 study target with a direct next action.
+- A 30-question HSK 1–3 placement check samples vocabulary and language use, explains each answer, recommends a starting roadmap, and saves the result for later review.
 - Learning Progress turns browser history into a 28-day activity view, skill accuracy, personalized focus areas, recurring vocabulary misses, and expandable session review.
 - Versioned learning-data backups protect settings, history, spaced-review scheduling, saved vocabulary, and saved sentences across browsers or devices.
 - Installable offline access pre-caches the complete curriculum, sentence bank, word data, and China map, with explicit in-app update control for new releases.
 - Global learning search connects vocabulary, grammar, and example sentences through Chinese, tone-insensitive pinyin, or English; its saved notebook unifies bookmarked words and sentences with direct review and practice actions.
-- The vocabulary word library searches all 1,256 HSK 1 and HSK 2 words by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.
-- The HSK Vocabulary Path organizes the complete corpus by level and part, tracks New, Due, Learning, and Strong words, and launches focused part reviews or matching timed quizzes.
+- The vocabulary word library searches all 1,000 entries in the official 2025 HSK 1–3 syllabus by characters, tone-optional pinyin, or English; saved words feed directly into adaptive review.
+- The HSK Vocabulary Path organizes the official HSK 1–3 corpus by level and part, tracks New, Due, Learning, and Strong words, and launches focused part reviews or matching timed quizzes.
 - Word Study keeps learners in context with review status, audio, dictionary notes, exact-match example sentences, pinyin, Tatoeba attribution, and the existing MDBG link.
 - The Sentence Library searches all 1,800 sourced examples by Chinese, tone-insensitive pinyin, or English, with optional pinyin, word glosses, audio, bookmarks, and saved-sentence drills.
 - Daily Review builds a spaced vocabulary queue from quiz and review outcomes, with 1, 3, 7, 14, 30, and 60-day intervals.
@@ -59,7 +59,7 @@ Pages is configured with GitHub Actions as the build type. The workflow validate
 - Sentence pairs retain source and translation IDs for Tatoeba attribution and auditing.
 - Simplified Mandarin-only listening sentences with Normal, Slow, and Very slow voice speed options.
 - 30-sentence sessions with immediate assessment.
-- Timed vocabulary quizzes cover the sourced New HSK 1 and New HSK 2 lists across three HSK 1 parts and five HSK 2 parts.
+- Timed vocabulary quizzes cover the official 2025 New HSK 1–3 lists across three HSK 1 parts, two HSK 2 parts, and five HSK 3 parts.
 - Vocabulary quiz tables show every character and translation, then reveal pinyin when the user types a correct answer.
 - End-of-session vocabulary results show every found and missed word for review.
 - Listening mode uses the browser Speech Synthesis API and prefers Microsoft Online or Microsoft Natural mainland Chinese speech when available.

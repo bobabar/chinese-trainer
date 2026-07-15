@@ -118,6 +118,7 @@ window.__tests = {
   TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
+  VOCABULARY_CURRICULUM,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -157,6 +158,7 @@ window.__tests = {
   buildToneChoiceMarkup,
   buildToneChoiceSet,
   buildVocabularyChoiceMarkup,
+  buildVocabularyCurriculumSourceMarkup,
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
@@ -287,6 +289,7 @@ const {
   TONE_LISTENING_SESSION_LENGTH,
   SENTENCE_LIBRARY_PAGE_SIZE,
   VOCABULARY_LIBRARY_PAGE_SIZE,
+  VOCABULARY_CURRICULUM,
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
@@ -326,6 +329,7 @@ const {
   buildToneChoiceMarkup,
   buildToneChoiceSet,
   buildVocabularyChoiceMarkup,
+  buildVocabularyCurriculumSourceMarkup,
   buildVocabularyDetailDialog,
   buildVocabularyExampleMarkup,
   buildVocabularyLibraryRow,
@@ -444,16 +448,19 @@ const firstVocabularySet = getSelectedVocabularySet();
 const vocabularySetSizes = VOCABULARY_QUIZ_SETS.map((set) => set.words.length);
 const hsk1VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 1");
 const hsk2VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 2");
+const hsk3VocabularySets = VOCABULARY_QUIZ_SETS.filter((set) => set.level === "New HSK 3");
 const hsk1VocabularyWords = hsk1VocabularySets.flatMap((set) => set.words);
 const hsk2VocabularyWords = hsk2VocabularySets.flatMap((set) => set.words);
-const hsk1VocabularyKeys = new Set(hsk1VocabularyWords.map(vocabularyEntryKey));
-const hsk2VocabularyKeys = new Set(hsk2VocabularyWords.map(vocabularyEntryKey));
+const hsk3VocabularyWords = hsk3VocabularySets.flatMap((set) => set.words);
+const hsk1VocabularyKeys = new Set(hsk1VocabularyWords.map((item) => item.officialIndex));
+const hsk2VocabularyKeys = new Set(hsk2VocabularyWords.map((item) => item.officialIndex));
+const hsk3VocabularyKeys = new Set(hsk3VocabularyWords.map((item) => item.officialIndex));
 const allVocabularyWords = VOCABULARY_QUIZ_SETS.flatMap((set) => set.words);
 const loveEntry = allVocabularyWords.find((item) => item.zh === "爱");
 const hobbyEntry = allVocabularyWords.find((item) => item.zh === "爱好");
 const eightEntry = allVocabularyWords.find((item) => item.zh === "八");
 const womanEntry = allVocabularyWords.find((item) => item.zh === "女");
-const shortWhileEntry = allVocabularyWords.find((item) => item.zh === "不一会儿" && item.pinyin === "bù yīhuǐr5");
+const erhuaEntry = allVocabularyWords.find((item) => item.zh === "好玩儿");
 const toolNavButtons = [...indexSource.matchAll(/<button class="tool-tab"[^>]*data-tool="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
 const toolNavOrder = toolNavButtons
   .map((match) => `${match[1]}:${stripHtml(match[2])}`);
@@ -931,7 +938,7 @@ assert(
 const reviewVocabulary = getAllVocabularyReviewItems();
 const reviewNow = Date.UTC(2026, 6, 14, 2, 0, 0);
 assert(REVIEW_SESSION_LENGTH === 12, "daily review should use a focused 12-word session");
-assert(reviewVocabulary.length === hsk1VocabularyWords.length + hsk2VocabularyWords.length, "daily review should cover the full HSK 1 and HSK 2 vocabulary pool");
+assert(reviewVocabulary.length === hsk1VocabularyWords.length + hsk2VocabularyWords.length + hsk3VocabularyWords.length, "daily review should cover the full official HSK 1–3 vocabulary pool");
 assert(new Set(reviewVocabulary.map(reviewItemKey)).size === reviewVocabulary.length, "daily review vocabulary keys should be unique");
 const reviewProgressFixture = {};
 const firstReviewSchedule = applyReviewAttempt(reviewProgressFixture, reviewVocabulary[0], true, { mode: "pinyin", now: reviewNow });
@@ -944,11 +951,18 @@ assert(reviewItemKey(reviewQueue[0].item) === reviewItemKey(reviewVocabulary[1])
 assert(reviewQueue[0].statusLabel === "Due" && reviewQueue.some((entry) => entry.statusLabel === "New"), "review queue should distinguish due and new words");
 const firstHsk1ReviewItem = reviewVocabulary.find((item) => Number(getVocabularySetMeta(item).levelNumber) === 1);
 const firstHsk2ReviewItem = reviewVocabulary.find((item) => Number(getVocabularySetMeta(item).levelNumber) === 2);
+const firstHsk3ReviewItem = reviewVocabulary.find((item) => Number(getVocabularySetMeta(item).levelNumber) === 3);
 const hsk2BaselineQueue = buildReviewQueue({}, reviewNow, reviewVocabulary, 2);
 assert(
   Number(getVocabularySetMeta(hsk2BaselineQueue[0].item).levelNumber) === 2 &&
     hsk2BaselineQueue.every((entry) => entry.record || Number(getVocabularySetMeta(entry.item).levelNumber) === 2),
   "a new HSK 2 learner should receive HSK 2 unseen words instead of an HSK 1 baseline",
+);
+const hsk3BaselineQueue = buildReviewQueue({}, reviewNow, reviewVocabulary, 3);
+assert(
+  Number(getVocabularySetMeta(hsk3BaselineQueue[0].item).levelNumber) === 3 &&
+    hsk3BaselineQueue.some((entry) => reviewItemKey(entry.item) === reviewItemKey(firstHsk3ReviewItem)),
+  "a new HSK 3 learner should begin with unseen HSK 3 vocabulary",
 );
 const crossLevelDueQueue = buildReviewQueue({
   [reviewItemKey(firstHsk1ReviewItem)]: { stage: 1, dueAt: reviewNow - 1, lapses: 0 },
@@ -970,9 +984,9 @@ const pathProgressFixture = {
 };
 const vocabularyPath = getVocabularyPathData(pathProgressFixture, reviewNow);
 const firstPathPart = vocabularyPath.parts[0];
-assert(vocabularyPath.levels.length === 2, "HSK path should keep HSK 1 and HSK 2 as separate levels");
+assert(vocabularyPath.levels.length === 3, "HSK path should keep HSK 1, HSK 2, and HSK 3 as separate levels");
 assert(vocabularyPath.parts.length === VOCABULARY_QUIZ_SETS.length, "HSK path should include every vocabulary quiz part");
-assert(vocabularyPath.totals.total === reviewVocabulary.length, "HSK path should account for the complete HSK 1 and HSK 2 vocabulary corpus");
+assert(vocabularyPath.totals.total === reviewVocabulary.length, "HSK path should account for the complete official HSK 1–3 vocabulary corpus");
 assert(vocabularyPath.totals.new + vocabularyPath.totals.due + vocabularyPath.totals.learning + vocabularyPath.totals.strong === vocabularyPath.totals.total, "HSK path statuses should be mutually exclusive and exhaustive");
 assert(firstPathPart.counts.due === 1 && firstPathPart.counts.learning === 1 && firstPathPart.counts.strong === 1, "HSK path should distinguish due, learning, and strong words within each part");
 assert(firstPathPart.counts.introduced === 3, "HSK path coverage should count every previously reviewed word");
@@ -1065,6 +1079,15 @@ assert(
     getStudyPlanPreview("literacy")[0][0] === "Writing sentence drill",
   "study setup previews should accurately reflect the plan that will be created",
 );
+const previousStudyTarget = state.studyTargetLevel;
+state.studyTargetLevel = 3;
+const hsk3LiteracyPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow, "literacy");
+assert(
+  getStudyPlanPreview("literacy", "3")[1][0] === "Reading sentence drill" &&
+    hsk3LiteracyPlan.map((activity) => `${activity.tool}:${activity.mode || ""}`).join("|") === "drill:writing|drill:reading|review:",
+  "HSK 3 plans should use sentence literacy instead of implying unsupported Grammar Lab coverage",
+);
+state.studyTargetLevel = previousStudyTarget;
 const completedGrammarPlan = buildDashboardPlan([
   { type: "grammar", scope: "mixed", completedAt: new Date(dashboardNow).toISOString(), total: 10, correct: 8 },
   ...dashboardHistory,
@@ -1168,30 +1191,37 @@ assert(
 );
 const emptyHsk2Roadmap = getHskRoadmapData(2, { history: [], progress: {}, now: dashboardNow });
 assert(emptyHsk2Roadmap.vocabularyLevel.totals.total === hsk2VocabularyWords.length && emptyHsk2Roadmap.level === 2, "HSK 2 roadmap should remain separate from HSK 1 progress");
+const emptyHsk3Roadmap = getHskRoadmapData(3, { history: [], progress: {}, now: dashboardNow });
+assert(
+  emptyHsk3Roadmap.vocabularyLevel.totals.total === hsk3VocabularyWords.length &&
+    emptyHsk3Roadmap.milestones.some((milestone) => milestone.id === "exam") &&
+    !emptyHsk3Roadmap.milestones.some((milestone) => milestone.id === "grammar"),
+  "HSK 3 roadmap should use the official vocabulary level and timed mock readiness instead of unsupported grammar lessons",
+);
 const roadmapMarkup = buildHskRoadmapMarkup(introducedHsk1Roadmap);
-assert(roadmapMarkup.includes("HSK mastery roadmap") && roadmapMarkup.includes('data-roadmap-level="2"'), "Today should expose the mastery roadmap and target-level switcher");
+assert(roadmapMarkup.includes("HSK mastery roadmap") && roadmapMarkup.includes('data-roadmap-level="2"') && roadmapMarkup.includes('data-roadmap-level="3"'), "Today should expose all three official HSK roadmap targets");
 assert(roadmapMarkup.includes('role="progressbar"') && roadmapMarkup.includes('id="continueHskRoadmap"'), "roadmap progress and continuation should be accessible and actionable");
 assert(stylesSource.includes(".dashboard-roadmap-milestone") && stylesSource.includes(".dashboard-roadmap-levels"), "the HSK roadmap should include dedicated responsive styling");
-assert(PLACEMENT_SESSION_LENGTH === 20, "the level check should be short enough to complete while sampling both HSK levels");
-assert(PLACEMENT_VOCABULARY_PER_LEVEL === 6 && PLACEMENT_GRAMMAR_PER_LEVEL === 4, "the level check should balance six vocabulary and four grammar questions per level");
+assert(PLACEMENT_SESSION_LENGTH === 30, "the level check should sample HSK 1, 2, and 3 without overextending the session");
+assert(PLACEMENT_VOCABULARY_PER_LEVEL === 6 && PLACEMENT_GRAMMAR_PER_LEVEL === 4, "the level check should balance six vocabulary and four language-use questions per level");
 assert(Object.values(PLACEMENT_VOCABULARY).every((pool) => pool.length === 12), "each HSK level should have a varied placement vocabulary pool");
-const placementVocabularyPools = [1, 2].map((level) => getPlacementVocabularyPool(level));
+const placementVocabularyPools = [1, 2, 3].map((level) => getPlacementVocabularyPool(level));
 assert(placementVocabularyPools.every((pool) => pool.length === 12 && pool.every((item) => item.pinyin)), "every curated placement word should resolve to sourced HSK vocabulary and pinyin");
 const placementItems = buildPlacementSessionItems();
-assert(placementItems.length === PLACEMENT_SESSION_LENGTH && new Set(placementItems.map((item) => item.id)).size === PLACEMENT_SESSION_LENGTH, "the level check should build twenty unique questions");
-[1, 2].forEach((level) => {
+assert(placementItems.length === PLACEMENT_SESSION_LENGTH && new Set(placementItems.map((item) => item.id)).size === PLACEMENT_SESSION_LENGTH, "the level check should build thirty unique questions");
+[1, 2, 3].forEach((level) => {
   const levelItems = placementItems.filter((item) => item.level === level);
   const vocabularyItems = levelItems.filter((item) => item.kind === "vocabulary");
-  const grammarItems = levelItems.filter((item) => item.kind === "grammar");
-  assert(levelItems.length === 10 && vocabularyItems.length === 6 && grammarItems.length === 4, `HSK ${level} placement should contain six vocabulary and four grammar questions`);
-  assert(new Set(grammarItems.map((item) => item.lessonId)).size === 4, `HSK ${level} placement grammar should sample four distinct patterns`);
+  const languageItems = levelItems.filter((item) => item.kind === "language");
+  assert(levelItems.length === 10 && vocabularyItems.length === 6 && languageItems.length === 4, `HSK ${level} placement should contain six vocabulary and four language-use questions`);
+  assert(new Set(languageItems.map((item) => item.id)).size === 4, `HSK ${level} placement language use should sample four distinct questions`);
 });
 assert(
   placementItems.every((item) => item.choices.length === 4 && new Set(item.choices.map((choice) => choice.text)).size === 4 && item.choices.filter((choice) => choice.correct).length === 1),
   "every placement question should provide four unique choices with exactly one correct answer",
 );
-const buildPlacementFixture = (hsk1Correct, hsk2Correct) => {
-  const levelOffsets = { 1: 0, 2: 0 };
+const buildPlacementFixture = (hsk1Correct, hsk2Correct, hsk3Correct) => {
+  const levelOffsets = { 1: 0, 2: 0, 3: 0 };
   return {
     type: "placement",
     items: placementItems,
@@ -1199,7 +1229,8 @@ const buildPlacementFixture = (hsk1Correct, hsk2Correct) => {
     answers: placementItems.map((item, itemIndex) => {
       const levelIndex = levelOffsets[item.level];
       levelOffsets[item.level] += 1;
-      const correct = levelIndex < (item.level === 1 ? hsk1Correct : hsk2Correct);
+      const expectedCorrect = item.level === 1 ? hsk1Correct : item.level === 2 ? hsk2Correct : hsk3Correct;
+      const correct = levelIndex < expectedCorrect;
       const choice = correct ? item.choices.find((option) => option.correct) : item.choices.find((option) => !option.correct);
       return {
         item,
@@ -1213,27 +1244,30 @@ const buildPlacementFixture = (hsk1Correct, hsk2Correct) => {
     }),
   };
 };
-const hsk1FoundationPlacement = buildPlacementFixture(6, 10);
-const hsk2ReadyPlacement = buildPlacementFixture(7, 6);
-const hsk2ConsolidationPlacement = buildPlacementFixture(7, 7);
+const hsk1FoundationPlacement = buildPlacementFixture(6, 10, 10);
+const hsk2ReadyPlacement = buildPlacementFixture(7, 6, 10);
+const hsk3ReadyPlacement = buildPlacementFixture(7, 7, 6);
+const hsk3ConsolidationPlacement = buildPlacementFixture(7, 7, 7);
 assert(getPlacementRecommendation(hsk1FoundationPlacement).band === "HSK 1 foundation", "sub-70% HSK 1 performance should recommend rebuilding the HSK 1 foundation");
 assert(getPlacementRecommendation(hsk2ReadyPlacement).band === "Ready for HSK 2", "a secure HSK 1 result with weaker HSK 2 performance should recommend starting HSK 2");
-assert(getPlacementRecommendation(hsk2ConsolidationPlacement).band === "HSK 2 consolidation", "70% or better at both levels should recommend HSK 2 consolidation");
+assert(getPlacementRecommendation(hsk3ReadyPlacement).band === "Ready for HSK 3", "secure HSK 1 and 2 results with weaker HSK 3 performance should recommend starting HSK 3");
+assert(getPlacementRecommendation(hsk3ConsolidationPlacement).band === "HSK 3 consolidation", "70% or better across all levels should recommend HSK 3 consolidation");
 const placementStats = getPlacementResultStats(hsk2ReadyPlacement);
 assert(placementStats.levels[1].correct === 7 && placementStats.levels[2].correct === 6, "placement results should preserve separate HSK 1 and HSK 2 scores");
-assert(placementStats.skills.vocabulary.total === 12 && placementStats.skills.grammar.total === 8, "placement results should preserve separate vocabulary and grammar totals");
+assert(placementStats.levels[3].correct === 10, "placement results should preserve the separate HSK 3 score");
+assert(placementStats.skills.vocabulary.total === 18 && placementStats.skills.language.total === 12, "placement results should preserve separate vocabulary and language-use totals");
 const firstPlacementItem = placementItems[0];
 const firstPlacementChoice = firstPlacementItem.choices[0];
 assert(buildPlacementChoiceMarkup(firstPlacementItem, firstPlacementChoice, null).includes(`data-placement-choice-id="${firstPlacementChoice.id}"`), "placement choices should expose clickable keyboard-matched controls");
 assert(buildPlacementFeedbackMarkup(firstPlacementItem, { correct: false }).includes("Review this one"), "placement feedback should explain incorrect answers immediately");
-const placementHistoryRecord = buildHistoryRecord(hsk2ReadyPlacement);
-assert(placementHistoryRecord.type === "placement" && placementHistoryRecord.recommendedLevel === 2 && placementHistoryRecord.correct === 13, "History should retain the placement score and recommended roadmap");
-assert(placementHistoryRecord.answers.length === 20 && placementHistoryRecord.answers.every((answer) => answer.expected), "placement history should retain exact answer review data");
-assert(buildHistoryRowMarkup(placementHistoryRecord).includes("Level check") && buildHistoryRowMarkup(placementHistoryRecord).includes("HSK 2 recommended"), "History should identify level checks and their recommendation");
+const placementHistoryRecord = buildHistoryRecord(hsk3ReadyPlacement);
+assert(placementHistoryRecord.type === "placement" && placementHistoryRecord.recommendedLevel === 3 && placementHistoryRecord.correct === 20, "History should retain the placement score and recommended roadmap");
+assert(placementHistoryRecord.answers.length === 30 && placementHistoryRecord.answers.every((answer) => answer.expected), "placement history should retain exact answer review data");
+assert(buildHistoryRowMarkup(placementHistoryRecord).includes("Level check") && buildHistoryRowMarkup(placementHistoryRecord).includes("HSK 3 recommended"), "History should identify level checks and their recommendation");
 assert(buildHistorySessionMarkup(placementHistoryRecord).includes("expected"), "placement History should explain missed vocabulary and grammar questions");
-const placementRoadmap = getHskRoadmapData(2, { history: [placementHistoryRecord], progress: {}, now: dashboardNow });
+const placementRoadmap = getHskRoadmapData(3, { history: [placementHistoryRecord], progress: {}, now: dashboardNow });
 const placementRoadmapMarkup = buildHskRoadmapMarkup(placementRoadmap);
-assert(placementRoadmap.latestPlacement?.recommendedLevel === 2 && placementRoadmapMarkup.includes("Retake level check"), "Today should surface the latest placement and offer a retake");
+assert(placementRoadmap.latestPlacement?.recommendedLevel === 3 && placementRoadmapMarkup.includes("Retake level check"), "Today should surface the latest placement and offer a retake");
 assert(stylesSource.includes(".placement-session") && stylesSource.includes(".placement-results") && stylesSource.includes(".dashboard-placement-control"), "the placement check should include dedicated desktop and responsive styling");
 assert(appSource.includes("scrollPlacementFeedbackIntoView()") && appSource.includes("scrollPlacementQuestionIntoView()"), "placement answers should keep feedback and the next prompt in view on compact screens");
 assert(appSource.includes('aria-label="Level check progress"'), "placement progress should expose an accessible progressbar label");
@@ -1635,15 +1669,24 @@ assert(normalizeEnglish("They were here.") === "they were here", "were should no
 assert(normalizeEnglish("I feel well today.") === "i feel well today", "well should not be treated as we'll");
 assert(normalizeEnglish("Show me your ID.") === "show me your id", "id should not be treated as I'd");
 assert(normalizeEnglish("Youre ready.") === "you are ready", "common missing apostrophe forms should still normalize");
-assert(VOCABULARY_QUIZ_SETS.length === 8, "vocabulary quizzes should be split into eight level-specific parts");
+assert(VOCABULARY_QUIZ_SETS.length === 10, "vocabulary quizzes should be split into ten official level-specific parts");
 assert(hsk1VocabularySets.length === 3, "New HSK 1 vocabulary should fit in three quiz parts");
-assert(hsk2VocabularySets.length === 5, "New HSK 2 vocabulary should fit in five quiz parts");
-assert(hsk1VocabularyWords.length === 506, "New HSK 1 vocabulary parts should cover the full sourced level list");
-assert(hsk2VocabularyWords.length === 750, "New HSK 2 vocabulary parts should cover the full sourced level list");
-assert(hsk1VocabularyKeys.size === hsk1VocabularyWords.length, "New HSK 1 vocabulary parts should not duplicate entries");
-assert(hsk2VocabularyKeys.size === hsk2VocabularyWords.length, "New HSK 2 vocabulary parts should not duplicate entries");
-assert(new Set(vocabularySetSizes).size > 1, "vocabulary quiz parts should no longer be forced to equal sizes");
-assert(!VOCABULARY_QUIZ_SETS.some((set) => set.level.includes("1 + 2")), "vocabulary quiz parts should not combine HSK 1 and HSK 2");
+assert(hsk2VocabularySets.length === 2, "New HSK 2 vocabulary should fit in two quiz parts");
+assert(hsk3VocabularySets.length === 5, "New HSK 3 vocabulary should fit in five quiz parts");
+assert(hsk1VocabularyWords.length === 300, "New HSK 1 parts should cover all 300 words in the official 2025 syllabus");
+assert(hsk2VocabularyWords.length === 200, "New HSK 2 parts should cover all 200 additional words in the official 2025 syllabus");
+assert(hsk3VocabularyWords.length === 500, "New HSK 3 parts should cover all 500 additional words in the official 2025 syllabus");
+assert(hsk1VocabularyKeys.size === hsk1VocabularyWords.length, "New HSK 1 vocabulary should retain every official index");
+assert(hsk2VocabularyKeys.size === hsk2VocabularyWords.length, "New HSK 2 vocabulary should retain every official index, including separate senses");
+assert(hsk3VocabularyKeys.size === hsk3VocabularyWords.length, "New HSK 3 vocabulary should retain every official index, including separate senses");
+assert(vocabularySetSizes.every((size) => size === 100), "official HSK 1–3 vocabulary should be split into focused 100-word quiz parts");
+assert(VOCABULARY_QUIZ_SETS.every((set) => set.id.startsWith("new-hsk-2025-")), "official 2025 quiz parts should use versioned IDs so prior high scores remain honest");
+assert(VOCABULARY_CURRICULUM.version === "2025-11" && VOCABULARY_CURRICULUM.levelCounts[3] === 500, "vocabulary metadata should identify the official 2025 HSK curriculum");
+assert(
+  allVocabularyWords.find((item) => item.officialIndex === 357).meanings[0] === "flower" &&
+    allVocabularyWords.find((item) => item.officialIndex === 358).meanings[0] === "to spend money or time",
+  "official numbered senses should remain distinct in meaning quizzes and review",
+);
 assert(formatVocabularySetOption(firstVocabularySet) === firstVocabularySet.label, "vocabulary set labels should not repeat the word count");
 const firstVocabularySetMeta = getVocabularySetMeta(firstVocabularySet);
 assert(firstVocabularySetMeta.levelLabel === "HSK 1", "vocabulary set icons should expose the HSK level");
@@ -1652,9 +1695,10 @@ const vocabularySetPickerMarkup = buildVocabularySetPicker(firstVocabularySet.id
 assert(vocabularySetPickerMarkup.includes("quiz-set-card"), "vocabulary set picker should render icon buttons");
 assert(vocabularySetPickerMarkup.includes("quiz-set-icon-level"), "vocabulary set picker should render level icons");
 assert(vocabularySetPickerMarkup.includes('aria-pressed="true"'), "vocabulary set picker should mark the selected set");
-assert(vocabularySetPickerMarkup.includes("Part 5"), "vocabulary set picker should include the fifth HSK 2 part");
-assert(!vocabularySetPickerMarkup.includes("Part 6"), "vocabulary set picker should not include a sixth HSK 2 part");
+assert(vocabularySetPickerMarkup.includes("HSK 3") && vocabularySetPickerMarkup.includes("Part 5"), "vocabulary set picker should include all five HSK 3 parts");
+assert(!vocabularySetPickerMarkup.includes("Part 6"), "vocabulary set picker should stop at five parts");
 assert(!vocabularySetPickerMarkup.includes("125 words"), "vocabulary set picker should not repeat the word count");
+assert(buildVocabularyCurriculumSourceMarkup().includes("View source"), "vocabulary surfaces should link to the official syllabus source");
 assert(state.vocabularyOrder === "random", "vocabulary quizzes should default to random order");
 assert(state.vocabularyHideTranslations === false, "vocabulary translations should be visible unless the user hides them");
 assert(VOCABULARY_MODES.meaning.label === "Audio", "vocabulary audio mode should be exposed as Audio");
@@ -1723,13 +1767,13 @@ assert(findVocabularyGuessMatches("aihao", compactPinyinSession).length === 1, "
 const erhuaPinyinSession = {
   type: "vocabulary",
   quizMode: "pinyin",
-  items: [shortWhileEntry],
+  items: [erhuaEntry],
   foundIds: new Set(),
   missedIds: new Set(),
   selectedVocabularyIndex: 0,
 };
-assert(findVocabularyGuessMatches("buyihuir", erhuaPinyinSession).length === 1, "compact erhua pinyin should reveal 不一会儿");
-assert(findVocabularyGuessMatches("buyihuier", erhuaPinyinSession).length === 1, "expanded erhua pinyin should reveal 不一会儿");
+assert(findVocabularyGuessMatches("haowanr", erhuaPinyinSession).length === 1, "compact erhua pinyin should reveal 好玩儿");
+assert(findVocabularyGuessMatches("haowaner", erhuaPinyinSession).length === 1, "expanded erhua pinyin should reveal 好玩儿");
 
 const selectedOnlySession = {
   type: "vocabulary",
@@ -1944,7 +1988,7 @@ assert(
 
 const toneListeningPool = getToneListeningPool();
 assert(TONE_LISTENING_SESSION_LENGTH === 15, "tone listening should use a focused 15-word session");
-assert(toneListeningPool.length >= 1000, "tone listening should draw from broad HSK 1 and 2 coverage");
+assert(toneListeningPool.length >= 700, "tone listening should draw from broad official HSK 1–3 coverage");
 assert(
   toneListeningPool.every((item) => isReliableToneListeningItem(item)),
   "tone listening should exclude ambiguous readings and common tone-sandhi traps",

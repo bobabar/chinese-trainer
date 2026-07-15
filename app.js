@@ -25,7 +25,7 @@ const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map", "exam"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map", "exam", "reader"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -95,6 +95,9 @@ const TOOLS = {
   },
   grammar: {
     label: "Grammar Lab",
+  },
+  reader: {
+    label: "Graded Readers",
   },
   exam: {
     label: "Mock HSK Exam",
@@ -221,6 +224,9 @@ const GRAMMAR_LESSONS = Array.isArray(window.GRAMMAR_LESSONS)
 const HSK_MOCK_EXAMS = window.HSK_MOCK_EXAMS && typeof window.HSK_MOCK_EXAMS === "object"
   ? window.HSK_MOCK_EXAMS
   : { levels: {}, scenes: {}, speaking: null };
+const GRADED_READERS = Array.isArray(window.GRADED_READERS)
+  ? window.GRADED_READERS
+  : [];
 const HSK_EXAM_LEVELS = [1, 2, 3];
 const VOCABULARY_ORDER_OPTIONS = {
   random: "Random order",
@@ -495,6 +501,10 @@ const state = {
   planSetupOpen: false,
   grammarLevel: 1,
   grammarLessonId: "",
+  readerLevel: 1,
+  readerId: "",
+  readerShowPinyin: false,
+  readerShowTranslation: false,
   examLevel: 1,
   examMode: "written",
   examScreen: "home",
@@ -558,6 +568,7 @@ function init() {
   bindGlobalSearch();
   bindGlossTooltipAlignment();
   bindPwaLifecycle();
+  bindAccountState();
   loadVoices();
   primeVoicesOnFirstInteraction();
   render();
@@ -619,6 +630,15 @@ function loadSettings() {
     if (saved.grammarLessonId && GRAMMAR_LESSONS.some((lesson) => lesson.id === saved.grammarLessonId)) {
       state.grammarLessonId = saved.grammarLessonId;
     }
+    if ([1, 2, 3].includes(Number(saved.readerLevel))) {
+      state.readerLevel = Number(saved.readerLevel);
+    }
+    if (typeof saved.readerShowPinyin === "boolean") {
+      state.readerShowPinyin = saved.readerShowPinyin;
+    }
+    if (typeof saved.readerShowTranslation === "boolean") {
+      state.readerShowTranslation = saved.readerShowTranslation;
+    }
     if (typeof saved.mapShowPinyinNames === "boolean") {
       state.mapShowPinyinNames = saved.mapShowPinyinNames;
     }
@@ -676,6 +696,9 @@ function saveSettings() {
         onboardingComplete: state.onboardingComplete,
         grammarLevel: state.grammarLevel,
         grammarLessonId: state.grammarLessonId,
+        readerLevel: state.readerLevel,
+        readerShowPinyin: state.readerShowPinyin,
+        readerShowTranslation: state.readerShowTranslation,
         examLevel: state.examLevel,
         examMode: state.examMode,
         mapQuizMode: state.mapQuizMode,
@@ -689,6 +712,27 @@ function saveSettings() {
   } catch {
     // Settings persistence is a convenience; practice sessions still work without it.
   }
+}
+
+function bindAccountState() {
+  const account = window.ChineseTrainerAccount;
+  if (!account) {
+    return;
+  }
+  account.subscribe(() => {
+    if (!state.session && !state.result && ["reader", "exam"].includes(state.tool)) {
+      render();
+    }
+  });
+  account.init();
+}
+
+function hasPremiumAccess() {
+  return Boolean(window.ChineseTrainerAccount?.isPremium?.());
+}
+
+function requirePremiumAccess(reason) {
+  return Boolean(window.ChineseTrainerAccount?.requirePremium?.(reason));
 }
 
 function bindTopLevelControls() {
@@ -1590,6 +1634,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isReaderChoiceShortcut(event)) {
+    event.preventDefault();
+    submitReaderChoice(Number(event.key) - 1);
+    return;
+  }
+
   if (isPlacementChoiceShortcut(event)) {
     event.preventDefault();
     submitPlacementChoiceByShortcut(event.key);
@@ -1751,6 +1801,15 @@ function isExamChoiceShortcut(event) {
     !event.ctrlKey &&
     !event.shiftKey &&
     /^[1-6]$/.test(event.key);
+}
+
+function isReaderChoiceShortcut(event) {
+  return state.session?.type === "reader" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-3]$/.test(event.key);
 }
 
 function isGrammarChoiceShortcut(event) {
@@ -2100,6 +2159,8 @@ function render() {
       renderMapQuizResults();
     } else if (state.result.type === "exam") {
       renderHskExamResults();
+    } else if (state.result.type === "reader") {
+      renderReaderResults();
     } else {
       renderResults();
     }
@@ -2149,6 +2210,11 @@ function render() {
 
   if (state.tool === "grammar") {
     renderGrammarHome();
+    return;
+  }
+
+  if (state.tool === "reader") {
+    renderReaderHome();
     return;
   }
 
@@ -6495,6 +6561,354 @@ function formatVocabularySetOption(set) {
   return set.label || set.shortLabel || "";
 }
 
+function getReaderById(readerId) {
+  return GRADED_READERS.find((reader) => reader.id === readerId) || null;
+}
+
+function isPremiumReader(reader) {
+  return Number(reader?.level) > 1;
+}
+
+function canAccessReader(reader, { prompt = true } = {}) {
+  if (reader && (!isPremiumReader(reader) || hasPremiumAccess())) {
+    return true;
+  }
+  if (prompt) {
+    requirePremiumAccess("HSK 2 and HSK 3 graded readers are included with Premium.");
+  }
+  return false;
+}
+
+function getReaderCompletion(readerId, history = loadHistoryRecords()) {
+  const attempts = history.filter((record) => record.type === "reader" && record.readerId === readerId);
+  const best = attempts.reduce((highest, record) => Math.max(highest, Number(record.correct) || 0), 0);
+  return { attempts: attempts.length, best };
+}
+
+function renderReaderHome() {
+  const selectedReader = getReaderById(state.readerId);
+  if (selectedReader && canAccessReader(selectedReader, { prompt: false })) {
+    renderReaderDetail(selectedReader);
+    return;
+  }
+  if (selectedReader) {
+    state.readerId = "";
+  }
+
+  const history = loadHistoryRecords();
+  const premium = hasPremiumAccess();
+  const levelReaders = GRADED_READERS.filter((reader) => reader.level === state.readerLevel);
+  const levelLocked = state.readerLevel > 1 && !premium;
+  const tabs = [1, 2, 3].map((level) => {
+    const locked = level > 1 && !premium;
+    return `<button type="button" data-reader-level="${level}" class="${state.readerLevel === level ? "active" : ""}" aria-pressed="${state.readerLevel === level}">
+      HSK ${level}${locked ? '<span class="reader-tab-lock" aria-label="Premium">Premium</span>' : ""}
+    </button>`;
+  }).join("");
+  const cards = levelReaders.map((reader) => {
+    const locked = isPremiumReader(reader) && !premium;
+    const completion = getReaderCompletion(reader.id, history);
+    return `
+      <article class="reader-card ${locked ? "is-locked" : ""}">
+        <div class="reader-card-level" aria-hidden="true">${reader.level}<span>HSK</span></div>
+        <div class="reader-card-copy">
+          <div class="reader-card-heading">
+            <div>
+              <h3 lang="zh-CN">${escapeHtml(reader.title)}</h3>
+              <p>${escapeHtml(reader.pinyinTitle)}</p>
+            </div>
+            ${locked ? '<span class="reader-premium-badge">Premium</span>' : completion.attempts ? '<span class="reader-complete-badge">Completed</span>' : ""}
+          </div>
+          <p class="reader-card-summary">${escapeHtml(reader.summary)}</p>
+          <div class="reader-card-meta">
+            <span>${reader.sentences.length} sentences</span>
+            <span>${reader.minutes} min</span>
+            ${completion.attempts ? `<span>Best ${completion.best}/${reader.questions.length}</span>` : ""}
+          </div>
+        </div>
+        <button class="secondary-btn reader-card-action" type="button" data-reader-id="${escapeHtml(reader.id)}">
+          ${locked ? "Unlock story" : completion.attempts ? "Read again" : "Read story"}
+          <span aria-hidden="true">${locked ? "Locked" : "→"}</span>
+        </button>
+      </article>
+    `;
+  }).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel reader-home">
+      <header class="reader-home-header">
+        <div>
+          <span class="reader-kicker">Read at your level</span>
+          <h2>Graded Readers</h2>
+          <p>Short original stories with focused vocabulary, optional support, and a comprehension check.</p>
+        </div>
+        <div class="reader-access-summary ${premium ? "is-premium" : ""}">
+          <span>${premium ? "Premium active" : "Free reading"}</span>
+          <strong>${premium ? "HSK 1–3 unlocked" : "HSK 1 included"}</strong>
+        </div>
+      </header>
+      <div class="reader-level-tabs" role="group" aria-label="Reader level">${tabs}</div>
+      ${levelLocked ? `
+        <div class="reader-level-notice">
+          <div><strong>Continue with HSK ${state.readerLevel}</strong><span>Unlock every story at this level with Premium.</span></div>
+          <button class="primary-btn" type="button" id="readerLevelUpgrade">See Premium</button>
+        </div>
+      ` : ""}
+      <div class="reader-grid">${cards}</div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-reader-level]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.readerLevel = Number(button.dataset.readerLevel) || 1;
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-reader-id]").forEach((button) => {
+    button.addEventListener("click", () => openReader(button.dataset.readerId));
+  });
+  document.querySelector("#readerLevelUpgrade")?.addEventListener("click", () => {
+    requirePremiumAccess(`Unlock every HSK ${state.readerLevel} graded reader with Premium.`);
+  });
+}
+
+function openReader(readerId) {
+  const reader = getReaderById(readerId);
+  if (!reader || !canAccessReader(reader)) {
+    return;
+  }
+  state.readerId = reader.id;
+  state.readerLevel = reader.level;
+  saveSettings();
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderReaderDetail(reader) {
+  const storyMarkup = reader.sentences.map((sentence, index) => `
+    <div class="reader-sentence">
+      <span class="reader-sentence-number">${index + 1}</span>
+      <div>
+        <p class="reader-sentence-zh" lang="zh-CN">${escapeHtml(sentence.zh)}</p>
+        ${state.readerShowPinyin ? `<p class="reader-sentence-pinyin">${buildToneColoredPinyinMarkup(sentence.pinyin)}</p>` : ""}
+        ${state.readerShowTranslation ? `<p class="reader-sentence-translation">${escapeHtml(sentence.en)}</p>` : ""}
+      </div>
+      <button class="icon-btn" type="button" data-reader-audio="${index}" aria-label="Play sentence ${index + 1}" title="Play sentence">${speakerIconMarkup()}</button>
+    </div>
+  `).join("");
+  const vocabularyMarkup = reader.vocabulary.map((word) => `
+    <li>
+      <div><strong lang="zh-CN">${escapeHtml(word.zh)}</strong><span>${buildToneColoredPinyinMarkup(word.pinyin)}</span></div>
+      <p>${escapeHtml(word.en)}</p>
+      <button class="icon-btn" type="button" data-reader-word-audio="${escapeHtml(word.zh)}" aria-label="Play ${escapeHtml(word.zh)}" title="Play word">${speakerIconMarkup()}</button>
+    </li>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel reader-detail">
+      <div class="reader-detail-toolbar">
+        <button class="reader-back" type="button" id="readerBack"><span aria-hidden="true">←</span> Reader shelf</button>
+        <div class="reader-detail-actions">
+          <button class="ghost-btn" type="button" id="readerPlayStory">${speakerIconMarkup()} Listen</button>
+          <button class="reader-toggle ${state.readerShowPinyin ? "active" : ""}" type="button" id="readerTogglePinyin" aria-pressed="${state.readerShowPinyin}">Pinyin</button>
+          <button class="reader-toggle ${state.readerShowTranslation ? "active" : ""}" type="button" id="readerToggleTranslation" aria-pressed="${state.readerShowTranslation}">English</button>
+        </div>
+      </div>
+      <header class="reader-story-header">
+        <span class="reader-level-label">New HSK ${reader.level} · ${reader.minutes} minute read</span>
+        <h2 lang="zh-CN">${escapeHtml(reader.title)}</h2>
+        ${state.readerShowPinyin ? `<p class="reader-story-title-pinyin">${buildToneColoredPinyinMarkup(reader.pinyinTitle)}</p>` : ""}
+        <p>${escapeHtml(reader.summary)}</p>
+      </header>
+      <div class="reader-story-layout">
+        <article class="reader-story" aria-label="${escapeHtml(reader.title)}">${storyMarkup}</article>
+        <aside class="reader-vocabulary">
+          <span>Story vocabulary</span>
+          <h3>Words to notice</h3>
+          <ul>${vocabularyMarkup}</ul>
+        </aside>
+      </div>
+      <footer class="reader-story-footer">
+        <div><strong>Finished reading?</strong><span>Check your understanding with three questions.</span></div>
+        <button class="primary-btn" type="button" id="startReaderQuiz">Check understanding <span aria-hidden="true">→</span></button>
+      </footer>
+    </section>
+  `;
+
+  document.querySelector("#readerBack")?.addEventListener("click", closeReader);
+  document.querySelector("#readerPlayStory")?.addEventListener("click", () => {
+    speak(reader.sentences.map((sentence) => sentence.zh).join(""), { immediate: true });
+  });
+  document.querySelector("#readerTogglePinyin")?.addEventListener("click", () => {
+    state.readerShowPinyin = !state.readerShowPinyin;
+    saveSettings();
+    render();
+  });
+  document.querySelector("#readerToggleTranslation")?.addEventListener("click", () => {
+    state.readerShowTranslation = !state.readerShowTranslation;
+    saveSettings();
+    render();
+  });
+  document.querySelectorAll("[data-reader-audio]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const sentence = reader.sentences[Number(button.dataset.readerAudio)];
+      if (sentence) speak(sentence.zh, { immediate: true });
+    });
+  });
+  document.querySelectorAll("[data-reader-word-audio]").forEach((button) => {
+    button.addEventListener("click", () => speak(button.dataset.readerWordAudio, { immediate: true }));
+  });
+  document.querySelector("#startReaderQuiz")?.addEventListener("click", () => startReaderQuiz(reader.id));
+}
+
+function closeReader() {
+  stopSpeech();
+  state.readerId = "";
+  state.session = null;
+  state.result = null;
+  render();
+}
+
+function startReaderQuiz(readerId = state.readerId) {
+  const reader = getReaderById(readerId);
+  if (!reader || !canAccessReader(reader)) {
+    return;
+  }
+  stopSpeech();
+  state.tool = "reader";
+  state.readerId = reader.id;
+  state.result = null;
+  state.session = {
+    type: "reader",
+    readerId: reader.id,
+    level: reader.level,
+    title: reader.title,
+    items: reader.questions,
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  render();
+}
+
+function renderReaderQuiz() {
+  const session = state.session;
+  const reader = getReaderById(session?.readerId);
+  const question = session?.items?.[session.index];
+  if (!reader || !question || !canAccessReader(reader, { prompt: false })) {
+    state.session = null;
+    state.readerId = "";
+    render();
+    return;
+  }
+  const assessment = session.currentAssessment;
+  const progress = Math.round(((session.index + (assessment ? 1 : 0)) / session.items.length) * 100);
+  const choices = question.options.map((option, index) => {
+    const selected = assessment?.answerIndex === index;
+    const correct = assessment && question.answer === index;
+    return `
+      <button class="reader-choice ${selected ? "is-selected" : ""} ${correct ? "is-correct" : ""}" type="button" data-reader-choice="${index}" ${assessment ? "disabled" : ""}>
+        <span>${index + 1}</span><strong lang="zh-CN">${escapeHtml(option)}</strong>
+      </button>
+    `;
+  }).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel reader-quiz">
+      <header class="reader-quiz-header">
+        <div><span>New HSK ${reader.level} · ${escapeHtml(reader.title)}</span><strong>Question ${session.index + 1} of ${session.items.length}</strong></div>
+        <button class="text-button" type="button" id="exitReaderQuiz">Back to story</button>
+      </header>
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" style="width:${progress}%"></div></div>
+      <div class="reader-quiz-panel">
+        <span class="reader-quiz-kicker">Check your understanding</span>
+        <h2 lang="zh-CN">${escapeHtml(question.prompt)}</h2>
+        <div class="reader-choice-list" role="radiogroup" aria-label="Answer choices">${choices}</div>
+        ${assessment ? `
+          <div class="reader-answer-feedback ${assessment.correct ? "is-correct" : "is-wrong"}" role="status">
+            <strong>${assessment.correct ? "Correct" : "Not quite"}</strong>
+            <p lang="zh-CN">${escapeHtml(question.explanation)}</p>
+          </div>
+          <button class="primary-btn reader-next" type="button" id="readerNextQuestion">${session.index + 1 >= session.items.length ? "View results" : "Next question"} <span aria-hidden="true">→</span></button>
+        ` : '<p class="reader-keyboard-note">Use keys 1–3 or select an answer.</p>'}
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-reader-choice]").forEach((button) => {
+    button.addEventListener("click", () => submitReaderChoice(Number(button.dataset.readerChoice)));
+  });
+  document.querySelector("#readerNextQuestion")?.addEventListener("click", nextQuestion);
+  document.querySelector("#exitReaderQuiz")?.addEventListener("click", () => {
+    if (!session.answers.length || window.confirm("Return to the story and leave this comprehension check?")) {
+      state.session = null;
+      render();
+    }
+  });
+}
+
+function submitReaderChoice(answerIndex) {
+  const session = state.session;
+  const question = session?.items?.[session.index];
+  if (session?.type !== "reader" || !question || session.currentAssessment || !Number.isInteger(answerIndex)) {
+    return;
+  }
+  const assessment = {
+    answerIndex,
+    answer: question.options[answerIndex] || "",
+    expected: question.options[question.answer] || "",
+    correct: answerIndex === question.answer,
+    score: answerIndex === question.answer ? 1 : 0,
+  };
+  session.currentAssessment = assessment;
+  session.answers.push({ ...assessment, item: question, itemIndex: session.index });
+  render();
+}
+
+function renderReaderResults() {
+  const result = state.result;
+  const reader = getReaderById(result.readerId);
+  if (!reader) {
+    state.result = null;
+    state.readerId = "";
+    render();
+    return;
+  }
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const rows = result.answers.map((answer, index) => `
+    <article class="reader-result-row ${answer.correct ? "is-correct" : "is-wrong"}">
+      <span>${index + 1}</span>
+      <div><strong lang="zh-CN">${escapeHtml(answer.item.prompt)}</strong><p>Your answer: ${escapeHtml(answer.answer)} · Correct answer: ${escapeHtml(answer.expected)}</p></div>
+      <b>${answer.correct ? "Correct" : "Review"}</b>
+    </article>
+  `).join("");
+  app.innerHTML = `
+    <section class="workspace-panel reader-results">
+      <header class="reader-results-header">
+        <div><span>Reading complete</span><h2 lang="zh-CN">${escapeHtml(reader.title)}</h2><p>${escapeHtml(reader.pinyinTitle)}</p></div>
+        <div class="reader-result-score"><strong>${correct}/${result.answers.length}</strong><span>correct</span></div>
+      </header>
+      <div class="reader-result-list">${rows}</div>
+      <div class="reader-results-actions">
+        <button class="primary-btn" type="button" id="readerResultAgain">Read story again</button>
+        <button class="secondary-btn" type="button" id="readerResultShelf">Back to reader shelf</button>
+      </div>
+    </section>
+  `;
+  document.querySelector("#readerResultAgain")?.addEventListener("click", () => {
+    state.result = null;
+    state.readerId = reader.id;
+    render();
+  });
+  document.querySelector("#readerResultShelf")?.addEventListener("click", () => {
+    state.result = null;
+    state.readerId = "";
+    render();
+  });
+}
+
 function getHskExam(level = state.examLevel) {
   return HSK_MOCK_EXAMS.levels?.[Number(level)] || null;
 }
@@ -6591,6 +7005,20 @@ function getHskExamDraftProgress(draft) {
   return { answered, total: items.length };
 }
 
+function isPremiumHskExamLevel(level) {
+  return Number(level) > 1;
+}
+
+function canAccessHskExamLevel(level, { prompt = true } = {}) {
+  if (!isPremiumHskExamLevel(level) || hasPremiumAccess()) {
+    return true;
+  }
+  if (prompt) {
+    requirePremiumAccess(`New HSK ${Number(level) || 2} mock exams are included with Premium.`);
+  }
+  return false;
+}
+
 function renderHskExamHome() {
   if (state.examScreen === "ready") {
     renderHskExamReadiness();
@@ -6605,11 +7033,12 @@ function renderHskExamHome() {
     const exam = getHskExam(level);
     const sections = getHskExamSectionCounts(exam);
     const attempt = getHskExamAttemptSummary(level, history);
+    const locked = !canAccessHskExamLevel(level, { prompt: false });
     return `
-      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""}">
+      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${locked ? "is-locked" : ""}">
         <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
         <div class="hsk-exam-level-copy">
-          <span>HSK 3.0</span>
+          <span>HSK 3.0 ${locked ? "· Premium" : level === 1 ? "· Free" : ""}</span>
           <h3>New HSK ${level}</h3>
           <p>${sections.map((item) => item.label).join(" · ")}</p>
         </div>
@@ -6624,7 +7053,7 @@ function renderHskExamHome() {
           <small>${attempt.attempts ? `${attempt.attempts} ${attempt.attempts === 1 ? "attempt" : "attempts"} saved` : "Your first result will be tracked here"}</small>
         </div>
         <button class="secondary-btn hsk-exam-level-action" type="button" data-hsk-exam-level="${level}">
-          View exam details
+          ${locked ? "Unlock Premium" : "View exam details"}
           <span aria-hidden="true">→</span>
         </button>
       </article>
@@ -6669,7 +7098,11 @@ function renderHskExamHome() {
 
   document.querySelectorAll("[data-hsk-exam-level]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.examLevel = Number(button.dataset.hskExamLevel) || 1;
+      const level = Number(button.dataset.hskExamLevel) || 1;
+      if (!canAccessHskExamLevel(level)) {
+        return;
+      }
+      state.examLevel = level;
       state.examMode = "written";
       state.examScreen = "ready";
       saveSettings();
@@ -6686,6 +7119,12 @@ function renderHskExamHome() {
 }
 
 function renderHskExamReadiness() {
+  if (!canAccessHskExamLevel(state.examLevel, { prompt: false })) {
+    state.examScreen = "home";
+    render();
+    requirePremiumAccess(`New HSK ${state.examLevel} mock exams are included with Premium.`);
+    return;
+  }
   const exam = getHskExam();
   if (!exam) {
     state.examScreen = "home";
@@ -6788,6 +7227,9 @@ function renderHskExamReadiness() {
 }
 
 async function startHskExam(level) {
+  if (!canAccessHskExamLevel(level)) {
+    return;
+  }
   const exam = getHskExam(level);
   if (!exam) {
     return;
@@ -6827,6 +7269,9 @@ function resumeHskExam() {
   const exam = getHskExam(draft?.level);
   if (!draft || !exam) {
     render();
+    return;
+  }
+  if (!canAccessHskExamLevel(exam.level)) {
     return;
   }
   state.tool = "exam";
@@ -7605,6 +8050,9 @@ function flattenHskSpeakingItems(speaking = HSK_MOCK_EXAMS.speaking) {
 }
 
 function startHskSpeakingExam() {
+  if (!canAccessHskExamLevel(3)) {
+    return;
+  }
   const speaking = HSK_MOCK_EXAMS.speaking;
   if (!speaking) return;
   stopPronunciationRecognition();
@@ -8275,6 +8723,10 @@ function getHistoryRecordPresentation(record) {
       ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
       : `HSK ${record.level || 1} · Mixed patterns`;
     resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "reader") {
+    typeLabel = "Graded reader";
+    modeLabel = `New HSK ${record.level || 1} · ${record.title || "Story"}`;
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
   } else if (record.type === "exam") {
     typeLabel = record.examMode === "speaking" ? "HSK speaking mock" : "Mock HSK exam";
     modeLabel = `New HSK ${record.level || 1} · ${record.examMode === "speaking" ? "Speaking" : "Written"}`;
@@ -8316,6 +8768,16 @@ function buildHistorySessionReviewMarkup(record) {
   return `
     <div class="history-mistake-list">
       ${mistakes.slice(0, 8).map((answer) => {
+        if (record.type === "reader") {
+          return `
+            <div class="history-mistake-row is-sentence is-grammar">
+              <strong class="chinese-text" lang="zh-CN">${escapeHtml(answer.prompt || "Reading question")}</strong>
+              <p>New HSK ${record.level || 1} · ${escapeHtml(record.title || "Graded reader")}</p>
+              <span>Your answer: ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}</span>
+              <b>Review</b>
+            </div>
+          `;
+        }
         if (record.type === "exam") {
           return `
             <div class="history-mistake-row is-sentence is-grammar">
@@ -8732,6 +9194,11 @@ function buildVocabularyHistoryResultLabel(record) {
 }
 
 function renderSession() {
+  if (state.session?.type === "reader") {
+    renderReaderQuiz();
+    return;
+  }
+
   if (state.session?.type === "exam") {
     renderHskExamSession();
     return;
@@ -12495,6 +12962,13 @@ function startActiveSession() {
     return;
   }
 
+  if (state.tool === "reader") {
+    if (state.readerId) {
+      startReaderQuiz(state.readerId);
+    }
+    return;
+  }
+
   if (state.tool === "exam") {
     if (state.examScreen === "ready") {
       if (state.examMode === "speaking") {
@@ -13093,6 +13567,21 @@ function nextQuestion() {
   const session = state.session;
   const sessionLength = session.items.length;
 
+  if (session.type === "reader") {
+    if (session.index + 1 >= sessionLength) {
+      const result = buildSessionResult(session);
+      state.result = result;
+      saveHistoryResult(result);
+      state.session = null;
+      render();
+      return;
+    }
+    session.index += 1;
+    session.currentAssessment = null;
+    render();
+    return;
+  }
+
   if (session.type === "review") {
     if (session.index + 1 >= sessionLength) {
       const result = buildSessionResult(session);
@@ -13297,6 +13786,19 @@ function finishVocabularySession(reason) {
 }
 
 function buildSessionResult(session) {
+  if (session.type === "reader") {
+    return {
+      type: "reader",
+      readerId: session.readerId,
+      level: session.level,
+      title: session.title,
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+      total: session.items.length,
+    };
+  }
+
   if (session.type === "placement") {
     return {
       type: "placement",
@@ -13503,6 +14005,31 @@ function buildHistoryRecord(result) {
         estimated: answer.estimated,
         correct: answer.correct,
         score: answer.score,
+      })),
+    };
+  }
+
+  if (result.type === "reader") {
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    return {
+      id,
+      type: "reader",
+      readerId: result.readerId,
+      level: result.level || 1,
+      title: result.title || "Graded reader",
+      completedAt,
+      total: result.answers.length,
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        questionId: answer.item.id,
+        prompt: answer.item.prompt,
+        answer: answer.answer,
+        expected: answer.expected,
+        explanation: answer.item.explanation || "",
+        correct: Boolean(answer.correct),
+        score: answer.correct ? 1 : 0,
       })),
     };
   }

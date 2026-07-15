@@ -8,6 +8,7 @@ const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
 const examData = fs.readFileSync(path.join(ROOT, "exam-data.js"), "utf8");
+const readerData = fs.readFileSync(path.join(ROOT, "reader-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
@@ -98,6 +99,7 @@ vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(grammarData, context, { filename: "grammar-data.js" });
 vm.runInContext(examData, context, { filename: "exam-data.js" });
+vm.runInContext(readerData, context, { filename: "reader-data.js" });
 vm.runInContext(chinaMapData, context, { filename: "china-map-data.js" });
 vm.runInContext(`${appSource}
 window.__tests = {
@@ -108,6 +110,7 @@ window.__tests = {
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
   HSK_MOCK_EXAMS,
+  GRADED_READERS,
   PLACEMENT_GRAMMAR_PER_LEVEL,
   PLACEMENT_SESSION_LENGTH,
   PLACEMENT_VOCABULARY,
@@ -170,6 +173,7 @@ window.__tests = {
   buildSentenceLibraryRow,
   containsChinese,
   choosePreferredVoice,
+  canAccessHskExamLevel,
   determineVocabularyTimeLimit,
   extractPinyinTones,
   findVocabularyGuessMatches,
@@ -189,6 +193,7 @@ window.__tests = {
   getHistoryProgressData,
   getHistorySkillStats,
   getGrammarLessonProgress,
+  getReaderById,
   getGrammarQuestionPool,
   getGlobalSearchResults,
   getSavedGlobalSearchResults,
@@ -279,6 +284,7 @@ const {
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
   HSK_MOCK_EXAMS,
+  GRADED_READERS,
   PLACEMENT_GRAMMAR_PER_LEVEL,
   PLACEMENT_SESSION_LENGTH,
   PLACEMENT_VOCABULARY,
@@ -341,6 +347,7 @@ const {
   buildSentenceLibraryRow,
   containsChinese,
   choosePreferredVoice,
+  canAccessHskExamLevel,
   determineVocabularyTimeLimit,
   extractPinyinTones,
   findVocabularyGuessMatches,
@@ -360,6 +367,7 @@ const {
   getHistoryProgressData,
   getHistorySkillStats,
   getGrammarLessonProgress,
+  getReaderById,
   getGrammarQuestionPool,
   getGlobalSearchResults,
   getSavedGlobalSearchResults,
@@ -468,7 +476,7 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|exam:Mock HSK Exam|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|reader:Graded Readers|exam:Mock HSK Exam|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
   "global nav should show Today before the learning tools and History",
 );
 assert(
@@ -500,10 +508,13 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
 [
   "index.html",
   "styles.css",
+  "app-config.js",
+  "account.js",
   "app.js",
   "vocab-data.js",
   "grammar-data.js",
   "exam-data.js",
+  "reader-data.js",
   "china-map-data.js",
   "sentence-data.js",
   "word-data.js",
@@ -513,6 +524,8 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
   "assets/icon-512.png",
   "assets/icon-maskable-512.png",
   "assets/apple-touch-icon.png",
+  "assets/vendor/supabase-2.110.5.js",
+  "assets/vendor/SUPABASE-LICENSE.txt",
   "assets/exam/hsk-scenes-1.webp",
   "assets/exam/hsk-scenes-2.webp",
 ].forEach((asset) => {
@@ -523,11 +536,44 @@ assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWor
 assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
 assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
 assert(buildSiteSource.includes('"exam-data.js"'), "production builds should publish and cache-bust the HSK exam corpus");
+assert(buildSiteSource.includes('"reader-data.js"') && buildSiteSource.includes('"account.js"'), "production builds should publish account and graded-reader assets");
+assert(indexSource.indexOf("supabase-2.110.5.js") < indexSource.indexOf("account.js") && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "Supabase and account state should load before the application");
+assert(indexSource.includes('id="accountTrigger"') && indexSource.includes('id="accountDialog"'), "the app shell should expose account access and its secure dialog");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-1.webp")).size > 10000, "the first HSK picture sheet should be a real optimized image asset");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-2.webp")).size > 10000, "the second HSK picture sheet should be a real optimized image asset");
 assert(appSource.includes('window.addEventListener("beforeinstallprompt"') && appSource.includes('updateViaCache: "none"'), "the app should expose native installation and bypass stale service-worker script caches");
 assert(appSource.includes("showPwaUpdateReady") && appSource.includes('postMessage({ type: "SKIP_WAITING" })'), "new releases should wait for the learner to activate the update");
 assert(stylesSource.includes(".pwa-status") && stylesSource.includes(".pwa-action-btn") && stylesSource.includes('body[data-tool="vocabulary"] .pwa-access'), "install and offline status controls should match the existing Options design and keep a full-width vocabulary row");
+assert(GRADED_READERS.length === 12, "the graded reader shelf should include four original stories at each New HSK 1–3 level");
+assert(new Set(GRADED_READERS.map((reader) => reader.id)).size === GRADED_READERS.length, "graded readers should have unique ids");
+[1, 2, 3].forEach((level) => {
+  const readers = GRADED_READERS.filter((reader) => reader.level === level);
+  assert(readers.length === 4, `New HSK ${level} should include four graded readers`);
+  readers.forEach((reader) => {
+    assert(reader.sentences.length >= 6 && reader.vocabulary.length >= 4, `${reader.id} should contain a complete story and vocabulary list`);
+    assert(reader.questions.length === 3, `${reader.id} should contain a three-question comprehension check`);
+    assert(reader.questions.every((question) => question.options.length === 3 && question.answer >= 0 && question.answer < 3), `${reader.id} should contain valid answer choices`);
+  });
+});
+assert(getReaderById(GRADED_READERS[0].id) === GRADED_READERS[0], "reader ids should resolve to their source story");
+assert(canAccessHskExamLevel(1, { prompt: false }) && !canAccessHskExamLevel(2, { prompt: false }), "signed-out learners should receive one free New HSK 1 mock and no premium mock access");
+context.window.ChineseTrainerAccount = { isPremium: () => true };
+assert(canAccessHskExamLevel(2, { prompt: false }) && canAccessHskExamLevel(3, { prompt: false }), "server-derived Premium state should unlock New HSK 2 and 3 mocks");
+delete context.window.ChineseTrainerAccount;
+const readerHistoryFixture = buildHistoryRecord({
+  type: "reader",
+  readerId: GRADED_READERS[0].id,
+  level: 1,
+  title: GRADED_READERS[0].title,
+  elapsedSeconds: 45,
+  answers: GRADED_READERS[0].questions.map((question) => ({
+    item: question,
+    answer: question.options[question.answer],
+    expected: question.options[question.answer],
+    correct: true,
+  })),
+});
+assert(readerHistoryFixture.type === "reader" && readerHistoryFixture.correct === 3, "completed reader checks should be stored in History");
 const hskExpectedStructure = {
   1: { duration: 40, total: 40, sections: { listening: 20, reading: 20 } },
   2: { duration: 60, total: 60, sections: { listening: 25, reading: 25, writing: 10 } },

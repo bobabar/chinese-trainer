@@ -36,20 +36,36 @@
             </div>
           </div>
 
-          <button
-            class="global-search-trigger"
-            type="button"
-            id="globalSearchTrigger"
-            aria-label="Search the learning library"
-            aria-haspopup="dialog"
-            aria-controls="globalSearchDialog">
-            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="11" cy="11" r="7"></circle>
-              <path d="m20 20-4-4"></path>
-            </svg>
-            <span class="global-search-trigger-label">Search</span>
-            <kbd class="global-search-trigger-shortcut">⌘K</kbd>
-          </button>
+          <div class="brand-actions">
+            <button
+              class="global-search-trigger"
+              type="button"
+              id="globalSearchTrigger"
+              aria-label="Search the learning library"
+              aria-haspopup="dialog"
+              aria-controls="globalSearchDialog">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-4-4"></path>
+              </svg>
+              <span class="global-search-trigger-label">Search</span>
+              <kbd class="global-search-trigger-shortcut">⌘K</kbd>
+            </button>
+            <button
+              class="account-trigger"
+              type="button"
+              id="accountTrigger"
+              aria-label="Sign in or create an account"
+              aria-haspopup="dialog"
+              aria-controls="accountDialog">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="8" r="3.5"></circle>
+                <path d="M5 21a7 7 0 0 1 14 0"></path>
+              </svg>
+              <span class="account-trigger-label">Sign in</span>
+              <span class="account-trigger-badge" hidden>Premium</span>
+            </button>
+          </div>
         </div>
 
         <nav class="tool-nav" aria-label="Tools">
@@ -87,6 +103,15 @@
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17h7"></path>
             </svg>
             <span class="tool-tab-label">Grammar Lab</span>
+          </button>
+          <button class="tool-tab" type="button" data-tool="reader">
+            <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5z"></path>
+              <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5z"></path>
+              <path d="M7 8h2"></path>
+              <path d="M15 8h2"></path>
+            </svg>
+            <span class="tool-tab-label">Graded Readers</span>
           </button>
           <button class="tool-tab" type="button" data-tool="exam">
             <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -255,10 +280,16 @@
       </div>
     </dialog>
 
+    <dialog class="account-dialog" id="accountDialog" aria-label="Chinese Trainer account"></dialog>
+
+    <script src="./assets/vendor/supabase-2.110.5.js" defer></script>
+    <script src="./app-config.js" defer></script>
+    <script src="./account.js" defer></script>
     <script src="./vocab-data.js" defer></script>
     <script src="./grammar-data.js" defer></script>
     <script src="./china-map-data.js" defer></script>
     <script src="./exam-data.js" defer></script>
+    <script src="./reader-data.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

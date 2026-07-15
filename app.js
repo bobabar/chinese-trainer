@@ -600,7 +600,7 @@ function loadSettings() {
     if (saved.mapQuizMode && MAP_QUIZ_MODES[saved.mapQuizMode]) {
       state.mapQuizMode = saved.mapQuizMode;
     }
-    if ([1, 2].includes(Number(saved.grammarLevel))) {
+    if ([1, 2, 3].includes(Number(saved.grammarLevel))) {
       state.grammarLevel = Number(saved.grammarLevel);
     }
     if (HSK_EXAM_LEVELS.includes(Number(saved.examLevel))) {
@@ -2268,7 +2268,6 @@ function getStudyFocus(focus = state.studyFocus) {
 }
 
 function getStudyPlanPreview(focus = state.studyPlanFocusChoice, levelChoice = state.studyPlanLevelChoice) {
-  const isHsk3 = String(levelChoice) === "3";
   if (focus === "speaking") {
     return [
       ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
@@ -2279,18 +2278,14 @@ function getStudyPlanPreview(focus = state.studyPlanFocusChoice, levelChoice = s
   if (focus === "literacy") {
     return [
       ["Writing sentence drill", "Produce Chinese from an English prompt"],
-      isHsk3
-        ? ["Reading sentence drill", "Build comprehension with complete Chinese sentences"]
-        : ["Grammar pattern practice", "Use core structures in context"],
+      ["Grammar pattern practice", "Use core structures in context"],
       ["HSK vocabulary review", "Keep target-level words active with spaced practice"],
     ];
   }
   return [
     ["HSK vocabulary review", "Build recall with a target-level adaptive queue"],
     ["Pronunciation practice", "Speak short sentences and inspect recognition feedback"],
-    isHsk3
-      ? ["Reading or writing practice", "Rotate sentence skills using recent results"]
-      : ["Grammar or sentence practice", "Rotate language skills using recent results"],
+    ["Grammar or sentence practice", "Rotate language skills using recent results"],
   ];
 }
 
@@ -2670,23 +2665,13 @@ function getHskRoadmapData(
     Math.max(best, Math.round((Number(record.scaledScore || 0) / Number(record.maxScore)) * 100)),
   0);
   const benchmarkTotal = vocabularyLevel.parts.length * benchmarkModes.length;
-  const knowledgeMilestone = targetLevel === 3
-    ? {
-        id: "exam",
-        label: "Mock exam readiness",
-        current: Math.min(70, examBestPercent),
-        total: 70,
-        detail: writtenExamAttempts.length
-          ? `Best timed mock score: ${examBestPercent}% · target 70%`
-          : "Complete a timed HSK 3 written mock · target 70%",
-      }
-    : {
-        id: "grammar",
-        label: "Grammar patterns",
-        current: grammarStrong,
-        total: lessons.length,
-        detail: `${grammarStrong} of ${lessons.length} core patterns strong`,
-      };
+  const knowledgeMilestone = {
+    id: "grammar",
+    label: "Grammar patterns",
+    current: grammarStrong,
+    total: lessons.length,
+    detail: `${grammarStrong} of ${lessons.length} core patterns strong`,
+  };
   const milestones = [
     {
       id: "coverage",
@@ -2710,6 +2695,15 @@ function getHskRoadmapData(
       total: benchmarkTotal,
       detail: `${passedBenchmarks.size} of ${benchmarkTotal} Pinyin and Audio benchmarks passed`,
     },
+    ...(targetLevel === 3 ? [{
+      id: "exam",
+      label: "Mock exam readiness",
+      current: Math.min(70, examBestPercent),
+      total: 70,
+      detail: writtenExamAttempts.length
+        ? `Best timed mock score: ${examBestPercent}% · target 70%`
+        : "Complete a timed HSK 3 written mock · target 70%",
+    }] : []),
   ].map((milestone) => ({
     ...milestone,
     percent: getHskRoadmapPercent(milestone.current, milestone.total),
@@ -2750,7 +2744,7 @@ function getHskRoadmapMilestoneStatus(current, total) {
 function setStudyTargetLevel(level) {
   const targetLevel = [1, 2, 3].includes(Number(level)) ? Number(level) : 1;
   state.studyTargetLevel = targetLevel;
-  state.grammarLevel = Math.min(2, targetLevel);
+  state.grammarLevel = targetLevel;
   state.grammarLessonId = "";
   const firstTargetSet = VOCABULARY_QUIZ_SETS.find((set) =>
     Number(getVocabularySetMeta(set).levelNumber) === targetLevel,
@@ -3417,19 +3411,17 @@ function buildDashboardPlan(history, review, now = Date.now(), focus = state.stu
     ];
   }
   if (selectedFocus === "literacy") {
-    const knowledgeActivity = state.studyTargetLevel === 3
-      ? buildFocusedDrillActivity(history, "reading", now)
-      : {
-          id: "grammar",
-          tool: "grammar",
-          title: "Grammar pattern practice",
-          detail: "10 contextual questions from your current HSK level",
-          completed: history.some((record) =>
-            record.type === "grammar" &&
-            localDateKey(Date.parse(record.completedAt)) === todayKey &&
-            isDashboardPlanRecordComplete(record),
-          ),
-        };
+    const knowledgeActivity = {
+      id: "grammar",
+      tool: "grammar",
+      title: "Grammar pattern practice",
+      detail: "10 contextual questions from your current HSK level",
+      completed: history.some((record) =>
+        record.type === "grammar" &&
+        localDateKey(Date.parse(record.completedAt)) === todayKey &&
+        isDashboardPlanRecordComplete(record),
+      ),
+    };
     return [
       buildFocusedDrillActivity(history, "writing", now),
       knowledgeActivity,
@@ -3461,9 +3453,6 @@ function buildFocusedDrillActivity(history, mode, now = Date.now()) {
 }
 
 function getRecommendedLanguageActivity(history, drillMode = getRecommendedDrillMode(history), drillLabel = MODES[drillMode]?.label || "Reading", now = Date.now()) {
-  if (state.studyTargetLevel === 3) {
-    return buildFocusedDrillActivity(history, drillMode, now);
-  }
   const todayKey = localDateKey(now);
   const completedGrammarToday = history.some((record) => record.type === "grammar" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
   const completedDrillToday = history.some((record) => record.type === "drill" && localDateKey(Date.parse(record.completedAt)) === todayKey && isDashboardPlanRecordComplete(record));
@@ -5931,7 +5920,7 @@ function renderGrammarHome() {
       </header>
 
       <div class="grammar-level-switcher" role="group" aria-label="Grammar level">
-        ${[1, 2].map((level) => `
+        ${[1, 2, 3].map((level) => `
           <button class="grammar-level-button ${state.grammarLevel === level ? "active" : ""}" type="button" data-grammar-level="${level}" aria-pressed="${state.grammarLevel === level}">
             <strong>HSK ${level}</strong>
             <span>${GRAMMAR_LESSONS.filter((lesson) => lesson.level === level).length} core patterns</span>
@@ -5958,8 +5947,8 @@ function renderGrammarHome() {
       </div>
 
       <p class="grammar-source-note">
-        Curriculum aligned with the grammar dimension of
-        <a href="https://www.moe.gov.cn/jyb_sjzl/ziliao/A19/202111/t20211118_580755.html" target="_blank" rel="noopener noreferrer">GF 0025-2021</a>.
+        Core curriculum selected from the grammar dimension of the
+        <a href="https://hsk.cn-bj.ufileos.com/3.0/%E6%96%B0%E7%89%88HSK%E8%80%83%E8%AF%95%E5%A4%A7%E7%BA%B21219.pdf" target="_blank" rel="noopener noreferrer">official New HSK syllabus (2025 revision)</a>.
       </p>
     </section>
   `;
@@ -13779,7 +13768,7 @@ function getHistoryMistakeRetryData(record) {
 
   if (record.type === "grammar") {
     const questionById = new Map(
-      [1, 2].flatMap((level) => getGrammarQuestionPool("", level)).map((question) => [question.id, question]),
+      [1, 2, 3].flatMap((level) => getGrammarQuestionPool("", level)).map((question) => [question.id, question]),
     );
     const items = mistakes.flatMap((answer) => {
       const question = questionById.get(answer.questionId);

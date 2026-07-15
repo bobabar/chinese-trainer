@@ -1083,9 +1083,9 @@ const previousStudyTarget = state.studyTargetLevel;
 state.studyTargetLevel = 3;
 const hsk3LiteracyPlan = buildDashboardPlan(dashboardHistory, { dueCount: 0, totalTracked: 20 }, dashboardNow, "literacy");
 assert(
-  getStudyPlanPreview("literacy", "3")[1][0] === "Reading sentence drill" &&
-    hsk3LiteracyPlan.map((activity) => `${activity.tool}:${activity.mode || ""}`).join("|") === "drill:writing|drill:reading|review:",
-  "HSK 3 plans should use sentence literacy instead of implying unsupported Grammar Lab coverage",
+  getStudyPlanPreview("literacy", "3")[1][0] === "Grammar pattern practice" &&
+    hsk3LiteracyPlan.map((activity) => `${activity.tool}:${activity.mode || ""}`).join("|") === "drill:writing|grammar:|review:",
+  "HSK 3 plans should include target-level Grammar Lab coverage",
 );
 state.studyTargetLevel = previousStudyTarget;
 const completedGrammarPlan = buildDashboardPlan([
@@ -1195,8 +1195,9 @@ const emptyHsk3Roadmap = getHskRoadmapData(3, { history: [], progress: {}, now: 
 assert(
   emptyHsk3Roadmap.vocabularyLevel.totals.total === hsk3VocabularyWords.length &&
     emptyHsk3Roadmap.milestones.some((milestone) => milestone.id === "exam") &&
-    !emptyHsk3Roadmap.milestones.some((milestone) => milestone.id === "grammar"),
-  "HSK 3 roadmap should use the official vocabulary level and timed mock readiness instead of unsupported grammar lessons",
+    emptyHsk3Roadmap.milestones.some((milestone) => milestone.id === "grammar") &&
+    emptyHsk3Roadmap.lessons.length === 10,
+  "HSK 3 roadmap should balance official vocabulary, core grammar, and timed mock readiness",
 );
 const roadmapMarkup = buildHskRoadmapMarkup(introducedHsk1Roadmap);
 assert(roadmapMarkup.includes("HSK mastery roadmap") && roadmapMarkup.includes('data-roadmap-level="2"') && roadmapMarkup.includes('data-roadmap-level="3"'), "Today should expose all three official HSK roadmap targets");
@@ -1272,9 +1273,10 @@ assert(stylesSource.includes(".placement-session") && stylesSource.includes(".pl
 assert(appSource.includes("scrollPlacementFeedbackIntoView()") && appSource.includes("scrollPlacementQuestionIntoView()"), "placement answers should keep feedback and the next prompt in view on compact screens");
 assert(appSource.includes('aria-label="Level check progress"'), "placement progress should expose an accessible progressbar label");
 assert(GRAMMAR_SESSION_LENGTH === 10, "mixed grammar practice should use a focused ten-question session");
-assert(GRAMMAR_LESSONS.length === 16, "Grammar Lab should provide sixteen core HSK 1 and 2 pattern lessons");
+assert(GRAMMAR_LESSONS.length === 26, "Grammar Lab should provide twenty-six core HSK 1, 2, and 3 pattern lessons");
 assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 1).length === 8, "Grammar Lab should provide eight HSK 1 patterns");
 assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 2).length === 8, "Grammar Lab should provide eight HSK 2 patterns");
+assert(GRAMMAR_LESSONS.filter((lesson) => lesson.level === 3).length === 10, "Grammar Lab should provide ten HSK 3 patterns");
 assert(
   GRAMMAR_LESSONS.every((lesson) => lesson.examples.length === 3 && lesson.questions.length === 3),
   "every grammar lesson should include three contextual examples and three checks",
@@ -1286,6 +1288,8 @@ assert(
 const grammarMixedItems = buildGrammarSessionItems("", 1);
 assert(grammarMixedItems.length === 10 && new Set(grammarMixedItems.map((item) => item.id)).size === 10, "mixed grammar practice should select ten distinct questions");
 assert(grammarMixedItems.every((item) => item.level === 1 && item.choices.length === 4), "mixed grammar practice should stay within the selected HSK level and build four choices");
+const grammarHsk3Items = buildGrammarSessionItems("", 3);
+assert(grammarHsk3Items.length === 10 && grammarHsk3Items.every((item) => item.level === 3), "mixed HSK 3 grammar practice should sample ten distinct target-level patterns");
 const firstGrammarLesson = GRAMMAR_LESSONS[0];
 const focusedGrammarItems = buildGrammarSessionItems(firstGrammarLesson.id, 1);
 assert(focusedGrammarItems.length === 3 && focusedGrammarItems.every((item) => item.lessonId === firstGrammarLesson.id), "focused grammar checks should contain only the selected pattern");
@@ -1308,6 +1312,13 @@ assert(grammarHistoryRecord.type === "grammar" && grammarHistoryRecord.correct =
 assert(buildHistoryRowMarkup(grammarHistoryRecord).includes("Grammar practice"), "History should label grammar sessions clearly");
 assert(buildHistorySessionMarkup(grammarHistoryRecord).includes("expected"), "grammar history should expose answer-level mistake review");
 assert(getHistoryMistakeRetryData(grammarHistoryRecord)?.type === "grammar", "History should reconstruct missed grammar questions for focused retry");
+const hsk3GrammarQuestion = getGrammarQuestionPool("", 3)[0];
+const hsk3GrammarRetry = getHistoryMistakeRetryData({
+  type: "grammar",
+  level: 3,
+  answers: [{ questionId: hsk3GrammarQuestion.id, correct: false }],
+});
+assert(hsk3GrammarRetry?.level === 3 && hsk3GrammarRetry.items[0].lessonId.startsWith("hsk3-"), "History should reconstruct HSK 3 grammar mistakes at the correct level");
 assert(buildHistorySessionMarkup(grammarHistoryRecord).includes("Review 1 mistake"), "grammar History should offer exact mistake retry");
 assert(getHistorySkillStats([grammarHistoryRecord]).find((skill) => skill.id === "grammar").accuracy === 2 / 3, "Learning progress should track grammar accuracy separately");
 assert(getGrammarLessonProgress([grammarHistoryRecord], firstGrammarLesson.id).status === "Learning", "grammar lesson progress should distinguish learning patterns");

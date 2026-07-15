@@ -36,3 +36,9 @@ Source: https://github.com/drkameleon/complete-hsk-vocabulary
 License: MIT
 
 Copyright (c) 2026 Yanis Zafirópulos
+
+## New HSK Grammar Curriculum
+
+The core HSK 1–3 pattern selection in `grammar-data.js` is aligned with the grammar dimension of the November 2025 revised HSK examination syllabus, effective July 2026. Lesson explanations, examples, and practice questions are original application content.
+
+Official source: https://hsk.cn-bj.ufileos.com/3.0/%E6%96%B0%E7%89%88HSK%E8%80%83%E8%AF%95%E5%A4%A7%E7%BA%B21219.pdf

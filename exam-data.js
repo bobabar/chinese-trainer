@@ -118,6 +118,7 @@
             level,
             skill: examSection.id,
             sectionLabel: examSection.label,
+            partId: examPart.id,
             partLabel: examPart.label,
             instruction: examPart.instruction,
           };

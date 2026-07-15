@@ -6402,6 +6402,27 @@ function getHskExamSectionCounts(exam) {
   }));
 }
 
+function getHskExamAttemptSummary(level, history = loadHistoryRecords()) {
+  const records = history.filter((record) =>
+    record.type === "exam" &&
+    record.examMode === "written" &&
+    Number(record.level) === Number(level) &&
+    Number(record.maxScore) > 0,
+  );
+  const bestRecord = records.reduce((best, record) =>
+    !best || Number(record.scaledScore) > Number(best.scaledScore) ? record : best,
+  null);
+  return {
+    attempts: records.length,
+    latestScore: records.length ? Number(records[0].scaledScore) || 0 : null,
+    bestScore: bestRecord ? Number(bestRecord.scaledScore) || 0 : null,
+    maxScore: bestRecord
+      ? Number(bestRecord.maxScore) || 0
+      : (getHskExam(level)?.sections.length || 0) * 100,
+    latestAt: records[0]?.completedAt || "",
+  };
+}
+
 function loadHskExamDraft() {
   try {
     const draft = JSON.parse(localStorage.getItem(EXAM_DRAFT_KEY) || "null");
@@ -6467,9 +6488,11 @@ function renderHskExamHome() {
   const draft = loadHskExamDraft();
   const draftProgress = draft ? getHskExamDraftProgress(draft) : null;
   const draftExpired = draft ? Number(draft.endsAt) <= Date.now() : false;
+  const history = loadHistoryRecords();
   const levelCards = HSK_EXAM_LEVELS.map((level) => {
     const exam = getHskExam(level);
     const sections = getHskExamSectionCounts(exam);
+    const attempt = getHskExamAttemptSummary(level, history);
     return `
       <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""}">
         <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
@@ -6483,6 +6506,11 @@ function renderHskExamHome() {
           <div><dt>Time</dt><dd>${exam.durationMinutes} min</dd></div>
           ${level === 3 ? `<div><dt>Speaking</dt><dd>15 min</dd></div>` : ""}
         </dl>
+        <div class="hsk-exam-level-history ${attempt.attempts ? "" : "is-empty"}">
+          <span>${attempt.attempts ? "Personal best" : "Progress"}</span>
+          <strong>${attempt.attempts ? `${attempt.bestScore}/${attempt.maxScore}` : "No attempt yet"}</strong>
+          <small>${attempt.attempts ? `${attempt.attempts} ${attempt.attempts === 1 ? "attempt" : "attempts"} saved` : "Your first result will be tracked here"}</small>
+        </div>
         <button class="secondary-btn hsk-exam-level-action" type="button" data-hsk-exam-level="${level}">
           View exam details
           <span aria-hidden="true">→</span>
@@ -7097,6 +7125,20 @@ function getHskExamResultStats(result) {
       total: answers.length,
       accuracy,
       scaledScore: Math.round(accuracy * 100),
+      parts: examSection.parts.map((examPart) => {
+        const partAnswers = answers.filter((answer) =>
+          String(answer.item.partId || answer.item.partLabel) === String(examPart.id || examPart.label),
+        );
+        const partScore = partAnswers.reduce((sum, answer) => sum + answer.score, 0);
+        return {
+          id: examPart.id,
+          label: examPart.label,
+          correct: partAnswers.filter((answer) => answer.correct).length,
+          answered: partAnswers.filter((answer) => answer.answered).length,
+          total: partAnswers.length,
+          accuracy: partAnswers.length ? partScore / partAnswers.length : 0,
+        };
+      }),
     };
   });
   const maxScore = sections.length * 100;
@@ -7110,6 +7152,131 @@ function getHskExamResultStats(result) {
     maxScore,
     percent: maxScore ? scaledScore / maxScore : 0,
   };
+}
+
+function getHskExamReadiness(percent = 0) {
+  if (percent >= 0.85) {
+    return {
+      id: "strong",
+      label: "Strong readiness signal",
+      summary: "Your performance is consistent across most of this practice paper. Focus on the remaining weak part before the next full mock.",
+    };
+  }
+  if (percent >= 0.7) {
+    return {
+      id: "near",
+      label: "Approaching test readiness",
+      summary: "The core skills are in place. Targeted work on the lowest section should produce the fastest improvement.",
+    };
+  }
+  if (percent >= 0.5) {
+    return {
+      id: "developing",
+      label: "Core skills are developing",
+      summary: "Use short focused sessions before taking another full paper so the next score reflects stronger recall and pacing.",
+    };
+  }
+  return {
+    id: "foundation",
+    label: "Rebuild the foundation first",
+    summary: "Return to guided vocabulary and sentence practice, then use another mock to measure what changed.",
+  };
+}
+
+function getHskExamAttemptComparison(result, history = loadHistoryRecords()) {
+  const stats = getHskExamResultStats(result);
+  const previous = history.filter((record) =>
+    record.type === "exam" &&
+    record.examMode === "written" &&
+    Number(record.level) === Number(result.level) &&
+    record.id !== result.historyRecordId,
+  );
+  const prior = previous[0] || null;
+  const previousBest = previous.reduce(
+    (best, record) => Math.max(best, Number(record.scaledScore) || 0),
+    -1,
+  );
+  return {
+    attemptNumber: previous.length + 1,
+    priorScore: prior ? Number(prior.scaledScore) || 0 : null,
+    delta: prior ? stats.scaledScore - (Number(prior.scaledScore) || 0) : null,
+    bestScore: Math.max(stats.scaledScore, previousBest),
+    isPersonalBest: previousBest < 0 || stats.scaledScore > previousBest,
+  };
+}
+
+function getHskExamCoachRecommendations(result, stats = getHskExamResultStats(result)) {
+  const recommendations = [];
+  const unanswered = stats.total - stats.answered;
+  if (unanswered) {
+    recommendations.push({
+      id: "pace",
+      action: "retake",
+      title: "Protect time for every question",
+      detail: `${unanswered} ${unanswered === 1 ? "question was" : "questions were"} left unanswered. Use section checkpoints and make a best choice before moving on.`,
+      actionLabel: "Retake with a pacing plan",
+      accuracy: stats.answered / Math.max(1, stats.total),
+    });
+  }
+
+  const sectionCopy = {
+    listening: {
+      title: "Strengthen spoken comprehension",
+      action: "listening",
+      actionLabel: "Start a listening drill",
+      detail: "Train sentence-level listening without written clues, then return to the exam audio format.",
+    },
+    reading: {
+      title: "Build faster reading decisions",
+      action: Number(result.level) <= 2 ? "review" : "reading",
+      actionLabel: Number(result.level) <= 2 ? "Start vocabulary review" : "Start a reading drill",
+      detail: Number(result.level) <= 2
+        ? "Strengthen rapid word recognition so prompts and distractors take less time to process."
+        : "Practice extracting the main point and supporting detail from complete Chinese sentences.",
+    },
+    writing: {
+      title: "Practice sentence production",
+      action: "writing",
+      actionLabel: "Start a writing drill",
+      detail: "Build natural word order and produce complete Chinese sentences without answer choices.",
+    },
+  };
+
+  [...stats.sections]
+    .sort((left, right) => left.accuracy - right.accuracy)
+    .forEach((examSection) => {
+      const copy = sectionCopy[examSection.id];
+      if (!copy) return;
+      const weakestPart = [...examSection.parts].sort((left, right) => left.accuracy - right.accuracy)[0];
+      recommendations.push({
+        id: examSection.id,
+        ...copy,
+        accuracy: examSection.accuracy,
+        detail: `${weakestPart?.label || examSection.label} was the main opportunity at ${Math.round((weakestPart?.accuracy ?? examSection.accuracy) * 100)}%. ${copy.detail}`,
+      });
+    });
+
+  return recommendations.slice(0, 3);
+}
+
+function getHskExamReviewExplanation(answer) {
+  const question = answer.item;
+  if (!answer.answered) {
+    return `This item was unanswered. The expected response is “${answer.expected}”; make a best choice before leaving an item in the timed exam.`;
+  }
+  if (question.type === "reorder") {
+    return `Use subject, time, verb, and object order as your guide. A natural complete sentence is “${answer.expected}”.`;
+  }
+  if (question.type === "text") {
+    return `The missing character must fit both meaning and grammar. Read the completed sentence again with “${answer.expected}” in the blank.`;
+  }
+  if (question.type === "free") {
+    return "Compare your sentence with the model for meaning, word order, and completeness. Other natural sentences can also be valid.";
+  }
+  if (question.audio) {
+    return `Listen for the words that identify “${answer.expected}”. The other choices do not match the key detail in the spoken prompt.`;
+  }
+  return `The prompt supports “${answer.expected}”. Re-read the key phrase and check why your choice changes the meaning.`;
 }
 
 function finishHskExam(reason = "submitted") {
@@ -7132,6 +7299,7 @@ function finishHskExam(reason = "submitted") {
 function buildHskExamReviewMarkup(answer) {
   const question = answer.item;
   const prompt = question.audio ? question.audio : question.prompt;
+  const explanation = getHskExamReviewExplanation(answer);
   return `
     <details class="hsk-exam-review-item ${answer.correct ? "is-correct" : "is-wrong"}">
       <summary>
@@ -7145,7 +7313,7 @@ function buildHskExamReviewMarkup(answer) {
           <div><dt>Your answer</dt><dd>${escapeHtml(answer.answer)}</dd></div>
           <div><dt>${answer.estimated ? "Model answer" : "Correct answer"}</dt><dd>${escapeHtml(answer.expected)}</dd></div>
         </dl>
-        ${answer.estimated ? `<p>Open writing is estimated from required meaning words; other complete sentences may also be valid.</p>` : ""}
+        ${answer.correct ? "" : `<div class="hsk-exam-coach-note"><strong>Coach note</strong><p>${escapeHtml(explanation)}</p></div>`}
       </div>
     </details>
   `;
@@ -7158,7 +7326,17 @@ function renderHskExamResults() {
     return;
   }
   const stats = getHskExamResultStats(result);
+  const readiness = getHskExamReadiness(stats.percent);
+  const comparison = getHskExamAttemptComparison(result);
+  const recommendations = getHskExamCoachRecommendations(result, stats);
   const missed = result.answers.filter((answer) => !answer.correct);
+  const trendCopy = comparison.priorScore === null
+    ? "First benchmark saved"
+    : comparison.delta > 0
+      ? `Up ${comparison.delta} points from your last attempt`
+      : comparison.delta < 0
+        ? `${Math.abs(comparison.delta)} points below your last attempt`
+        : "Matched your last attempt";
   app.innerHTML = `
     <section class="workspace-panel hsk-exam-results">
       <header class="hsk-exam-results-header">
@@ -7181,6 +7359,33 @@ function renderHskExamResults() {
         <div><span>Practice benchmark</span><strong>${Math.round(stats.percent * 100)}%</strong></div>
       </div>
 
+      <section class="hsk-exam-coach is-${readiness.id} ${comparison.isPersonalBest ? "is-personal-best" : ""}" aria-labelledby="hskExamCoachHeading">
+        <header>
+          <div>
+            <span class="hsk-exam-kicker">Exam coach</span>
+            <h3 id="hskExamCoachHeading">${escapeHtml(readiness.label)}</h3>
+            <p>${escapeHtml(readiness.summary)}</p>
+          </div>
+          <div class="hsk-exam-attempt-trend">
+            <span>${comparison.isPersonalBest ? "New personal best" : `Attempt ${comparison.attemptNumber}`}</span>
+            <strong>${comparison.bestScore}/${stats.maxScore}</strong>
+            <small>${escapeHtml(trendCopy)}</small>
+          </div>
+        </header>
+        <div class="hsk-exam-coach-priorities">
+          ${recommendations.map((recommendation, index) => `
+            <article>
+              <span>Priority ${index + 1} · ${Math.round(recommendation.accuracy * 100)}%</span>
+              <h4>${escapeHtml(recommendation.title)}</h4>
+              <p>${escapeHtml(recommendation.detail)}</p>
+              <button class="hsk-exam-coach-action" type="button" data-hsk-coach-action="${escapeHtml(recommendation.action)}">
+                ${escapeHtml(recommendation.actionLabel)} <span aria-hidden="true">→</span>
+              </button>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
       <section class="hsk-exam-section-results" aria-labelledby="hskExamSectionResultsHeading">
         <div class="hsk-exam-results-section-heading">
           <div><h3 id="hskExamSectionResultsHeading">Section performance</h3><p>Each section contributes 100 estimated points.</p></div>
@@ -7191,6 +7396,11 @@ function renderHskExamResults() {
             <span>${examSection.correct}/${examSection.total} correct</span>
             <div class="progress-track" aria-hidden="true"><div style="width:${Math.round(examSection.accuracy * 100)}%"></div></div>
             <b>${examSection.scaledScore}/100</b>
+          </div>
+          <div class="hsk-exam-part-results" aria-label="${escapeHtml(examSection.label)} part results">
+            ${examSection.parts.map((examPart) => `
+              <span><strong>${escapeHtml(examPart.label)}</strong><b>${examPart.correct}/${examPart.total}</b></span>
+            `).join("")}
           </div>
         `).join("")}
       </section>
@@ -7216,6 +7426,9 @@ function renderHskExamResults() {
   `;
 
   document.querySelector("#restartHskExam")?.addEventListener("click", () => startHskExam(result.level));
+  document.querySelectorAll("[data-hsk-coach-action]").forEach((button) => {
+    button.addEventListener("click", () => launchHskExamCoachAction(button.dataset.hskCoachAction, result.level));
+  });
   document.querySelector("#startHskSpeakingFromResults")?.addEventListener("click", () => {
     state.result = null;
     state.examLevel = 3;
@@ -7228,6 +7441,39 @@ function renderHskExamResults() {
     state.examScreen = "home";
     render();
   });
+}
+
+function launchHskExamCoachAction(action, level) {
+  if (action === "retake") {
+    startHskExam(level);
+    return;
+  }
+
+  const sentenceLevel = Number(level) >= 3 ? "advanced" : Number(level) === 2 ? "intermediate" : "beginner";
+  state.selectedLevels = new Set([sentenceLevel]);
+  if (action === "review") {
+    const vocabulary = shuffle(getAllVocabularyReviewItems().filter((item) =>
+      Number(getVocabularySetMeta(item).levelNumber) === Number(level),
+    )).slice(0, REVIEW_SESSION_LENGTH);
+    if (vocabulary.length) {
+      state.tool = "review";
+      state.result = null;
+      state.session = null;
+      saveSettings();
+      startReviewItems(vocabulary.map((item, index) => ({
+        ...item,
+        reviewMode: index % 2 ? "meaning" : "pinyin",
+      })), "exam-coach", { setLabel: `New HSK ${level} exam focus` });
+      return;
+    }
+  }
+  if (action === "listening" || action === "reading" || action === "writing") {
+    launchDashboardActivity("drill", action);
+    return;
+  }
+  state.result = null;
+  state.examScreen = "home";
+  render();
 }
 
 function flattenHskSpeakingItems(speaking = HSK_MOCK_EXAMS.speaking) {
@@ -13048,6 +13294,7 @@ function saveHistoryResult(result) {
     }
     const history = loadHistoryRecords();
     const record = buildHistoryRecord(result);
+    result.historyRecordId = record.id;
     saveHistoryRecords([record, ...history].slice(0, HISTORY_LIMIT));
   } catch {
     // History is browser-local convenience data; session results still render if storage is unavailable.
@@ -13120,6 +13367,12 @@ function buildHistoryRecord(result) {
         correct: examSection.correct,
         total: examSection.total,
         scaledScore: examSection.scaledScore,
+        parts: examSection.parts.map((examPart) => ({
+          id: examPart.id,
+          label: examPart.label,
+          correct: examPart.correct,
+          total: examPart.total,
+        })),
       })),
       answers: result.answers.map((answer, index) => ({
         index,
@@ -13127,6 +13380,7 @@ function buildHistoryRecord(result) {
         prompt: answer.item.audio || answer.item.prompt || "",
         skill: answer.item.skill,
         skillLabel: answer.item.sectionLabel,
+        partId: answer.item.partId,
         partLabel: answer.item.partLabel,
         answer: answer.answer,
         expected: answer.expected,

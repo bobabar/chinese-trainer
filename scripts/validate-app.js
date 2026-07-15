@@ -193,6 +193,11 @@ window.__tests = {
   getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
+  getHskExamAttemptComparison,
+  getHskExamAttemptSummary,
+  getHskExamCoachRecommendations,
+  getHskExamReadiness,
+  getHskExamReviewExplanation,
   getHskExamResultStats,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
@@ -357,6 +362,11 @@ const {
   getSavedNotebookData,
   getHskRoadmapData,
   getHskRoadmapRecommendation,
+  getHskExamAttemptComparison,
+  getHskExamAttemptSummary,
+  getHskExamCoachRecommendations,
+  getHskExamReadiness,
+  getHskExamReviewExplanation,
   getHskExamResultStats,
   getPracticeStreakDays,
   getProgressPronunciationFocus,
@@ -550,8 +560,60 @@ const hskFixtureAnswers = HSK_MOCK_EXAMS.levels[1].sections.flatMap((section) =>
   .map((question) => assessHskExamAnswer(question, question.type === "choice" ? question.answer : question.answer));
 const hskFixtureStats = getHskExamResultStats({ exam: HSK_MOCK_EXAMS.levels[1], answers: hskFixtureAnswers });
 assert(hskFixtureStats.scaledScore === 200 && hskFixtureStats.maxScore === 200, "a perfect New HSK 1 fixture should score 200 of 200");
+assert(
+  HSK_MOCK_EXAMS.levels[1].sections.every((section) => section.parts.every((part) => part.questions.every((question) => question.partId === part.id))),
+  "every HSK question should carry a stable part identifier for diagnostics",
+);
+const hskDiagnosticQuestions = HSK_MOCK_EXAMS.levels[1].sections.flatMap((section) => section.parts.flatMap((part) => part.questions));
+const hskDiagnosticAnswers = hskDiagnosticQuestions.map((question, index) => {
+  if (index === 0) {
+    const wrongChoice = question.choices.find((choice) => choice.id !== question.answer);
+    return assessHskExamAnswer(question, wrongChoice.id);
+  }
+  if (index === 5) {
+    return assessHskExamAnswer(question, undefined);
+  }
+  return assessHskExamAnswer(question, question.answer);
+});
+const hskDiagnosticResult = {
+  type: "exam",
+  examMode: "written",
+  level: 1,
+  exam: HSK_MOCK_EXAMS.levels[1],
+  answers: hskDiagnosticAnswers,
+  historyRecordId: "current-exam",
+};
+const hskDiagnosticStats = getHskExamResultStats(hskDiagnosticResult);
+assert(
+  hskDiagnosticStats.sections[0].parts.length === 4 && hskDiagnosticStats.sections[0].parts[0].correct === 4,
+  "HSK diagnostics should report each official part and its correct-answer count",
+);
+assert(getHskExamReadiness(0.86).id === "strong" && getHskExamReadiness(0.49).id === "foundation", "HSK readiness bands should distinguish strong and foundation-building results");
+const hskCoachRecommendations = getHskExamCoachRecommendations(hskDiagnosticResult, hskDiagnosticStats);
+assert(
+  hskCoachRecommendations[0].id === "pace" && hskCoachRecommendations.some((item) => item.action === "listening"),
+  "Exam Coach should prioritize unanswered items and launch practice for the weakest skill",
+);
+const hskAttemptHistory = [
+  { id: "current-exam", type: "exam", examMode: "written", level: 1, scaledScore: hskDiagnosticStats.scaledScore, maxScore: 200, completedAt: "2026-07-15T05:00:00.000Z" },
+  { id: "prior-exam", type: "exam", examMode: "written", level: 1, scaledScore: 150, maxScore: 200, completedAt: "2026-07-14T05:00:00.000Z" },
+];
+const hskComparison = getHskExamAttemptComparison(hskDiagnosticResult, hskAttemptHistory);
+assert(hskComparison.attemptNumber === 2 && hskComparison.delta === hskDiagnosticStats.scaledScore - 150, "Exam Coach should compare the current attempt with the prior saved score");
+const hskAttemptSummary = getHskExamAttemptSummary(1, hskAttemptHistory);
+assert(hskAttemptSummary.attempts === 2 && hskAttemptSummary.bestScore === Math.max(150, hskDiagnosticStats.scaledScore), "exam level cards should report saved attempts and the personal best");
+assert(getHskExamReviewExplanation(hskDiagnosticAnswers[5]).includes("expected response"), "unanswered exam review should explain the expected response and pacing lesson");
+const hskDiagnosticHistory = buildHistoryRecord({
+  ...hskDiagnosticResult,
+  elapsedSeconds: 90,
+  finishReason: "submitted",
+});
+assert(
+  hskDiagnosticHistory.sections[0].parts.length === 4 && hskDiagnosticHistory.answers[0].partId === "1",
+  "exam History should preserve part-level diagnostics for future comparisons",
+);
 assert(indexSource.includes('data-tool="exam"') && indexSource.includes('./exam-data.js'), "the app shell should expose and load the Mock HSK Exam tool");
-assert(stylesSource.includes(".hsk-exam-session-shell") && stylesSource.includes(".hsk-exam-navigator"), "mock exams should include dedicated responsive runner styling");
+assert(stylesSource.includes(".hsk-exam-session-shell") && stylesSource.includes(".hsk-exam-navigator") && stylesSource.includes(".hsk-exam-coach-priorities"), "mock exams should include dedicated responsive runner and coaching styling");
 assert(SENTENCE_LIBRARY_PAGE_SIZE === 40, "sentence library should use a focused initial result batch");
 assert(indexSource.includes('class="mode-nav drill-only"'), "sentence modes should remain available while choosing saved-sentence practice");
 const sentenceLibraryFixtures = [
@@ -1289,7 +1351,7 @@ assert(sessionUsesAudioPrompt({ type: "tone" }), "tone listening should support 
 const reviewFeedback = buildReviewFeedbackMarkup(reviewVocabulary[0], {
   answer: "ren",
   correct: true,
-  nextDueAt: reviewNow + 24 * 60 * 60 * 1000,
+  nextDueAt: Date.now() + 24 * 60 * 60 * 1000,
 });
 assert(reviewFeedback.includes("Correct") && reviewFeedback.includes("Tomorrow"), "review feedback should show the answer outcome and next interval");
 const reviewHistoryRecord = buildHistoryRecord({

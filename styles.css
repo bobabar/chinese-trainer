@@ -10056,7 +10056,7 @@ body[data-tool="exam"] .tool-controls {
   grid-template-columns: 56px minmax(0, 1fr);
   align-content: start;
   gap: 18px 14px;
-  min-height: 290px;
+  min-height: 330px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
@@ -10110,6 +10110,38 @@ body[data-tool="exam"] .tool-controls {
   margin: 4px 0 0;
   font-size: 14px;
   font-weight: 820;
+}
+
+.hsk-exam-level-history {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3px 12px;
+}
+
+.hsk-exam-level-history > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.hsk-exam-level-history > strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--theme);
+  font-size: 18px;
+}
+
+.hsk-exam-level-history > small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.hsk-exam-level-history.is-empty > strong {
+  color: var(--muted-strong);
+  font-size: 13px;
 }
 
 .hsk-exam-level-action {
@@ -10870,6 +10902,128 @@ body[data-tool="exam"] .tool-controls {
   font-size: 21px;
 }
 
+.hsk-exam-coach {
+  margin: 30px -30px 0;
+  border-top: 1px solid var(--theme-border);
+  border-bottom: 1px solid var(--theme-border);
+  background: #f6fbf9;
+  padding: 26px 30px 0;
+}
+
+.hsk-exam-coach > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding-bottom: 24px;
+}
+
+.hsk-exam-coach > header > div:first-child {
+  max-width: 720px;
+}
+
+.hsk-exam-coach h3 {
+  font-size: 23px;
+}
+
+.hsk-exam-coach > header p {
+  margin-top: 7px;
+  color: var(--muted-strong);
+  line-height: 1.55;
+}
+
+.hsk-exam-attempt-trend {
+  flex: 0 0 210px;
+  border-left: 3px solid var(--theme);
+  padding: 5px 0 5px 18px;
+}
+
+.hsk-exam-attempt-trend span,
+.hsk-exam-attempt-trend strong,
+.hsk-exam-attempt-trend small {
+  display: block;
+}
+
+.hsk-exam-attempt-trend span {
+  color: var(--theme);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.hsk-exam-attempt-trend strong {
+  margin-top: 4px;
+  font-size: 25px;
+}
+
+.hsk-exam-attempt-trend small {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.hsk-exam-coach.is-personal-best .hsk-exam-attempt-trend {
+  animation: hsk-personal-best-in 420ms ease-out both;
+}
+
+@keyframes hsk-personal-best-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hsk-exam-coach-priorities {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--theme-border);
+}
+
+.hsk-exam-coach-priorities > article {
+  display: flex;
+  min-width: 0;
+  min-height: 205px;
+  flex-direction: column;
+  padding: 22px 22px 22px 0;
+}
+
+.hsk-exam-coach-priorities > article + article {
+  border-left: 1px solid var(--theme-border);
+  padding-left: 22px;
+}
+
+.hsk-exam-coach-priorities article > span {
+  color: var(--theme);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.hsk-exam-coach-priorities h4 {
+  margin-top: 7px;
+  font-size: 16px;
+}
+
+.hsk-exam-coach-priorities p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.hsk-exam-coach-action {
+  align-self: flex-start;
+  margin-top: auto;
+  border: 0;
+  background: transparent;
+  color: var(--theme);
+  padding: 12px 0 0;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.hsk-exam-coach-action:hover {
+  color: var(--theme-hover);
+}
+
 .hsk-exam-section-results,
 .hsk-exam-review,
 .hsk-speaking-review {
@@ -10913,6 +11067,25 @@ body[data-tool="exam"] .tool-controls {
 .hsk-exam-section-result-row b {
   color: var(--ink);
   text-align: right;
+}
+
+.hsk-exam-part-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 0 0 12px;
+}
+
+.hsk-exam-part-results > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.hsk-exam-part-results b {
+  color: var(--muted-strong);
 }
 
 .hsk-exam-review-list {
@@ -11000,6 +11173,26 @@ body[data-tool="exam"] .tool-controls {
   margin-top: 12px;
   color: var(--muted);
   font-size: 11px;
+  line-height: 1.5;
+}
+
+.hsk-exam-coach-note {
+  margin-top: 14px;
+  border-left: 2px solid var(--theme);
+  background: var(--theme-soft);
+  padding: 10px 12px;
+}
+
+.hsk-exam-coach-note strong {
+  color: var(--theme);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.hsk-exam-coach-note p {
+  margin-top: 4px;
+  color: var(--muted-strong);
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -11370,6 +11563,39 @@ body[data-tool="exam"] .tool-controls {
     gap: 14px;
   }
 
+  .hsk-exam-coach {
+    margin: 26px -18px 0;
+    padding: 22px 18px 0;
+  }
+
+  .hsk-exam-coach > header {
+    display: grid;
+    gap: 18px;
+  }
+
+  .hsk-exam-attempt-trend {
+    width: 100%;
+  }
+
+  .hsk-exam-coach-priorities {
+    grid-template-columns: 1fr;
+  }
+
+  .hsk-exam-coach-priorities > article {
+    min-height: 0;
+    padding: 18px 0;
+  }
+
+  .hsk-exam-coach-priorities > article + article {
+    border-top: 1px solid var(--theme-border);
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .hsk-exam-coach-action {
+    margin-top: 8px;
+  }
+
   .hsk-exam-home-header h2,
   .hsk-exam-ready-main h2,
   .hsk-exam-results-header h2,
@@ -11611,6 +11837,7 @@ body[data-tool="exam"] .tool-controls {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hsk-exam-coach.is-personal-best .hsk-exam-attempt-trend,
   .hsk-speaking-recorder.is-recording .hsk-speaking-recorder-status > i {
     animation: none;
   }

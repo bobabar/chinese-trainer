@@ -673,7 +673,7 @@ assert(
 );
 assert(indexSource.includes('data-tool="exam"') && indexSource.includes('./exam-data.js'), "the app shell should expose and load the Mock HSK Exam tool");
 assert(stylesSource.includes(".hsk-exam-session-shell") && stylesSource.includes(".hsk-exam-navigator") && stylesSource.includes(".hsk-exam-coach-priorities"), "mock exams should include dedicated responsive runner and coaching styling");
-assert(SENTENCE_LIBRARY_PAGE_SIZE === 40, "sentence library should use a focused initial result batch");
+assert(SENTENCE_LIBRARY_PAGE_SIZE === 16, "sentence library should use a focused initial result batch");
 assert(indexSource.includes('class="mode-nav drill-only"'), "sentence modes should remain available while choosing saved-sentence practice");
 const sentenceLibraryFixtures = [
   {
@@ -1501,7 +1501,7 @@ updateReviewProgressFromVocabularyResult({
 });
 assert(loadReviewProgress()[reviewItemKey(reviewVocabulary[0])].stage === 1, "completed vocabulary answers should feed the adaptive review schedule");
 localStorageEntries.delete("chineseTrainerReviewProgress");
-assert(VOCABULARY_LIBRARY_PAGE_SIZE === 80, "the vocabulary library should render a focused initial batch");
+assert(VOCABULARY_LIBRARY_PAGE_SIZE === 24, "the vocabulary library should render a focused initial batch");
 assert(reviewVocabulary.every((item) => item.level), "vocabulary library entries should retain their HSK level");
 const libraryWoman = reviewVocabulary.find((item) => item.zh === "女");
 const libraryLove = reviewVocabulary.find((item) => item.zh === "爱");

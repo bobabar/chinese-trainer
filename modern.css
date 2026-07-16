@@ -2863,6 +2863,10 @@ body[data-screen="result"] .tool-controls {
   line-height: 1.45;
 }
 
+.study-plan-mobile-action {
+  display: none;
+}
+
 @media (min-width: 981px) {
   body[data-screen="result"][data-tool] .workspace {
     padding-top: 76px;
@@ -3589,6 +3593,79 @@ body[data-screen="result"] .tool-controls {
 }
 
 @media (max-width: 720px) {
+  body:has(.study-plan-setup) .mobile-bottom-nav {
+    display: none;
+  }
+
+  body:has(.study-plan-setup) .app-shell {
+    padding-bottom: 78px;
+  }
+
+  body:has(.study-plan-setup) .study-plan-setup {
+    animation: none;
+    transform: none;
+  }
+
+  .study-plan-mobile-action {
+    position: fixed;
+    z-index: 95;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    display: flex;
+    width: auto;
+    min-height: 52px;
+    justify-content: center;
+    box-shadow: 0 12px 32px rgba(15, 92, 72, 0.24);
+  }
+
+  .hsk-exam-ready {
+    padding: 14px;
+  }
+
+  .hsk-exam-ready > .hsk-exam-back {
+    margin-bottom: 8px;
+  }
+
+  .hsk-exam-ready-layout {
+    gap: 14px;
+  }
+
+  .hsk-exam-ready-main > p {
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+
+  .hsk-exam-blueprint {
+    margin-top: 16px;
+  }
+
+  .hsk-exam-blueprint-row {
+    min-height: 52px;
+  }
+
+  .hsk-exam-start-panel {
+    padding-top: 14px;
+  }
+
+  .hsk-exam-start-time {
+    padding-bottom: 12px;
+  }
+
+  .hsk-exam-start-time strong {
+    font-size: 38px;
+  }
+
+  .hsk-exam-start-panel ul {
+    gap: 6px;
+    margin: 13px 0;
+    font-size: 12px;
+  }
+
+  .hsk-exam-start-panel > p {
+    margin-top: 5px;
+  }
+
   .history-storage-note {
     text-align: left;
   }

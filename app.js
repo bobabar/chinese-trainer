@@ -58,7 +58,7 @@ const SENTENCE_COUNTS = {
 
 const SENTENCE_DATA_SRC = "./sentence-data.js";
 const WORD_DATA_SRC = "./word-data.js";
-const SENTENCE_LIBRARY_PAGE_SIZE = 40;
+const SENTENCE_LIBRARY_PAGE_SIZE = 16;
 const DRILL_VIEWS = new Set(["practice", "library"]);
 const PRONUNCIATION_VIEWS = new Set(["speaking", "tone"]);
 
@@ -237,7 +237,7 @@ const VOCABULARY_CHOICE_COUNT = 5;
 const VOCABULARY_SECONDS_PER_WORD = 6.85;
 const VOCABULARY_MIN_TIMER_SECONDS = 300;
 const VOCABULARY_PREVIEW_LIMIT = 12;
-const VOCABULARY_LIBRARY_PAGE_SIZE = 80;
+const VOCABULARY_LIBRARY_PAGE_SIZE = 24;
 const VOCABULARY_VIEWS = new Set(["quiz", "library", "path"]);
 const HIDDEN_TRANSLATION_LABEL = "Hidden";
 const MDBG_WORD_DICTIONARY_URL = "https://www.mdbg.net/chinese/dictionary";
@@ -2690,6 +2690,11 @@ function renderStudyPlanSetup() {
         ${isEditing ? `<button class="ghost-btn study-plan-cancel" type="button" id="cancelStudyPlan">Cancel</button>` : ""}
       </header>
 
+      <button class="primary-btn shortcut-btn study-plan-mobile-action" type="button" data-complete-study-plan>
+        <span>${levelChoice === "placement" ? "Start level check" : isEditing ? "Save study plan" : "Create my plan"}</span>
+        ${shortcutHint("Enter")}
+      </button>
+
       <div class="study-plan-layout">
         <div class="study-plan-form">
           <section class="study-plan-field" aria-labelledby="studyPlanLevelHeading">
@@ -2750,7 +2755,7 @@ function renderStudyPlanSetup() {
             `).join("")}
           </ol>
           <div class="study-plan-actions">
-            <button class="primary-btn shortcut-btn" type="button" id="completeStudyPlan">
+            <button class="primary-btn shortcut-btn" type="button" id="completeStudyPlan" data-complete-study-plan>
               <span>${levelChoice === "placement" ? "Start level check" : isEditing ? "Save study plan" : "Create my plan"}</span>
               ${shortcutHint("Enter")}
             </button>
@@ -2773,7 +2778,9 @@ function renderStudyPlanSetup() {
       render();
     });
   });
-  document.querySelector("#completeStudyPlan")?.addEventListener("click", completeStudyPlanSetup);
+  document.querySelectorAll("[data-complete-study-plan]").forEach((button) => {
+    button.addEventListener("click", completeStudyPlanSetup);
+  });
   document.querySelector("#cancelStudyPlan")?.addEventListener("click", () => {
     state.planSetupOpen = false;
     state.studyPlanLevelChoice = String(state.studyTargetLevel);

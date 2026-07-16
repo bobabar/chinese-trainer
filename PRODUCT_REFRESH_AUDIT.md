@@ -16,7 +16,7 @@ This audit is based on desktop (1440 x 900) and mobile (390 x 844) captures of e
 | Heading hierarchy | Desktop repeats a generated tool title above the title inside the tool panel. | Use the tool panel as the single page heading. | Implemented in shared shell |
 | Results | Every tool ends differently and several flows only offer retry/back actions. | Add a common learning-record update with the next activity from Today. | Implemented in shared shell |
 | Mobile density | Stacked mode and Options panels consume too much of the first viewport. | Use a compact one-row control bar where both controls are present. | Implemented in shared shell |
-| History | Browser-local records are useful but capped and presented as a dense report before the learner has meaningful data. | Improve empty/early states, filters, and migration clarity. | Empty state and filters implemented; backup clarity pending |
+| History | Browser-local records are useful but capped and presented as a dense report before the learner has meaningful data. | Improve empty/early states, filters, and migration clarity. | Implemented: guided empty state, filters, and browser-storage backup guidance |
 | Accessibility | Visible focus and semantic controls are generally present, but active/result additions need keyboard and reduced-motion verification. | Include keyboard, narrow viewport, and reduced-motion checks in every batch. | In verification |
 
 ## Tool Findings
@@ -44,3 +44,4 @@ Each refresh batch must be checked at desktop and mobile widths, with no horizon
 2. **Core setup surfaces:** made the Vocabulary start action visible in the first mobile viewport, collapsed its word preview, replaced static Pronunciation metrics, clarified the Sentence Drill flow, and replaced Daily Review's zero metrics with baseline guidance.
 3. **Guided catalog and record states:** replaced empty History analytics with the current plan, added History session filters, surfaced Grammar's recommended pattern, added Reader level progress, and marked/compacted the learner's target mock exam.
 4. **Active practice refinement:** enlarged the desktop speaking task, replaced Tone Listening's decorative pool preview with a session-readiness summary, reserved desktop utility space above Geography, and compacted its mobile prompt so more of the interactive map remains visible.
+5. **Shell and persistence clarity:** reserved the fixed utility lane on result screens, clarified that History is stored in the browser and should be exported before site data is cleared, and added useful starter queries to the empty global Search state.

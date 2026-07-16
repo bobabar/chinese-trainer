@@ -982,6 +982,14 @@ function bindGlobalSearch() {
   });
   globalSearchInput.addEventListener("keydown", handleGlobalSearchNavigation);
   globalSearchResults.addEventListener("click", (event) => {
+    const suggestion = event.target.closest?.("[data-global-search-suggestion]");
+    if (suggestion) {
+      globalSearchInput.value = suggestion.dataset.globalSearchSuggestion || "";
+      globalSearchActiveIndex = 0;
+      renderGlobalSearchResults();
+      globalSearchInput.focus();
+      return;
+    }
     const button = event.target.closest?.("[data-global-search-index]");
     if (!button) {
       return;
@@ -1151,6 +1159,13 @@ function renderGlobalSearchResults() {
         ${loading ? `<span class="global-search-loader" aria-hidden="true"></span>` : searchIconMarkup()}
         <strong>${loading ? "Opening your notebook" : emptyTitle}</strong>
         <span>${loading ? "Loading local saved resources…" : emptyDetail}</span>
+        ${!loading && globalSearchView === "search" && !query ? `
+          <div class="global-search-suggestions" aria-label="Suggested searches">
+            <button type="button" data-global-search-suggestion="你好">你好</button>
+            <button type="button" data-global-search-suggestion="xuexi">xuexi</button>
+            <button type="button" data-global-search-suggestion="because">because</button>
+          </div>
+        ` : ""}
       </div>
     `;
     globalSearchInput.removeAttribute("aria-activedescendant");
@@ -9512,6 +9527,7 @@ function buildHistoryDataActionsMarkup(canClear) {
         </button>
         <input id="learningDataFile" type="file" accept="application/json,.json" tabindex="-1" hidden>
       </div>
+      <p class="history-storage-note"><strong>Browser storage</strong> Export a backup before clearing site data.</p>
       <p class="history-data-status" id="learningDataStatus" role="status" aria-live="polite" hidden></p>
     </div>
   `;
@@ -12389,7 +12405,7 @@ function renderResults() {
             <span>${isSavedSentenceSession ? "Practice saved again" : isMistakeRetry ? "Practice this set again" : "Start another session"}</span>
             ${shortcutHint("Enter")}
           </button>
-          <button class="ghost-btn" type="button" id="backToModes">${isSavedSentenceSession ? "Back to sentence library" : "Back to trainer"}</button>
+          <button class="ghost-btn" type="button" id="backToModes">${isSavedSentenceSession ? "Back to sentence library" : "Back to sentence drills"}</button>
         </div>
       </div>
 
@@ -12660,7 +12676,7 @@ function renderMapQuizResults() {
     <section class="workspace-panel">
       <div class="results-header">
         <div>
-          <h2>Map Quiz Results</h2>
+          <h2>Geography Results</h2>
           <p>${escapeHtml(mapMode.label)}: ${correct} correct out of ${total}; ${percent}% location accuracy.</p>
         </div>
         <div class="result-actions">
@@ -12668,7 +12684,7 @@ function renderMapQuizResults() {
             <span>Start another quiz</span>
             ${shortcutHint("Enter")}
           </button>
-          <button class="ghost-btn" type="button" id="backToModes">Back to map</button>
+          <button class="ghost-btn" type="button" id="backToModes">Back to Geography of China</button>
         </div>
       </div>
 

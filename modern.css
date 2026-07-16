@@ -2864,6 +2864,10 @@ body[data-screen="result"] .tool-controls {
 }
 
 @media (min-width: 981px) {
+  body[data-screen="result"][data-tool] .workspace {
+    padding-top: 76px;
+  }
+
   body[data-tool="map"] .workspace {
     padding-top: 72px;
   }
@@ -3390,6 +3394,45 @@ body[data-screen="result"] .tool-controls {
   color: #176b57;
 }
 
+.history-storage-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.history-storage-note strong {
+  color: var(--muted-strong);
+  font-weight: 820;
+}
+
+.global-search-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 5px;
+}
+
+.global-search-suggestions button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.global-search-suggestions button:hover,
+.global-search-suggestions button:focus-visible {
+  border-color: #a9d1c2;
+  background: #eef8f4;
+  color: #176b57;
+}
+
 .grammar-home > .tool-plan-context {
   margin: 0 30px;
   padding-top: 18px;
@@ -3546,6 +3589,10 @@ body[data-screen="result"] .tool-controls {
 }
 
 @media (max-width: 720px) {
+  .history-storage-note {
+    text-align: left;
+  }
+
   .map-quiz-session .map-question-panel {
     gap: 7px;
     padding: 9px 12px 10px;

@@ -2863,6 +2863,42 @@ body[data-screen="result"] .tool-controls {
   line-height: 1.45;
 }
 
+@media (min-width: 981px) {
+  body[data-tool="map"] .workspace {
+    padding-top: 72px;
+  }
+
+  body[data-tool="map"] .map-quiz-workspace {
+    height: min(800px, calc(100vh - 116px));
+  }
+
+  body[data-tool="map"][data-screen="session"] .map-zoom-controls {
+    top: 56px;
+  }
+
+  .speaking-session {
+    min-height: min(560px, calc(100vh - 112px));
+  }
+
+  .speaking-session .pronunciation-card {
+    min-height: 260px;
+    align-content: center;
+    padding: 30px 32px;
+  }
+
+  .speaking-session .sentence-card-header {
+    align-self: start;
+  }
+
+  .speaking-session .pronunciation-hanzi-line {
+    font-size: 42px;
+  }
+
+  .speaking-session .pronunciation-pinyin-line {
+    font-size: 17px;
+  }
+}
+
 .vocabulary-preview-disclosure {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -3510,6 +3546,64 @@ body[data-screen="result"] .tool-controls {
 }
 
 @media (max-width: 720px) {
+  .map-quiz-session .map-question-panel {
+    gap: 7px;
+    padding: 9px 12px 10px;
+  }
+
+  .map-quiz-session .map-score-card {
+    padding: 9px 11px;
+  }
+
+  .map-quiz-session .map-score-card span,
+  .map-quiz-session .map-score-card small {
+    font-size: 9px;
+  }
+
+  .map-quiz-session .map-score-card strong {
+    margin-top: 2px;
+    font-size: 18px;
+  }
+
+  .map-quiz-session .map-score-card small {
+    margin-top: 3px;
+  }
+
+  .map-quiz-session .map-progress-line {
+    height: 5px;
+    margin-top: 7px;
+  }
+
+  .map-quiz-session .map-question-meta {
+    min-height: 26px;
+  }
+
+  .map-quiz-session .map-prompt-card {
+    gap: 4px;
+    padding: 9px 11px;
+  }
+
+  .map-quiz-session .map-prompt {
+    font-size: 25px;
+    line-height: 1.12;
+  }
+
+  .map-quiz-session .map-prompt-card p,
+  .map-quiz-session .map-hint-note {
+    font-size: 10px;
+  }
+
+  .map-quiz-session .map-hint-btn,
+  .map-quiz-session .map-panel-actions button {
+    min-height: 40px;
+  }
+
+  .map-quiz-session .map-stage-panel,
+  .map-quiz-session .china-map-wrap,
+  .map-quiz-session .china-map-canvas {
+    height: clamp(340px, 51vh, 410px);
+  }
+
   .history-empty-overview {
     grid-template-columns: 44px minmax(0, 1fr);
     gap: 12px;

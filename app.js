@@ -4782,14 +4782,14 @@ function renderToneListeningHome() {
         </div>
       </div>
 
-      <div class="task-preview pronunciation-preview" aria-hidden="true">
-        <div class="preview-cell">
-          <strong>调</strong>
-          <span>HSK 1 and 2 tone perception</span>
-        </div>
+      <div class="practice-readiness ${playbackAvailable ? "" : "is-unavailable"}">
+        <span class="practice-readiness-mark" aria-hidden="true">调</span>
+        <span class="practice-readiness-copy">
+          <small>${playbackAvailable ? "Ready to listen" : "Browser check"}</small>
+          <strong>${playbackAvailable ? "15-word tone session ready" : "Speech playback is unavailable"}</strong>
+          <span>HSK 1 and 2 &middot; 5 choices per word &middot; ${toneWordCount.toLocaleString()} words in rotation</span>
+        </span>
       </div>
-
-      <p class="tone-pool-note"><strong>${toneWordCount.toLocaleString()}</strong> unambiguous HSK words available for practice</p>
 
       ${playbackAvailable ? "" : `
         <p class="empty-note error-note">
@@ -4799,7 +4799,7 @@ function renderToneListeningHome() {
 
       <div class="pronunciation-start-row">
         <button class="primary-btn shortcut-btn" type="button" id="startToneListeningSession" ${toneWordCount >= TONE_LISTENING_SESSION_LENGTH && playbackAvailable ? "" : "disabled"}>
-          <span>Start 15-word session</span>
+          <span>Start tone listening session</span>
           ${shortcutHint("Enter")}
         </button>
       </div>
@@ -9994,7 +9994,7 @@ function renderPronunciationSession() {
   const recordLabel = session.isListening ? "Show feedback" : "Record sentence";
 
   app.innerHTML = `
-    <section class="workspace-panel session-shell pronunciation-session">
+    <section class="workspace-panel session-shell pronunciation-session speaking-session">
       <div class="progress-row">
         <div class="progress-track" aria-hidden="true">
           <div class="progress-fill" style="width: ${progressPercent}%"></div>

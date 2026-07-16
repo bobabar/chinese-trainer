@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900" role="img" aria-labelledby="title description">
+  <title id="title">Mandarin Trainer</title>
+  <desc id="description">A speech mark containing the four Mandarin tone contours.</desc>
+  <defs>
+    <linearGradient id="mark-gradient" x1="14%" y1="8%" x2="86%" y2="92%">
+      <stop offset="0" stop-color="#0c5c4a"/>
+      <stop offset="0.55" stop-color="#10775f"/>
+      <stop offset="1" stop-color="#15967a"/>
+    </linearGradient>
+  </defs>
+  <path
+    fill="url(#mark-gradient)"
+    d="M225 92h450c80 0 145 65 145 145v363c0 80-65 145-145 145H441L255 838c-30 15-62-15-49-46l21-47h-2c-80 0-145-65-145-145V237c0-80 65-145 145-145Z"/>
+  <path
+    fill="none"
+    stroke="#ffffff"
+    stroke-linecap="round"
+    stroke-width="18"
+    opacity="0.12"
+    d="M232 125h433c67 0 121 54 121 121"/>
+  <path fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="66" d="M224 292h186"/>
+  <path fill="none" stroke="#f4bd46" stroke-linecap="round" stroke-width="66" d="m516 349 171-108"/>
+  <path fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="66" d="M224 516c48 73 130 79 190-13"/>
+  <path fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="66" d="m520 474 165 118"/>
+</svg>

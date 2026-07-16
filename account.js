@@ -166,7 +166,7 @@
       <div class="account-dialog-shell">
         ${dialogHeader(
           isReset ? "Reset your password" : isSignup ? "Create your account" : "Welcome back",
-          isReset ? "We will email you a secure recovery link." : "Keep Premium access tied securely to your Chinese Trainer account.",
+          isReset ? "We will email you a secure recovery link." : "Keep Premium access tied securely to your Mandarin Trainer account.",
         )}
         ${isReset ? "" : `
           <div class="account-auth-tabs" role="tablist" aria-label="Account action">
@@ -210,7 +210,7 @@
         <section class="account-plan ${premium ? "is-premium" : ""}">
           <div class="account-plan-heading">
             <span>${premium ? "Premium" : "Free plan"}</span>
-            <strong>${escapeMarkup(state.user.email || "Chinese Trainer account")}</strong>
+            <strong>${escapeMarkup(state.user.email || "Mandarin Trainer account")}</strong>
           </div>
           <p>${premium
             ? `All mock exams and every graded reader are unlocked${periodEnd ? ` through ${escapeMarkup(periodEnd)}` : ""}.`
@@ -222,7 +222,7 @@
             : `<button class="primary-btn" type="button" id="openPremium">Upgrade to Premium</button>`}
           <button class="ghost-btn" type="button" id="signOutAccount" ${state.busy ? "disabled" : ""}>Sign out</button>
         </div>
-        <p class="account-security-note">Payments are handled by Stripe. Chinese Trainer never receives or stores your card details.</p>
+        <p class="account-security-note">Payments are handled by Stripe. Mandarin Trainer never receives or stores your card details.</p>
       </div>
     `;
     bindDialogCommon();
@@ -234,7 +234,7 @@
   function renderPremiumView() {
     dialog.innerHTML = `
       <div class="account-dialog-shell premium-dialog-shell">
-        ${dialogHeader("Chinese Trainer Premium", "Move beyond the foundation with complete exam and reading practice.")}
+        ${dialogHeader("Mandarin Trainer Premium", "Move beyond the foundation with complete exam and reading practice.")}
         ${messageMarkup()}
         <div class="premium-price"><strong>${escapeMarkup(config.premiumPriceLabel || "$9 / month")}</strong><span>Cancel anytime in the secure billing portal</span></div>
         <div class="premium-comparison" aria-label="Premium features">

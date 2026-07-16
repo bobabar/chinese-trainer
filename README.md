@@ -1,4 +1,4 @@
-# Chinese Trainer
+# Mandarin Trainer
 
 A browser-based Chinese learning app with adaptive vocabulary review, contextual grammar practice, timed HSK 3.0 mock exams, pronunciation feedback, sentence drills, geography practice, and vocabulary quizzes.
 

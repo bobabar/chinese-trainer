@@ -492,9 +492,10 @@ assert(
   "sentence drill modes should show Reading, Writing, then Listening",
 );
 assert(indexSource.includes('rel="manifest" href="./manifest.webmanifest"'), "the app shell should expose its install manifest");
-assert(indexSource.includes('rel="apple-touch-icon" href="./assets/apple-touch-icon.png"'), "iOS installs should use the polished boba icon");
+assert(indexSource.includes('rel="icon" href="./assets/logo-mandarin.svg" type="image/svg+xml"'), "the app shell should use the Mandarin tone mark");
+assert(indexSource.includes('rel="apple-touch-icon" href="./assets/apple-touch-icon.png"'), "iOS installs should use the Mandarin Trainer icon");
 assert(indexSource.includes('id="pwaAccess"') && indexSource.includes('id="installApp"') && indexSource.includes('id="refreshApp"'), "Options should expose install and update controls when the browser supports them");
-assert(webManifest.name === "Chinese Trainer" && webManifest.display === "standalone" && webManifest.start_url === "./", "the web manifest should launch Chinese Trainer as a standalone app");
+assert(webManifest.name === "Mandarin Trainer" && webManifest.display === "standalone" && webManifest.start_url === "./", "the web manifest should launch Mandarin Trainer as a standalone app");
 assert(
   webManifest.icons.some((icon) => icon.sizes === "192x192" && icon.purpose === "any") &&
     webManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any") &&
@@ -505,7 +506,7 @@ assertPngDimensions(path.join(ROOT, "assets/icon-192.png"), 192, 192, "the 192px
 assertPngDimensions(path.join(ROOT, "assets/icon-512.png"), 512, 512, "the 512px app icon should have the declared dimensions");
 assertPngDimensions(path.join(ROOT, "assets/icon-maskable-512.png"), 512, 512, "the maskable app icon should have the declared dimensions");
 assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "the iOS app icon should use the standard touch-icon dimensions");
-assertPngDimensions(path.join(ROOT, "assets/logo-boba.png"), 900, 900, "the primary boba logo should retain its high-resolution square master");
+assertPngDimensions(path.join(ROOT, "assets/logo-mandarin.png"), 900, 900, "the Mandarin tone mark should retain its high-resolution square master");
 assertPngDimensions(path.join(ROOT, "assets/panda-mascot.png"), 800, 800, "the dashboard panda mascot should retain its square source dimensions");
 [
   "index.html",
@@ -522,7 +523,8 @@ assertPngDimensions(path.join(ROOT, "assets/panda-mascot.png"), 800, 800, "the d
   "sentence-data.js",
   "word-data.js",
   "manifest.webmanifest",
-  "assets/logo-boba.png",
+  "assets/logo-mandarin.svg",
+  "assets/logo-mandarin.png",
   "assets/panda-mascot.png",
   "assets/icon-192.png",
   "assets/icon-512.png",

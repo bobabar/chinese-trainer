@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Chinese Trainer",
-  "short_name": "Chinese Trainer",
+  "name": "Mandarin Trainer",
+  "short_name": "Mandarin Trainer",
   "description": "Adaptive Mandarin vocabulary, grammar, pronunciation, geography, and sentence practice.",
   "lang": "en",
   "start_url": "./",

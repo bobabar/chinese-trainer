@@ -428,7 +428,7 @@ body[data-tool="dashboard"] .workspace {
 
   .brand-mark {
     width: 48px;
-    height: 54px;
+    height: 48px;
   }
 
   .brand h1 {
@@ -635,7 +635,7 @@ body[data-tool="dashboard"] .workspace {
 
   .brand-mark {
     width: 38px;
-    height: 44px;
+    height: 38px;
   }
 
   .brand h1 {
@@ -922,7 +922,7 @@ body[data-tool="dashboard"] .workspace {
 
   .brand-mark {
     width: 36px;
-    height: 42px;
+    height: 36px;
   }
 
   .brand h1 {
@@ -1850,14 +1850,14 @@ body[data-tool="dashboard"] .workspace {
 
   .brand {
     align-items: center;
-    gap: 0;
+    gap: 11px;
     padding: 0 4px;
   }
 
   .brand-mark {
-    width: 64px;
-    height: 72px;
-    transform: scale(1.16);
+    width: 56px;
+    height: 56px;
+    transform: none;
   }
 
   .brand h1 {
@@ -2274,8 +2274,8 @@ body[data-tool="dashboard"] .workspace {
   }
 
   .brand-mark {
-    width: 56px;
-    height: 64px;
+    width: 50px;
+    height: 50px;
   }
 
   .brand h1 {
@@ -2323,7 +2323,7 @@ body[data-tool="dashboard"] .workspace {
 
 @media (max-width: 980px) {
   .brand-mark {
-    transform: scale(1.12);
+    transform: none;
   }
 
   .brand h1 {

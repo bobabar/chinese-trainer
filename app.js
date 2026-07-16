@@ -574,7 +574,7 @@ function init() {
     !globalSearchSavedCount ||
     !globalSearchSavedActions
   ) {
-    throw new Error("Chinese Trainer could not find its required page elements.");
+    throw new Error("Mandarin Trainer could not find its required page elements.");
   }
 
   loadSettings();
@@ -14755,7 +14755,7 @@ function readStoredJson(key, fallback) {
 
 function normalizeLearningBackup(backup) {
   if (!isPlainRecord(backup) || backup.app !== LEARNING_BACKUP_APP_ID) {
-    throw new Error("Choose a Chinese Trainer backup file.");
+    throw new Error("Choose a Mandarin Trainer backup file.");
   }
   if (backup.version !== LEARNING_BACKUP_VERSION) {
     throw new Error("This backup version is not supported yet.");

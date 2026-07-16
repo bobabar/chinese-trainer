@@ -2259,6 +2259,7 @@ function render() {
     } else {
       renderResults();
     }
+    enhanceRenderedExperience();
     return;
   }
 
@@ -2274,6 +2275,7 @@ function render() {
       stopVocabularyTimer();
       stopExamTimer();
     }
+    enhanceRenderedExperience();
     return;
   }
 
@@ -2285,50 +2287,228 @@ function render() {
     } else {
       renderDashboardHome();
     }
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "history") {
     renderHistoryHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "vocabulary") {
     renderVocabularyHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "review") {
     renderReviewHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "grammar") {
     renderGrammarHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "reader") {
     renderReaderHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "exam") {
     renderHskExamHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "pronunciation") {
     renderPronunciationHome();
+    enhanceRenderedExperience();
     return;
   }
 
   if (state.tool === "map") {
     renderMapQuizHome();
+    enhanceRenderedExperience();
     return;
   }
 
   renderModeHome();
+  enhanceRenderedExperience();
+}
+
+function enhanceRenderedExperience() {
+  const screen = state.result ? "result" : state.session ? "session" : "home";
+  document.body.dataset.screen = screen;
+
+  if (screen === "home" && isIntegratedToolLandingScreen()) {
+    addToolPlanContext();
+  }
+  if (screen === "result" && state.result?.type !== "placement") {
+    addResultPlanNextStep();
+  }
+}
+
+function isIntegratedToolLandingScreen() {
+  if (["dashboard", "history"].includes(state.tool)) {
+    return false;
+  }
+  if (state.tool === "reader") {
+    return !state.readerId;
+  }
+  if (state.tool === "exam") {
+    return state.examScreen === "home";
+  }
+  if (state.tool === "grammar") {
+    return !state.grammarLessonId;
+  }
+  return true;
+}
+
+function getToolExperienceProfile(tool = state.tool) {
+  const profiles = {
+    vocabulary: {
+      label: "Vocabulary & recall",
+      detail: "Build vocabulary coverage and complete quiz benchmarks.",
+    },
+    review: {
+      label: "Adaptive recall",
+      detail: "Strengthen words at the point they are due for review.",
+    },
+    grammar: {
+      label: "Grammar mastery",
+      detail: "Build the core patterns for your current HSK level.",
+    },
+    reader: {
+      label: "Reading in context",
+      detail: "Apply vocabulary and grammar inside short stories.",
+    },
+    exam: {
+      label: "Exam readiness",
+      detail: "Measure your level under realistic HSK timing.",
+    },
+    pronunciation: {
+      label: "Speaking & listening",
+      detail: "Build pronunciation accuracy and tone awareness.",
+    },
+    map: {
+      label: "Culture & geography",
+      detail: "Learn official Chinese place names and locations.",
+    },
+    drill: {
+      label: "Sentence fluency",
+      detail: "Turn sentence knowledge into active recall.",
+    },
+  };
+  return profiles[tool] || profiles.review;
+}
+
+function getMatchingPlanActivity(dashboard, tool = state.tool) {
+  return dashboard.plan.find((activity) => {
+    if (activity.tool !== tool) {
+      return false;
+    }
+    return tool !== "drill" || !activity.mode || activity.mode === state.mode;
+  }) || null;
+}
+
+function addToolPlanContext() {
+  const panel = app.querySelector(".workspace-panel");
+  if (!panel || panel.querySelector(".tool-plan-context")) {
+    return;
+  }
+
+  const dashboard = getDashboardData();
+  const profile = getToolExperienceProfile();
+  const activity = getMatchingPlanActivity(dashboard);
+  const isNext = activity && dashboard.nextActivity.id === activity.id;
+  const status = activity?.completed
+    ? "Completed in today\'s plan"
+    : isNext
+      ? "Up next in today\'s plan"
+      : activity
+        ? "In today\'s plan"
+        : "Extra path practice";
+
+  panel.insertAdjacentHTML("afterbegin", `
+    <div class="tool-plan-context ${activity?.completed ? "is-complete" : ""}">
+      <span class="tool-plan-context-icon" aria-hidden="true">${dashboardActivityIconMarkup(state.tool)}</span>
+      <span class="tool-plan-context-copy">
+        <small>${escapeHtml(status)}</small>
+        <strong>${escapeHtml(profile.label)}</strong>
+        <span>${escapeHtml(profile.detail)}</span>
+      </span>
+      <span class="tool-plan-context-meta">New HSK ${state.studyTargetLevel} &middot; ${escapeHtml(getStudyFocus().label)}</span>
+      <button class="tool-plan-context-action" type="button" id="viewTodayFromTool">
+        Today ${dashboardArrowIconMarkup()}
+      </button>
+    </div>
+  `);
+
+  document.querySelector("#viewTodayFromTool")?.addEventListener("click", openTodayDashboard);
+}
+
+function addResultPlanNextStep() {
+  const panel = app.querySelector(".workspace-panel");
+  if (!panel || panel.querySelector(".session-plan-next")) {
+    return;
+  }
+
+  const dashboard = getDashboardData();
+  const goalComplete = dashboard.completedCount >= DASHBOARD_DAILY_GOAL;
+  const nextActivity = dashboard.nextActivity;
+  const nextTitle = goalComplete ? "Today\'s plan is complete" : `Next: ${nextActivity.title}`;
+  const nextDetail = goalComplete
+    ? "Your result is saved. Review today\'s progress or continue with optional practice."
+    : nextActivity.detail;
+  const markup = `
+    <section class="session-plan-next ${goalComplete ? "is-complete" : ""}" aria-label="Learning plan update">
+      <span class="session-plan-next-icon" aria-hidden="true">${goalComplete ? "&#10003;" : dashboardActivityIconMarkup(nextActivity.tool)}</span>
+      <span class="session-plan-next-copy">
+        <small>${goalComplete ? "Daily goal complete" : "Learning record updated"}</small>
+        <strong>${escapeHtml(nextTitle)}</strong>
+        <span>${escapeHtml(nextDetail)}</span>
+      </span>
+      <button class="primary-btn session-plan-next-action" type="button" id="continuePlanAfterResult">
+        ${goalComplete ? "View today\'s progress" : "Continue plan"}
+        ${dashboardArrowIconMarkup()}
+      </button>
+      ${goalComplete ? "" : '<button class="tool-plan-context-action session-plan-today" type="button" id="viewTodayAfterResult">Today</button>'}
+    </section>
+  `;
+  const heading = panel.querySelector(".results-header, .reader-results-header, .hsk-exam-results-header");
+  if (heading) {
+    heading.insertAdjacentHTML("afterend", markup);
+  } else {
+    panel.insertAdjacentHTML("afterbegin", markup);
+  }
+
+  document.querySelector("#continuePlanAfterResult")?.addEventListener("click", () => {
+    if (goalComplete) {
+      openTodayDashboard();
+      return;
+    }
+    launchDashboardActivity(nextActivity.tool, nextActivity.mode || "");
+  });
+  document.querySelector("#viewTodayAfterResult")?.addEventListener("click", openTodayDashboard);
+}
+
+function openTodayDashboard() {
+  stopPronunciationRecognition();
+  stopSpeech();
+  state.tool = "dashboard";
+  state.session = null;
+  state.result = null;
+  state.dataError = "";
+  saveSettings();
+  render();
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
 }
 
 function updateNavigationState() {
@@ -4094,6 +4274,11 @@ function renderModeHome() {
 
   const mode = MODES[state.mode];
   const preview = PREVIEW_CELLS[state.mode];
+  const flowLabels = {
+    reading: "Chinese to English",
+    writing: "English to Chinese",
+    listening: "Audio to English",
+  };
   const hasEnoughSentences = getSelectedSentenceCount() >= SESSION_LENGTH;
   const startLabel = state.isLoadingSentences ? "Loading sentence bank..." : "Start 30-sentence session";
 
@@ -4107,11 +4292,13 @@ function renderModeHome() {
         </div>
       </div>
 
-      <div class="task-preview" aria-hidden="true">
-        <div class="preview-cell">
-          <strong>${preview.character}</strong>
-          <span>${preview.description}</span>
-        </div>
+      <div class="practice-readiness">
+        <span class="practice-readiness-mark" aria-hidden="true">${preview.character}</span>
+        <span class="practice-readiness-copy">
+          <small>${escapeHtml(mode.label)} session</small>
+          <strong>${escapeHtml(flowLabels[state.mode] || preview.description)}</strong>
+          <span>30 sentences with immediate feedback and saved mistakes.</span>
+        </span>
       </div>
 
       ${hasEnoughSentences ? "" : `
@@ -4534,7 +4721,7 @@ function renderPronunciationHome() {
   const shortSentenceCount = getSelectedPronunciationSentenceCount();
   const hasEnoughSentences = shortSentenceCount >= PRONUNCIATION_SESSION_LENGTH;
   const recognitionAvailable = supportsSpeechRecognition();
-  const startLabel = state.isLoadingSentences ? "Loading sentence bank..." : "Start 15-sentence session";
+  const startLabel = state.isLoadingSentences ? "Loading sentence bank..." : "Start pronunciation session";
 
   app.innerHTML = `
     <section class="workspace-panel">
@@ -4546,22 +4733,13 @@ function renderPronunciationHome() {
         </div>
       </div>
 
-      <div class="task-preview pronunciation-preview" aria-hidden="true">
-        <div class="preview-cell">
-          <strong>说</strong>
-          <span>Short sentence speaking practice</span>
-        </div>
-      </div>
-
-      <div class="stat-grid pronunciation-home-stats">
-        <div class="stat">
-          <strong>${shortSentenceCount}</strong>
-          <span>Short prompts in pool</span>
-        </div>
-        <div class="stat">
-          <strong>${state.pronunciationShowPinyin ? "On" : "Off"}</strong>
-          <span>Pinyin hint</span>
-        </div>
+      <div class="practice-readiness ${recognitionAvailable ? "" : "is-unavailable"}">
+        <span class="practice-readiness-mark" aria-hidden="true">说</span>
+        <span class="practice-readiness-copy">
+          <small>${recognitionAvailable ? "Ready to speak" : "Browser check"}</small>
+          <strong>${recognitionAvailable ? "Microphone practice is ready" : "Speech recognition is unavailable"}</strong>
+          <span>${state.pronunciationShowPinyin ? "Pinyin hints on" : "Characters only"} &middot; ${escapeHtml(selectedLevelLabels())}</span>
+        </span>
       </div>
 
       ${recognitionAvailable ? "" : `
@@ -4764,7 +4942,7 @@ function bindMapModePicker() {
       state.mapQuizMode = nextMode;
       state.result = null;
       saveSettings();
-      renderMapQuizHome();
+      render();
     });
   });
 }
@@ -4851,11 +5029,14 @@ function renderVocabularyHome() {
       `}
 
       ${selectedSet ? `
-        <div class="vocab-table-section">
-          <div class="vocab-section-heading">
-            <h3>Word List Preview</h3>
-            <span>${escapeHtml(selectedSet.label)}</span>
-          </div>
+        <details class="vocab-table-section vocabulary-preview-disclosure">
+          <summary>
+            <span>
+              <strong>Preview word list</strong>
+              <small>${escapeHtml(selectedSet.label)} &middot; ${wordCount} words</small>
+            </span>
+            <b>Show</b>
+          </summary>
           <div class="vocab-table-wrap preview-table-wrap" tabindex="0">
             <table class="vocab-table">
               <thead>
@@ -4869,7 +5050,7 @@ function renderVocabularyHome() {
             </table>
           </div>
           ${previewNote}
-        </div>
+        </details>
       ` : ""}
     </section>
   `;
@@ -5913,24 +6094,35 @@ function renderReviewHome() {
         </span>
       </div>
 
-      <div class="review-metrics" aria-label="Review progress">
-        <div>
-          <strong>${dashboard.dueCount}</strong>
-          <span>Due now</span>
+      ${dashboard.totalTracked ? `
+        <div class="review-metrics" aria-label="Review progress">
+          <div>
+            <strong>${dashboard.dueCount}</strong>
+            <span>Due now</span>
+          </div>
+          <div>
+            <strong>${dashboard.learningCount}</strong>
+            <span>Learning</span>
+          </div>
+          <div>
+            <strong>${dashboard.strongCount}</strong>
+            <span>Strong</span>
+          </div>
+          <div>
+            <strong>${dashboard.reviewedToday}</strong>
+            <span>Reviewed today</span>
+          </div>
         </div>
-        <div>
-          <strong>${dashboard.learningCount}</strong>
-          <span>Learning</span>
+      ` : `
+        <div class="review-baseline-summary" aria-label="First review setup">
+          <span aria-hidden="true">1</span>
+          <div>
+            <small>First review</small>
+            <strong>Build a 12-word HSK 1 baseline</strong>
+            <p>Your answers seed the adaptive queue used by Today and future reviews.</p>
+          </div>
         </div>
-        <div>
-          <strong>${dashboard.strongCount}</strong>
-          <span>Strong</span>
-        </div>
-        <div>
-          <strong>${dashboard.reviewedToday}</strong>
-          <span>Reviewed today</span>
-        </div>
-      </div>
+      `}
 
       <div class="review-home-grid">
         <section class="review-start-panel">
@@ -6385,7 +6577,7 @@ function renderGrammarLesson(lesson) {
   if (!lesson) {
     state.grammarLessonId = "";
     saveSettings();
-    renderGrammarHome();
+    render();
     return;
   }
   const progress = getGrammarLessonProgress(loadHistoryRecords(), lesson.id);

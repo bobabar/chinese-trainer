@@ -7,6 +7,7 @@ const APP_SHELL_URLS = [
   "./index.html",
   "./styles.css",
   "./modern.css",
+  "./frame-guard.js",
   "./app-config.js",
   "./account.js",
   "./app.js",

@@ -6,6 +6,7 @@ const ROOT = path.resolve(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "_site");
 const FILES = [
   "index.html",
+  "frame-guard.js",
   "app-config.js",
   "account.js",
   "app.js",
@@ -41,7 +42,7 @@ console.log(`Built static site in ${path.relative(ROOT, OUT_DIR)}/`);
 function cacheBustIndexAssets() {
   const indexPath = path.join(OUT_DIR, "index.html");
   let html = fs.readFileSync(indexPath, "utf8");
-  ["styles.css", "modern.css", "app-config.js", "account.js", "vocab-data.js", "grammar-data.js", "china-map-data.js", "exam-data.js", "reader-data.js", "app.js", "manifest.webmanifest"].forEach((file) => {
+  ["styles.css", "modern.css", "frame-guard.js", "app-config.js", "account.js", "vocab-data.js", "grammar-data.js", "china-map-data.js", "exam-data.js", "reader-data.js", "app.js", "manifest.webmanifest"].forEach((file) => {
     const hash = hashFile(path.join(OUT_DIR, file));
     html = html.replaceAll(`./${file}`, `./${file}?v=${hash}`);
   });

@@ -546,6 +546,13 @@ const mobileNavToggle = document.querySelector("#mobileNavToggle");
 const mobileNavClose = document.querySelector("#mobileNavClose");
 const mobileNavBackdrop = document.querySelector("#mobileNavBackdrop");
 const mobileMoreButton = document.querySelector("#mobileMoreButton");
+const sidebarProfileButton = document.querySelector("#sidebarProfileButton");
+const sidebarSettingsButton = document.querySelector("#sidebarSettingsButton");
+const sidebarLevelLabel = document.querySelector("#sidebarLevelLabel");
+const sidebarStreakCount = document.querySelector("#sidebarStreakCount");
+const sidebarSessionCount = document.querySelector("#sidebarSessionCount");
+const globalNotificationSummary = document.querySelector("#globalNotificationSummary");
+const globalNotificationAction = document.querySelector("#globalNotificationAction");
 const mobileNavigationQuery = typeof window.matchMedia === "function"
   ? window.matchMedia("(max-width: 980px)")
   : { matches: false, addEventListener() {} };
@@ -746,6 +753,18 @@ function requirePremiumAccess(reason) {
 }
 
 function bindTopLevelControls() {
+  const openAccountDialog = () => document.querySelector("#accountTrigger")?.click();
+  sidebarProfileButton?.addEventListener("click", openAccountDialog);
+  sidebarSettingsButton?.addEventListener("click", openAccountDialog);
+  globalNotificationAction?.addEventListener("click", () => {
+    if (state.session && !window.confirm("Switch tools and end this session?")) {
+      return;
+    }
+    document.querySelector(".utility-notifications")?.removeAttribute("open");
+    const dashboard = getDashboardData();
+    launchDashboardActivity(dashboard.nextActivity.tool, dashboard.nextActivity.mode || "");
+  });
+
   document.querySelectorAll(".tool-tab").forEach((button) => {
     button.addEventListener("click", () => {
       const nextTool = button.dataset.tool;
@@ -2354,6 +2373,18 @@ function updateNavigationState() {
   document.body.dataset.drillView = state.drillView;
   document.body.dataset.pronunciationView = state.pronunciationView;
   syncVocabularyOptionControls();
+  updateSidebarSummary();
+}
+
+function updateSidebarSummary() {
+  const history = loadHistoryRecords();
+  if (sidebarLevelLabel) sidebarLevelLabel.textContent = `HSK ${state.studyTargetLevel} path`;
+  if (sidebarStreakCount) sidebarStreakCount.textContent = String(getPracticeStreakDays(history));
+  if (sidebarSessionCount) sidebarSessionCount.textContent = String(history.length);
+  if (globalNotificationSummary) {
+    const dashboard = getDashboardData(Date.now(), history);
+    globalNotificationSummary.textContent = `${dashboard.nextActivity.title} is ready when you are.`;
+  }
 }
 
 function syncVocabularyOptionControls() {
@@ -2575,134 +2606,203 @@ function completeStudyPlanSetup() {
 function renderDashboardHome() {
   const dashboard = getDashboardData();
   const roadmap = getHskRoadmapData(state.studyTargetLevel);
-  const studyFocus = getStudyFocus();
   const nextActivity = dashboard.nextActivity;
   const goalComplete = dashboard.completedCount >= DASHBOARD_DAILY_GOAL;
   const goalAngle = Math.round(dashboard.goalProgress * 3.6);
-  const planRows = dashboard.plan.map((activity, index) => {
-    const statusLabel = activity.completed
-      ? "Complete"
-      : activity.id === nextActivity.id
-        ? "Next"
-        : "Later";
+  const planSteps = dashboard.plan.map((activity, index) => {
+    const isNext = activity.id === nextActivity.id;
     return `
-      <div
-        class="dashboard-plan-row ${activity.completed ? "is-complete" : ""} ${activity.id === nextActivity.id ? "is-next" : ""}"
-        data-plan-tool="${escapeHtml(activity.tool)}">
-        <span class="dashboard-plan-index" aria-hidden="true">${activity.completed ? "✓" : index + 1}</span>
-        <div class="dashboard-plan-copy">
+      <button
+        class="dashboard-plan-step ${activity.completed ? "is-complete" : ""} ${isNext ? "is-next" : ""}"
+        type="button"
+        data-dashboard-start="${escapeHtml(activity.tool)}"
+        data-dashboard-mode="${escapeHtml(activity.mode || "")}">
+        <span class="dashboard-plan-number" aria-hidden="true">${activity.completed ? "&#10003;" : index + 1}</span>
+        <span class="dashboard-plan-icon" aria-hidden="true">${dashboardActivityIconMarkup(activity.tool)}</span>
+        <span class="dashboard-plan-copy">
           <strong>${escapeHtml(activity.title)}</strong>
-          <span>${escapeHtml(activity.detail)}</span>
-        </div>
-        <span class="dashboard-plan-status">${statusLabel}</span>
-        <button
-          class="ghost-btn dashboard-plan-button"
-          type="button"
-          data-dashboard-start="${escapeHtml(activity.tool)}"
-          data-dashboard-mode="${escapeHtml(activity.mode || "")}">
-          ${activity.completed ? "Repeat" : "Start"}
-        </button>
-      </div>
+          <small>${escapeHtml(activity.detail)}</small>
+          <span>${dashboardClockIconMarkup()} ${getDashboardActivityMinutes(activity)} min</span>
+        </span>
+      </button>
     `;
   }).join("");
-  const pronunciationMetric = dashboard.pronunciationAccuracy === null
-    ? "Not yet"
-    : `${Math.round(dashboard.pronunciationAccuracy * 100)}%`;
+  const continueData = getDashboardContinueData(dashboard.latestRecord, nextActivity);
+  const tip = getDashboardTip(dashboard.now, dashboard.focus);
+  const strongVocabulary = roadmap.milestones.find((milestone) => milestone.id === "retention") || { current: 0, total: 0 };
+  const firstMilestoneTarget = Math.min(50, strongVocabulary.total || 50);
+  const firstMilestoneCurrent = Math.min(firstMilestoneTarget, strongVocabulary.current || 0);
+  const firstMilestonePercent = firstMilestoneTarget ? Math.round((firstMilestoneCurrent / firstMilestoneTarget) * 100) : 0;
+  const roadmapCategories = roadmap.milestones.slice(0, 4);
+  const snapshotAction = dashboard.saved.total
+    ? `
+      <button class="dashboard-journey-callout" type="button" id="openSavedNotebook">
+        <span aria-hidden="true">${bookmarkIconMarkup(true)}</span>
+        <span><strong>Saved notebook</strong><small>${dashboard.saved.total} saved learning ${dashboard.saved.total === 1 ? "item" : "items"}</small></span>
+        ${dashboardArrowIconMarkup()}
+      </button>
+    `
+    : `
+      <button
+        class="dashboard-journey-callout"
+        type="button"
+        data-dashboard-start="${escapeHtml(nextActivity.tool)}"
+        data-dashboard-mode="${escapeHtml(nextActivity.mode || "")}">
+        <span aria-hidden="true">${dashboardSproutIconMarkup()}</span>
+        <span><strong>Start your journey</strong><small>Complete today&rsquo;s plan to build momentum.</small></span>
+        ${dashboardArrowIconMarkup()}
+      </button>
+    `;
 
   app.innerHTML = `
     <section class="workspace-panel dashboard-panel">
-      <header class="dashboard-hero">
+      <header class="dashboard-hero dashboard-hero-v2">
         <div class="dashboard-hero-copy">
           <h2>${escapeHtml(getDashboardGreeting(dashboard.now))}</h2>
           <p class="dashboard-date">${escapeHtml(formatDashboardDate(dashboard.now))}</p>
           <p>${goalComplete
-            ? "Your daily plan is complete. Extra practice now will strengthen what you learned."
-            : `A ${studyFocus.label.toLowerCase()} plan built from your HSK target and recent practice.`}</p>
+            ? "Daily goal complete. A little extra practice will make today&rsquo;s work stick."
+            : "Consistency builds fluency. Let&rsquo;s make today count."}</p>
           <div class="dashboard-hero-actions">
             <button
               class="primary-btn shortcut-btn dashboard-primary"
               type="button"
               data-dashboard-start="${escapeHtml(nextActivity.tool)}"
               data-dashboard-mode="${escapeHtml(nextActivity.mode || "")}">
-              <span>${goalComplete ? `Practice ${nextActivity.title}` : `Continue: ${nextActivity.title}`}</span>
+              <span class="dashboard-primary-icon" aria-hidden="true">${dashboardPlayIconMarkup()}</span>
+              <span>${goalComplete
+                ? `Practice ${nextActivity.title}`
+                : nextActivity.tool === "review"
+                  ? "Continue daily review"
+                  : `Continue ${getDashboardActivityShortLabel(nextActivity).toLowerCase()}`}</span>
               ${shortcutHint("Enter")}
             </button>
-            <button class="ghost-btn dashboard-edit-plan" type="button" id="editStudyPlan">Edit plan</button>
           </div>
         </div>
-        <div class="dashboard-goal" aria-label="${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL} daily activities complete">
-          <div class="dashboard-goal-ring" style="--dashboard-goal-angle: ${goalAngle}deg">
-            <strong>${dashboard.completedCount}/${DASHBOARD_DAILY_GOAL}</strong>
+        <div class="dashboard-goal-cluster">
+          <div class="dashboard-goal" aria-label="${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL} daily activities complete">
+            <div class="dashboard-goal-ring" style="--dashboard-goal-angle: ${goalAngle}deg">
+              <strong>${dashboard.completedCount}<small>/${DASHBOARD_DAILY_GOAL}</small></strong>
+            </div>
+            <span>Daily goal</span>
+            <small>lessons</small>
           </div>
-          <div>
-            <strong>Daily goal</strong>
-            <span>${dashboard.practiceStreak} day streak</span>
-          </div>
+          <ul class="dashboard-goal-checklist">
+            ${dashboard.plan.map((activity) => `
+              <li class="${activity.completed ? "is-complete" : ""}">
+                <span aria-hidden="true">${activity.completed ? "&#10003;" : ""}</span>
+                <strong>${escapeHtml(getDashboardActivityShortLabel(activity))}</strong>
+              </li>
+            `).join("")}
+          </ul>
         </div>
       </header>
 
-      <div class="dashboard-main-grid">
-        <section class="dashboard-section dashboard-plan" aria-labelledby="dashboardPlanHeading">
-          <div class="dashboard-section-heading">
-            <div>
-              <h3 id="dashboardPlanHeading">Today&rsquo;s plan</h3>
-              <p>Three ${escapeHtml(studyFocus.label.toLowerCase())} sessions make a focused study day.</p>
-            </div>
-            <strong>${dashboard.completedCount} of ${DASHBOARD_DAILY_GOAL}</strong>
+      <section class="dashboard-plan-section" aria-labelledby="dashboardPlanHeading">
+        <div class="dashboard-card-heading dashboard-plan-heading">
+          <h3 id="dashboardPlanHeading">Today&rsquo;s plan</h3>
+          <button type="button" id="editStudyPlan">Edit plan ${dashboardArrowIconMarkup()}</button>
+        </div>
+        <div class="dashboard-plan-track">${planSteps}</div>
+      </section>
+
+      <div class="dashboard-overview-grid">
+        <section class="dashboard-overview-card dashboard-learning-card" aria-labelledby="dashboardSnapshotHeading">
+          <div class="dashboard-card-heading">
+            <h3 id="dashboardSnapshotHeading">Learning snapshot</h3>
+            <button type="button" id="dashboardViewHistory">View all ${dashboardArrowIconMarkup()}</button>
           </div>
-          <div class="dashboard-plan-list">${planRows}</div>
+          <dl class="dashboard-snapshot-list">
+            <div><dt>${dashboardMetricIconMarkup("words")} Words learned</dt><dd>${dashboard.review.totalTracked}</dd></div>
+            <div><dt>${dashboardMetricIconMarkup("reviews")} Reviews completed</dt><dd>${dashboard.reviewSessions}</dd></div>
+            <div><dt>${dashboardMetricIconMarkup("time")} Study time (this week)</dt><dd>${dashboard.studyMinutesThisWeek} min</dd></div>
+            <div><dt>${dashboardMetricIconMarkup("streak")} Current streak</dt><dd>${dashboard.practiceStreak} ${dashboard.practiceStreak === 1 ? "day" : "days"}</dd></div>
+          </dl>
+          ${snapshotAction}
         </section>
 
-        <section class="dashboard-section dashboard-snapshot" aria-labelledby="dashboardSnapshotHeading">
-          <div class="dashboard-section-heading">
-            <div>
-              <h3 id="dashboardSnapshotHeading">Learning snapshot</h3>
-              <p>Progress stored in this browser.</p>
-            </div>
+        <section class="dashboard-overview-card dashboard-mastery-card" aria-labelledby="dashboardMasteryHeading">
+          <div class="dashboard-card-heading">
+            <h3 id="dashboardMasteryHeading">HSK ${roadmap.level} mastery path</h3>
+            <button type="button" id="dashboardViewPath">View path ${dashboardArrowIconMarkup()}</button>
           </div>
-          <dl class="dashboard-metric-list">
-            <div><dt>Words in review</dt><dd>${dashboard.review.totalTracked}</dd></div>
-            <div><dt>Strong vocabulary</dt><dd>${dashboard.review.strongCount}</dd></div>
-            <div><dt>Pronunciation average</dt><dd>${pronunciationMetric}</dd></div>
-            <div><dt>Sessions this week</dt><dd>${dashboard.sessionsThisWeek}</dd></div>
-          </dl>
-          <button class="dashboard-notebook-button" type="button" id="openSavedNotebook">
-            <span class="dashboard-notebook-icon" aria-hidden="true">${bookmarkIconMarkup(true)}</span>
+          <div class="dashboard-mastery-levels" role="group" aria-label="Target HSK level">
+            ${[1, 2, 3].map((level) => `<button type="button" data-roadmap-level="${level}" aria-pressed="${roadmap.level === level}" class="${roadmap.level === level ? "active" : ""}">HSK ${level}</button>`).join("")}
+          </div>
+          <span class="dashboard-mastery-eyebrow">Next milestone</span>
+          <div class="dashboard-milestone-callout">
+            <span aria-hidden="true">${dashboardFlagIconMarkup()}</span>
             <span>
-              <strong>Saved notebook</strong>
-              <small>${dashboard.saved.vocabularyCount} ${dashboard.saved.vocabularyCount === 1 ? "word" : "words"} · ${dashboard.saved.sentenceCount} ${dashboard.saved.sentenceCount === 1 ? "sentence" : "sentences"}</small>
+              <strong>Master ${firstMilestoneTarget} words</strong>
+              <small>Build a reliable New HSK ${roadmap.level} vocabulary base</small>
             </span>
-            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="m9 18 6-6-6-6"></path>
-            </svg>
-          </button>
-          <div class="dashboard-focus">
-            <span>Focus next</span>
-            <strong>${escapeHtml(dashboard.focus.title)}</strong>
-            <p>${escapeHtml(dashboard.focus.detail)}</p>
-            <button
-              class="secondary-btn dashboard-focus-button"
-              type="button"
-              data-dashboard-start="${escapeHtml(dashboard.focus.tool)}"
-              data-dashboard-mode="${escapeHtml(dashboard.focus.mode || "")}">
-              Practice now
-            </button>
+            <strong>${firstMilestoneCurrent}/${firstMilestoneTarget}</strong>
+            <div class="dashboard-progress-track"><span style="width:${firstMilestonePercent}%"></span></div>
+          </div>
+          <div class="dashboard-overall-progress">
+            <span><strong>Overall progress</strong><b>${roadmap.overallPercent}%</b></span>
+            <div class="dashboard-progress-track"><span style="width:${roadmap.overallPercent}%"></span></div>
+          </div>
+          <div class="dashboard-mastery-categories">
+            ${roadmapCategories.map((milestone) => `
+              <span data-category="${escapeHtml(milestone.id)}">
+                <i aria-hidden="true"></i>
+                <strong>${escapeHtml(getDashboardMilestoneShortLabel(milestone))}</strong>
+                <small>${milestone.current}/${milestone.total}</small>
+              </span>
+            `).join("")}
+          </div>
+          <div class="dashboard-mastery-footer">
+            <button type="button" id="startPlacementCheck">${roadmap.latestPlacement ? "Retake level check" : "Check my level"}</button>
+            <button type="button" id="continueHskRoadmap">Continue path ${dashboardArrowIconMarkup()}</button>
+          </div>
+        </section>
+
+        <section class="dashboard-overview-card dashboard-activity-card" aria-labelledby="dashboardWeekHeading">
+          <div class="dashboard-card-heading">
+            <h3 id="dashboardWeekHeading">Activity (last 7 days)</h3>
+            <span title="Sessions saved in this browser">i</span>
+          </div>
+          <div class="dashboard-week-dots" role="img" aria-label="${dashboard.sessionsThisWeek} saved sessions over the last seven days">
+            ${dashboard.week.map((day) => `
+              <span class="${day.count ? "is-active" : ""}" title="${escapeHtml(`${day.label}: ${day.count} ${day.count === 1 ? "session" : "sessions"}`)}">
+                <small>${escapeHtml(day.label === "Today" ? "Today" : day.label.slice(0, 3))}</small>
+                <i>${day.count || "-"}</i>
+              </span>
+            `).join("")}
+          </div>
+          <div class="dashboard-activity-state">
+            <img src="./assets/panda-mascot.png" alt="" aria-hidden="true">
+            <strong>${dashboard.sessionsThisWeek ? `${dashboard.sessionsThisWeek} ${dashboard.sessionsThisWeek === 1 ? "session" : "sessions"} this week` : "No activity yet"}</strong>
+            <span>${dashboard.sessionsThisWeek ? `${dashboard.todaySessionCount} completed today. Keep the rhythm going.` : "Complete a lesson to start your streak."}</span>
           </div>
         </section>
       </div>
 
-      ${buildHskRoadmapMarkup(roadmap)}
-
-      <section class="dashboard-week" aria-labelledby="dashboardWeekHeading">
-        <div class="dashboard-section-heading">
-          <div>
-            <h3 id="dashboardWeekHeading">Last seven days</h3>
-            <p>${dashboard.sessionsThisWeek ? `${dashboard.sessionsThisWeek} saved sessions across your tools.` : "Complete a session to begin your activity record."}</p>
+      <div class="dashboard-lower-grid">
+        <section class="dashboard-resume-card" aria-labelledby="dashboardResumeHeading">
+          <div class="dashboard-card-heading">
+            <h3 id="dashboardResumeHeading">Continue where you left off</h3>
+            <button type="button" id="dashboardViewAllHistory">View all ${dashboardArrowIconMarkup()}</button>
           </div>
-          <span>${dashboard.todaySessionCount} today</span>
-        </div>
-        ${buildDashboardWeekMarkup(dashboard.week)}
-      </section>
+          <button
+            class="dashboard-resume-action"
+            type="button"
+            data-dashboard-start="${escapeHtml(continueData.tool)}"
+            data-dashboard-mode="${escapeHtml(continueData.mode || "")}">
+            <span aria-hidden="true">${dashboardActivityIconMarkup(continueData.tool)}</span>
+            <span><strong>${escapeHtml(continueData.title)}</strong><small>${escapeHtml(continueData.detail)}</small></span>
+            <b>${escapeHtml(continueData.actionLabel)} ${dashboardArrowIconMarkup()}</b>
+          </button>
+        </section>
+        <aside class="dashboard-tip-card" aria-labelledby="dashboardTipHeading">
+          <div class="dashboard-card-heading"><h3 id="dashboardTipHeading">Daily tip</h3></div>
+          <div>
+            <span aria-hidden="true">${dashboardStarIconMarkup()}</span>
+            <p>${escapeHtml(tip)}</p>
+          </div>
+        </aside>
+      </div>
     </section>
   `;
 
@@ -2718,6 +2818,19 @@ function renderDashboardHome() {
     render();
   });
   document.querySelector("#openSavedNotebook")?.addEventListener("click", () => openGlobalSearch({ view: "saved" }));
+  document.querySelectorAll("#dashboardViewHistory, #dashboardViewAllHistory").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.tool = "history";
+      saveSettings();
+      render();
+    });
+  });
+  document.querySelector("#dashboardViewPath")?.addEventListener("click", () => {
+    state.tool = "vocabulary";
+    state.vocabularyView = "path";
+    saveSettings();
+    render();
+  });
   document.querySelectorAll("[data-roadmap-level]").forEach((button) => {
     button.addEventListener("click", () => {
       const level = Number(button.dataset.roadmapLevel);
@@ -2734,11 +2847,130 @@ function renderDashboardHome() {
   });
 }
 
+function dashboardActivityIconMarkup(tool) {
+  const paths = {
+    vocabulary: '<path d="M5 5h11a3 3 0 0 1 3 3v11H8a3 3 0 0 1-3-3V5z"></path><path d="M9 9h6"></path><path d="M9 13h4"></path>',
+    review: '<path d="M20 7v5h-5"></path><path d="M19 12a7 7 0 1 1-2-5"></path><path d="m9 12 2 2 4-4"></path>',
+    grammar: '<path d="M9 3h6"></path><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"></path><path d="M8 15h8"></path>',
+    pronunciation: '<path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><path d="M12 18v3"></path>',
+    drill: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H7a3 3 0 0 0-3 3V5.5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path>',
+    reader: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5z"></path><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5z"></path>',
+    exam: '<path d="M7 3h10v4H7z"></path><path d="M5 5h14v16H5z"></path><path d="m8 12 2 2 4-4"></path>',
+    map: '<path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path>',
+  };
+  return `<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[tool] || paths.review}</svg>`;
+}
+
+function dashboardMetricIconMarkup(kind) {
+  const paths = {
+    words: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5z"></path><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5z"></path>',
+    reviews: '<rect x="4" y="5" width="16" height="16" rx="2"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M4 10h16"></path><path d="m9 15 2 2 4-4"></path>',
+    time: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+    streak: '<path d="M13 2c.5 3-1 4.5-2.5 6.2C9 10 8 11.5 9 14c.6-1.2 1.5-2.1 2.7-3 .2 2.1 1.3 3.1 2.3 4.2 1 1 1.5 2.1 1.2 3.8A6.5 6.5 0 0 0 13 2z"></path><path d="M7.5 12.5A6.5 6.5 0 0 0 12 22c3.6 0 6.5-2.7 6.5-6.2"></path>',
+  };
+  return `<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[kind] || paths.words}</svg>`;
+}
+
+function dashboardClockIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>';
+}
+
+function dashboardArrowIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"></path><path d="m14 7 5 5-5 5"></path></svg>';
+}
+
+function dashboardPlayIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="m10 8 6 4-6 4V8z"></path></svg>';
+}
+
+function dashboardFlagIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 22V4"></path><path d="M5 5h12l-2 4 2 4H5"></path></svg>';
+}
+
+function dashboardStarIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3z"></path></svg>';
+}
+
+function dashboardSproutIconMarkup() {
+  return '<svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21v-9"></path><path d="M12 14c-4 0-7-2.5-7-7 4 0 7 2.5 7 7z"></path><path d="M12 11c0-4 2.5-7 7-7 0 4-2.5 7-7 7z"></path></svg>';
+}
+
+function getDashboardActivityMinutes(activity) {
+  if (activity.tool === "pronunciation" || activity.tool === "grammar") return 10;
+  if (activity.tool === "drill") return 12;
+  return 10;
+}
+
+function getDashboardActivityShortLabel(activity) {
+  if (activity.tool === "review") return "Vocabulary review";
+  if (activity.tool === "pronunciation") return "Pronunciation practice";
+  if (activity.tool === "grammar") return "Grammar patterns";
+  if (activity.tool === "drill") return `${MODES[activity.mode]?.label || "Sentence"} practice`;
+  return activity.title;
+}
+
+function getDashboardMilestoneShortLabel(milestone) {
+  const labels = {
+    coverage: "Words",
+    retention: "Recall",
+    grammar: "Grammar",
+    benchmarks: "Quizzes",
+    exam: "Exam",
+  };
+  return labels[milestone.id] || milestone.label;
+}
+
+function getDashboardContinueData(record, fallback) {
+  if (!record) {
+    return {
+      tool: fallback.tool,
+      mode: fallback.mode || "",
+      title: "No recent activity",
+      detail: `Start with ${fallback.title.toLowerCase()} from today's plan.`,
+      actionLabel: "Start lesson",
+    };
+  }
+  const presentation = getHistoryRecordPresentation(record);
+  const toolByType = {
+    vocabulary: "vocabulary",
+    review: "review",
+    grammar: "grammar",
+    reader: "reader",
+    exam: "exam",
+    pronunciation: "pronunciation",
+    tone: "pronunciation",
+    map: "map",
+    drill: "drill",
+    placement: "exam",
+  };
+  return {
+    tool: toolByType[record.type] || fallback.tool,
+    mode: record.type === "drill" ? record.mode || "" : record.type === "tone" ? "tone" : "",
+    title: presentation.typeLabel,
+    detail: `${presentation.modeLabel} · ${presentation.resultLabel}`,
+    actionLabel: "Practice again",
+  };
+}
+
+function getDashboardTip(now = Date.now(), focus = {}) {
+  const tips = [
+    "Try shadowing a native speaker and match the tone contour, not just the syllable.",
+    "Recall a word before revealing it. The effort is what strengthens the memory.",
+    "Read one sentence aloud twice: first slowly for accuracy, then once at natural speed.",
+    "When a word keeps slipping, notice its initial, final, and tone as three separate cues.",
+    focus?.detail || "A short daily session is more useful than a long session you cannot repeat.",
+  ];
+  const dayIndex = Math.floor(now / 86400000) % tips.length;
+  return tips[dayIndex];
+}
+
 function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
   const review = getReviewDashboardData(now);
   const plan = buildDashboardPlan(history, review, now, state.studyFocus);
   const completedCount = plan.filter((activity) => activity.completed).length;
   const week = getDashboardWeek(history, now);
+  const weekKeys = new Set(week.map((day) => day.dateKey));
+  const weekRecords = history.filter((record) => weekKeys.has(localDateKey(Date.parse(record.completedAt))));
   const todayKey = localDateKey(now);
   const savedVocabularyKeys = loadSavedVocabularyKeys();
   const savedVocabularyCount = getAllVocabularyReviewItems()
@@ -2757,6 +2989,10 @@ function getDashboardData(now = Date.now(), history = loadHistoryRecords()) {
     week,
     sessionsThisWeek: week.reduce((sum, day) => sum + day.count, 0),
     todaySessionCount: history.filter((record) => localDateKey(Date.parse(record.completedAt)) === todayKey).length,
+    studyMinutesThisWeek: Math.round(weekRecords.reduce((sum, record) => sum + (Number(record.elapsedSeconds) || 0), 0) / 60),
+    reviewSessions: history.filter((record) => record.type === "review").length,
+    latestRecord: history[0] || null,
+    historyCount: history.length,
     pronunciationAccuracy: getDashboardPronunciationAccuracy(history),
     focus: getDashboardFocusInsight(history, review),
     saved: {

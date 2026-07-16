@@ -19,6 +19,7 @@ const APP_SHELL_URLS = [
   "./word-data.js",
   "./manifest.webmanifest",
   "./assets/logo-boba.png",
+  "./assets/panda-mascot.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/icon-maskable-512.png",

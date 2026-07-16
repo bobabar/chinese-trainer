@@ -3185,3 +3185,446 @@ body[data-screen="result"] .tool-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Guided empty, recommendation, and progress states. */
+.history-empty-overview {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 34px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.history-empty-overview-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e8f5ef;
+  color: #147d64;
+}
+
+.history-empty-overview-icon .button-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.history-empty-overview > div {
+  display: grid;
+  gap: 5px;
+}
+
+.history-empty-overview > div > span {
+  color: #147d64;
+  font-size: 10px;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.history-empty-overview h3 {
+  color: var(--ink);
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.history-empty-overview p {
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.history-empty-overview .primary-btn {
+  gap: 8px;
+  padding: 0 16px;
+  border-color: #147d64;
+  background: #147d64;
+  color: #fff;
+}
+
+.history-empty-overview .primary-btn:hover {
+  border-color: #0f684f;
+  background: #0f684f;
+}
+
+.history-empty-overview .primary-btn .button-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.history-empty-plan {
+  padding-top: 26px;
+}
+
+.history-empty-plan-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.history-empty-plan-step {
+  display: grid;
+  grid-template-columns: 26px 34px minmax(0, 1fr);
+  min-height: 70px;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  background: var(--surface);
+}
+
+.history-empty-plan-step.is-next {
+  background: #f1faf6;
+}
+
+.history-empty-plan-step > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf2ef;
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.history-empty-plan-step > i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #147d64;
+}
+
+.history-empty-plan-step .button-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.history-empty-plan-step > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.history-empty-plan-step strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-empty-plan-step small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.history-type-filters {
+  display: flex;
+  gap: 5px;
+  margin: 14px 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.history-type-filters button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.history-type-filters button.active {
+  border-color: #b9dcd0;
+  background: #edf8f3;
+  color: #176b57;
+}
+
+.grammar-home > .tool-plan-context {
+  margin: 0 30px;
+  padding-top: 18px;
+}
+
+.grammar-recommendation {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  width: calc(100% - 60px);
+  min-height: 66px;
+  align-items: center;
+  gap: 12px;
+  margin: 0 30px;
+  padding: 11px 13px;
+  border: 1px solid #c8dfd6;
+  border-radius: 8px;
+  background: #f3faf7;
+  color: var(--ink);
+  text-align: left;
+}
+
+.grammar-recommendation:hover {
+  border-color: #83bba8;
+  background: #eef8f4;
+}
+
+.grammar-recommendation-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: #dff0e9;
+  color: #147d64;
+}
+
+.grammar-recommendation-icon .button-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.grammar-recommendation > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 14px;
+}
+
+.grammar-recommendation small {
+  grid-column: 1 / -1;
+  color: #147d64;
+  font-size: 9px;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.grammar-recommendation strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grammar-recommendation .chinese-text {
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.grammar-recommendation > b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #176b57;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.grammar-recommendation > b .button-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.reader-level-progress {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.55fr) minmax(180px, 1fr) auto;
+  min-height: 58px;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.reader-level-progress > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.reader-level-progress > div:first-child span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.reader-level-progress > div:first-child strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.reader-level-progress .progress-track {
+  height: 7px;
+}
+
+.reader-level-progress .progress-track > div {
+  height: 100%;
+  border-radius: inherit;
+  background: #147d64;
+}
+
+.reader-level-progress > button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 5px;
+  border: 0;
+  background: transparent;
+  color: #176b57;
+  font-size: 10px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.reader-level-progress > button .button-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.hsk-exam-level-card.is-target {
+  border-color: #a8d2c3;
+  box-shadow: inset 0 3px 0 #147d64;
+}
+
+.hsk-exam-target-badge {
+  margin-left: 5px;
+  color: #147d64;
+  font-size: 9px;
+  font-weight: 840;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .history-empty-overview {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 24px 0;
+  }
+
+  .history-empty-overview-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .history-empty-overview h3 {
+    font-size: 19px;
+  }
+
+  .history-empty-overview .primary-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .history-empty-plan {
+    padding-top: 20px;
+  }
+
+  .history-empty-plan-list {
+    grid-template-columns: 1fr;
+  }
+
+  .history-empty-plan-step {
+    min-height: 58px;
+  }
+
+  .grammar-home > .tool-plan-context {
+    margin: 0 18px;
+    padding-top: 14px;
+  }
+
+  .grammar-recommendation {
+    grid-template-columns: 36px minmax(0, 1fr);
+    width: calc(100% - 36px);
+    margin: 0 18px;
+    padding: 10px;
+  }
+
+  .grammar-recommendation-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .grammar-recommendation > span:nth-child(2) {
+    grid-template-columns: 1fr;
+  }
+
+  .grammar-recommendation > b {
+    grid-column: 2;
+  }
+
+  .reader-level-progress {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px 12px;
+    padding: 10px 2px;
+  }
+
+  .reader-level-progress .progress-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .reader-level-progress > button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .hsk-exam-level-grid {
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .hsk-exam-level-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .hsk-exam-level-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  .hsk-exam-level-copy h3 {
+    font-size: 18px;
+  }
+
+  .hsk-exam-level-copy p {
+    font-size: 11px;
+  }
+
+  .hsk-exam-level-meta > div {
+    padding: 9px 5px 9px 0;
+  }
+
+  .hsk-exam-level-meta > div + div {
+    padding-left: 8px;
+  }
+
+  .hsk-exam-level-history {
+    min-height: 24px;
+  }
+
+  .hsk-exam-level-history > small {
+    display: none;
+  }
+
+  .hsk-exam-level-action {
+    min-height: 38px;
+  }
+}

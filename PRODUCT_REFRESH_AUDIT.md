@@ -37,3 +37,9 @@ This audit is based on desktop (1440 x 900) and mobile (390 x 844) captures of e
 ## Verification Standard
 
 Each refresh batch must be checked at desktop and mobile widths, with no horizontal overflow, no console errors, no hidden primary action, and a working path from Today to activity to result to the next plan step. Changes are pushed only after local interaction checks pass.
+
+## Refresh Batches
+
+1. **Shared learning flow:** added path context to tool landing screens, removed setup controls from active/results states, unified command colors, removed duplicate desktop headings, and added a common next-plan action to results.
+2. **Core setup surfaces:** made the Vocabulary start action visible in the first mobile viewport, collapsed its word preview, replaced static Pronunciation metrics, clarified the Sentence Drill flow, and replaced Daily Review's zero metrics with baseline guidance.
+3. **Guided catalog and record states:** replaced empty History analytics with the current plan, added History session filters, surfaced Grammar's recommended pattern, added Reader level progress, and marked/compacted the learner's target mock exam.

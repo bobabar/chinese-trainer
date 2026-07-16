@@ -512,6 +512,7 @@ const state = {
   mapShowPinyinNames: false,
   pronunciationView: "speaking",
   pronunciationShowPinyin: true,
+  historyTypeFilter: "all",
   selectedLevels: new Set(["beginner"]),
   voiceSpeed: "normal",
   voices: [],
@@ -6485,6 +6486,14 @@ function renderGrammarHome() {
   const levelStrong = lessons.filter((lesson) => lesson.progress.status === "Strong").length;
   const levelStarted = lessons.filter((lesson) => lesson.progress.attempts).length;
   const accuracyLabel = progress.accuracy === null ? "Not started" : `${Math.round(progress.accuracy * 100)}%`;
+  const recommendedLesson = lessons.find((lesson) => lesson.progress.status === "Learning") ||
+    lessons.find((lesson) => lesson.progress.status === "Not started") ||
+    lessons[0];
+  const recommendationLabel = recommendedLesson?.progress.status === "Learning"
+    ? "Continue learning"
+    : levelStrong === lessons.length
+      ? "Maintain mastery"
+      : "Recommended first pattern";
 
   app.innerHTML = `
     <section class="workspace-panel grammar-home">
@@ -6508,11 +6517,25 @@ function renderGrammarHome() {
         `).join("")}
       </div>
 
-      <div class="grammar-metric-strip" aria-label="Grammar progress">
-        <div><strong>${levelStarted}/${lessons.length}</strong><span>Patterns practiced</span></div>
-        <div><strong>${levelStrong}</strong><span>Strong patterns</span></div>
-        <div><strong>${accuracyLabel}</strong><span>Overall accuracy</span></div>
-      </div>
+      ${recommendedLesson ? `
+        <button class="grammar-recommendation" type="button" data-grammar-lesson="${escapeHtml(recommendedLesson.id)}">
+          <span class="grammar-recommendation-icon" aria-hidden="true">${dashboardFlagIconMarkup()}</span>
+          <span>
+            <small>${escapeHtml(recommendationLabel)}</small>
+            <strong>${escapeHtml(recommendedLesson.title)}</strong>
+            <span class="chinese-text" lang="zh-CN">${escapeHtml(recommendedLesson.pattern)}</span>
+          </span>
+          <b>${recommendedLesson.progress.status === "Learning" ? "Continue" : "Open lesson"} ${dashboardArrowIconMarkup()}</b>
+        </button>
+      ` : ""}
+
+      ${levelStarted ? `
+        <div class="grammar-metric-strip" aria-label="Grammar progress">
+          <div><strong>${levelStarted}/${lessons.length}</strong><span>Patterns practiced</span></div>
+          <div><strong>${levelStrong}</strong><span>Strong patterns</span></div>
+          <div><strong>${accuracyLabel}</strong><span>Overall accuracy</span></div>
+        </div>
+      ` : ""}
 
       <div class="grammar-list-heading">
         <div>
@@ -7113,6 +7136,10 @@ function renderReaderHome() {
   const premium = hasPremiumAccess();
   const levelReaders = GRADED_READERS.filter((reader) => reader.level === state.readerLevel);
   const levelLocked = state.readerLevel > 1 && !premium;
+  const levelCompletions = new Map(levelReaders.map((reader) => [reader.id, getReaderCompletion(reader.id, history)]));
+  const completedReaders = levelReaders.filter((reader) => levelCompletions.get(reader.id)?.attempts).length;
+  const nextReader = levelReaders.find((reader) => !levelCompletions.get(reader.id)?.attempts) || levelReaders[0];
+  const readerProgressPercent = levelReaders.length ? Math.round((completedReaders / levelReaders.length) * 100) : 0;
   const tabs = [1, 2, 3].map((level) => {
     const locked = level > 1 && !premium;
     return `<button type="button" data-reader-level="${level}" class="${state.readerLevel === level ? "active" : ""}" aria-pressed="${state.readerLevel === level}">
@@ -7121,7 +7148,7 @@ function renderReaderHome() {
   }).join("");
   const cards = levelReaders.map((reader) => {
     const locked = isPremiumReader(reader) && !premium;
-    const completion = getReaderCompletion(reader.id, history);
+    const completion = levelCompletions.get(reader.id) || { attempts: 0, best: 0 };
     return `
       <article class="reader-card ${locked ? "is-locked" : ""}">
         <div class="reader-card-level" aria-hidden="true">${reader.level}<span>HSK</span></div>
@@ -7162,6 +7189,20 @@ function renderReaderHome() {
         </div>
       </header>
       <div class="reader-level-tabs" role="group" aria-label="Reader level">${tabs}</div>
+      ${!levelLocked && nextReader ? `
+        <div class="reader-level-progress">
+          <div>
+            <span>HSK ${state.readerLevel} reading path</span>
+            <strong>${completedReaders}/${levelReaders.length} stories checked</strong>
+          </div>
+          <div class="progress-track" role="progressbar" aria-label="HSK ${state.readerLevel} reader progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${readerProgressPercent}">
+            <div style="width:${readerProgressPercent}%"></div>
+          </div>
+          <button type="button" data-reader-id="${escapeHtml(nextReader.id)}">
+            ${completedReaders === levelReaders.length ? "Revisit" : "Next"}: <span lang="zh-CN">${escapeHtml(nextReader.title)}</span> ${dashboardArrowIconMarkup()}
+          </button>
+        </div>
+      ` : ""}
       ${levelLocked ? `
         <div class="reader-level-notice">
           <div><strong>Continue with HSK ${state.readerLevel}</strong><span>Unlock every story at this level with Premium.</span></div>
@@ -7549,11 +7590,11 @@ function renderHskExamHome() {
     const attempt = getHskExamAttemptSummary(level, history);
     const locked = !canAccessHskExamLevel(level, { prompt: false });
     return `
-      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${locked ? "is-locked" : ""}">
+      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${locked ? "is-locked" : ""} ${Number(state.studyTargetLevel) === level ? "is-target" : ""}">
         <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
         <div class="hsk-exam-level-copy">
           <span>HSK 3.0 ${locked ? "· Premium" : level === 1 ? "· Free" : ""}</span>
-          <h3>New HSK ${level}</h3>
+          <h3>New HSK ${level} ${Number(state.studyTargetLevel) === level ? '<small class="hsk-exam-target-badge">Your plan</small>' : ""}</h3>
           <p>${sections.map((item) => item.label).join(" · ")}</p>
         </div>
         <dl class="hsk-exam-level-meta">
@@ -9436,10 +9477,135 @@ function buildHistorySessionMarkup(record) {
   `;
 }
 
+function getHistoryTypeFilterLabel(type) {
+  const labels = {
+    all: "All",
+    vocabulary: "Quizzes",
+    review: "Review",
+    grammar: "Grammar",
+    reader: "Reading",
+    exam: "Exams",
+    pronunciation: "Speaking",
+    tone: "Tones",
+    map: "Geography",
+    drill: "Sentences",
+    placement: "Level checks",
+  };
+  return labels[type] || "Practice";
+}
+
+function buildHistoryDataActionsMarkup(canClear) {
+  return `
+    <div class="history-data-action-wrap">
+      <div class="result-actions history-data-actions" aria-label="Learning data">
+        <button class="ghost-btn icon-label-btn" type="button" id="exportLearningData">
+          ${downloadIconMarkup()}
+          <span>Export</span>
+        </button>
+        <button class="ghost-btn icon-label-btn" type="button" id="restoreLearningData">
+          ${uploadIconMarkup()}
+          <span>Restore</span>
+        </button>
+        <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" aria-label="Clear history" title="Clear history" ${canClear ? "" : "disabled"}>
+          ${trashIconMarkup()}
+          <span>Clear</span>
+        </button>
+        <input id="learningDataFile" type="file" accept="application/json,.json" tabindex="-1" hidden>
+      </div>
+      <p class="history-data-status" id="learningDataStatus" role="status" aria-live="polite" hidden></p>
+    </div>
+  `;
+}
+
+function bindHistoryDataControls() {
+  document.querySelector("#exportLearningData")?.addEventListener("click", exportLearningData);
+  document.querySelector("#restoreLearningData")?.addEventListener("click", () => {
+    document.querySelector("#learningDataFile")?.click();
+  });
+  document.querySelector("#learningDataFile")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) {
+      return;
+    }
+
+    try {
+      await restoreLearningDataFile(file);
+    } catch (error) {
+      setLearningDataStatus(error instanceof Error ? error.message : "This backup could not be restored.", true);
+    }
+  });
+  document.querySelector("#clearHistory")?.addEventListener("click", () => {
+    if (!window.confirm("Clear saved practice history and vocabulary review progress from this browser?")) {
+      return;
+    }
+    clearHistoryRecords();
+    render();
+  });
+}
+
+function renderEmptyHistoryHome() {
+  const dashboard = getDashboardData();
+  const nextActivity = dashboard.nextActivity;
+  app.innerHTML = `
+    <section class="workspace-panel history-panel history-empty-home">
+      <div class="results-header progress-header">
+        <div>
+          <p class="progress-kicker">Learning record</p>
+          <h2>Learning progress</h2>
+          <p>Your record begins after the first completed session.</p>
+        </div>
+        ${buildHistoryDataActionsMarkup(false)}
+      </div>
+
+      <section class="history-empty-overview" aria-labelledby="historyEmptyHeading">
+        <span class="history-empty-overview-icon" aria-hidden="true">${dashboardActivityIconMarkup(nextActivity.tool)}</span>
+        <div>
+          <span>Start your learning record</span>
+          <h3 id="historyEmptyHeading">Complete ${escapeHtml(nextActivity.title.toLowerCase())}</h3>
+          <p>${escapeHtml(nextActivity.detail)} Your result will update Today and establish the first progress trend.</p>
+        </div>
+        <button class="primary-btn" type="button" id="startHistoryFirstActivity">
+          Start next activity ${dashboardArrowIconMarkup()}
+        </button>
+      </section>
+
+      <section class="history-empty-plan" aria-labelledby="historyEmptyPlanHeading">
+        <div class="progress-section-heading">
+          <div>
+            <h3 id="historyEmptyPlanHeading">Today&rsquo;s plan</h3>
+            <p>Three short activities build the first balanced snapshot.</p>
+          </div>
+          <button class="tool-plan-context-action" type="button" id="viewTodayFromEmptyHistory">View Today ${dashboardArrowIconMarkup()}</button>
+        </div>
+        <div class="history-empty-plan-list">
+          ${dashboard.plan.map((activity, index) => `
+            <div class="history-empty-plan-step ${activity.id === nextActivity.id ? "is-next" : ""}">
+              <span>${index + 1}</span>
+              <i aria-hidden="true">${dashboardActivityIconMarkup(activity.tool)}</i>
+              <div><strong>${escapeHtml(activity.title)}</strong><small>${getDashboardActivityMinutes(activity)} min</small></div>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    </section>
+  `;
+  bindHistoryDataControls();
+  document.querySelector("#startHistoryFirstActivity")?.addEventListener("click", () => {
+    launchDashboardActivity(nextActivity.tool, nextActivity.mode || "");
+  });
+  document.querySelector("#viewTodayFromEmptyHistory")?.addEventListener("click", openTodayDashboard);
+}
+
 function renderHistoryHome() {
   const history = loadHistoryRecords();
   const historyById = new Map(history.map((record) => [record.id, record]));
   const review = getReviewDashboardData();
+  if (!history.length && !review.totalTracked) {
+    renderEmptyHistoryHome();
+    return;
+  }
   const progress = getHistoryProgressData(history, Date.now(), review);
   const savedKeys = loadSavedVocabularyKeys();
   const mistakeByKey = new Map(progress.vocabularyMistakes.map((item) => [item.key, item]));
@@ -9454,13 +9620,19 @@ function renderHistoryHome() {
         </tr>
       `).join("")
     : `<tr><td colspan="4">No completed quiz high scores yet.</td></tr>`;
-  const recentSessions = history.length
-    ? history.slice(0, PROGRESS_RECENT_SESSION_LIMIT).map(buildHistorySessionMarkup).join("")
+  const availableHistoryTypes = [...new Set(history.map((record) => record.type))];
+  if (state.historyTypeFilter !== "all" && !availableHistoryTypes.includes(state.historyTypeFilter)) {
+    state.historyTypeFilter = "all";
+  }
+  const filteredHistory = state.historyTypeFilter === "all"
+    ? history
+    : history.filter((record) => record.type === state.historyTypeFilter);
+  const recentSessions = filteredHistory.length
+    ? filteredHistory.slice(0, PROGRESS_RECENT_SESSION_LIMIT).map(buildHistorySessionMarkup).join("")
     : `
       <div class="history-empty-state">
-        <strong>No saved sessions yet</strong>
-        <p>Your completed practice will appear here.</p>
-        <button class="primary-btn" type="button" data-progress-tool="review">Start daily review</button>
+        <strong>No ${escapeHtml(getHistoryTypeFilterLabel(state.historyTypeFilter).toLowerCase())} sessions yet</strong>
+        <p>Choose another activity type or complete a new session.</p>
       </div>
     `;
 
@@ -9472,24 +9644,7 @@ function renderHistoryHome() {
           <h2>Learning progress</h2>
           <p>${history.length ? "Patterns from your saved practice and review schedule." : "Complete a session to begin your learning record."}</p>
         </div>
-        <div class="history-data-action-wrap">
-          <div class="result-actions history-data-actions" aria-label="Learning data">
-            <button class="ghost-btn icon-label-btn" type="button" id="exportLearningData">
-              ${downloadIconMarkup()}
-              <span>Export</span>
-            </button>
-            <button class="ghost-btn icon-label-btn" type="button" id="restoreLearningData">
-              ${uploadIconMarkup()}
-              <span>Restore</span>
-            </button>
-            <button class="ghost-btn icon-label-btn" type="button" id="clearHistory" aria-label="Clear history" title="Clear history" ${history.length || review.totalTracked ? "" : "disabled"}>
-              ${trashIconMarkup()}
-              <span>Clear</span>
-            </button>
-            <input id="learningDataFile" type="file" accept="application/json,.json" tabindex="-1" hidden>
-          </div>
-          <p class="history-data-status" id="learningDataStatus" role="status" aria-live="polite" hidden></p>
-        </div>
+        ${buildHistoryDataActionsMarkup(history.length || review.totalTracked)}
       </div>
 
       <div class="progress-metric-strip">
@@ -9604,38 +9759,28 @@ function renderHistoryHome() {
             <h3 id="recentSessionsHeading">Recent sessions</h3>
             <p>Open a session to review its mistakes</p>
           </div>
-          <span>Most recent first</span>
+          <span>${filteredHistory.length} shown</span>
         </div>
+        ${availableHistoryTypes.length > 1 ? `
+          <div class="history-type-filters" role="group" aria-label="Filter recent sessions">
+            ${["all", ...availableHistoryTypes].map((type) => `
+              <button type="button" data-history-filter="${escapeHtml(type)}" aria-pressed="${state.historyTypeFilter === type}" class="${state.historyTypeFilter === type ? "active" : ""}">
+                ${escapeHtml(getHistoryTypeFilterLabel(type))}
+              </button>
+            `).join("")}
+          </div>
+        ` : ""}
         <div class="history-session-list">${recentSessions}</div>
       </section>
     </section>
   `;
 
-  document.querySelector("#exportLearningData").addEventListener("click", exportLearningData);
-  document.querySelector("#restoreLearningData").addEventListener("click", () => {
-    document.querySelector("#learningDataFile")?.click();
-  });
-  document.querySelector("#learningDataFile").addEventListener("change", async (event) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) {
-      return;
-    }
-
-    try {
-      await restoreLearningDataFile(file);
-    } catch (error) {
-      setLearningDataStatus(error instanceof Error ? error.message : "This backup could not be restored.", true);
-    }
-  });
-  document.querySelector("#clearHistory").addEventListener("click", () => {
-    if (!window.confirm("Clear saved practice history and vocabulary review progress from this browser?")) {
-      return;
-    }
-
-    clearHistoryRecords();
-    render();
+  bindHistoryDataControls();
+  document.querySelectorAll("[data-history-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.historyTypeFilter = button.dataset.historyFilter || "all";
+      render();
+    });
   });
 
   document.querySelectorAll("[data-progress-tool]").forEach((button) => {

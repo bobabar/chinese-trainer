@@ -17,7 +17,7 @@ This audit is based on desktop (1440 x 900) and mobile (390 x 844) captures of e
 | Results | Every tool ends differently and several flows only offer retry/back actions. | Add a common learning-record update with the next activity from Today. | Implemented in shared shell |
 | Mobile density | Stacked mode and Options panels consume too much of the first viewport. | Use a compact one-row control bar where both controls are present. | Implemented in shared shell |
 | History | Browser-local records are useful but capped and presented as a dense report before the learner has meaningful data. | Improve empty/early states, filters, and migration clarity. | Implemented: guided empty state, filters, and browser-storage backup guidance |
-| Accessibility | Visible focus and semantic controls are generally present, but active/result additions need keyboard and reduced-motion verification. | Include keyboard, narrow viewport, and reduced-motion checks in every batch. | In verification |
+| Accessibility | Visible focus and semantic controls are generally present, but active/result additions need keyboard and reduced-motion verification. | Include keyboard, narrow viewport, and reduced-motion checks in every batch. | Verified in production: search shortcuts, numbered answers, Enter progression, and reduced-motion behavior |
 
 ## Tool Findings
 

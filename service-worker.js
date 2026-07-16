@@ -18,7 +18,7 @@ const APP_SHELL_URLS = [
   "./sentence-data.js",
   "./word-data.js",
   "./manifest.webmanifest",
-  "./assets/icon.svg",
+  "./assets/logo-boba.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/icon-maskable-512.png",

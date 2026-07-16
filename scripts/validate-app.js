@@ -505,6 +505,7 @@ assertPngDimensions(path.join(ROOT, "assets/icon-192.png"), 192, 192, "the 192px
 assertPngDimensions(path.join(ROOT, "assets/icon-512.png"), 512, 512, "the 512px app icon should have the declared dimensions");
 assertPngDimensions(path.join(ROOT, "assets/icon-maskable-512.png"), 512, 512, "the maskable app icon should have the declared dimensions");
 assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "the iOS app icon should use the standard touch-icon dimensions");
+assertPngDimensions(path.join(ROOT, "assets/logo-boba.png"), 900, 900, "the primary boba logo should retain its high-resolution square master");
 [
   "index.html",
   "styles.css",
@@ -520,7 +521,7 @@ assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "t
   "sentence-data.js",
   "word-data.js",
   "manifest.webmanifest",
-  "assets/icon.svg",
+  "assets/logo-boba.png",
   "assets/icon-192.png",
   "assets/icon-512.png",
   "assets/icon-maskable-512.png",

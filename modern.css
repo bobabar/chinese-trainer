@@ -1838,6 +1838,7 @@ body[data-tool="dashboard"] .workspace {
   .topbar {
     grid-template-rows: auto minmax(0, 1fr) auto auto;
     gap: 15px;
+    overflow: hidden;
     padding: 24px 20px 0;
   }
 
@@ -1913,7 +1914,17 @@ body[data-tool="dashboard"] .workspace {
     color: var(--ink);
   }
 
+  .tool-nav {
+    min-height: 0;
+    height: 100%;
+    align-self: stretch;
+    isolation: isolate;
+  }
+
   .tool-nav-scroll {
+    min-height: 0;
+    height: auto;
+    max-height: 100%;
     gap: 16px;
     padding-bottom: 5px;
   }
@@ -1934,6 +1945,8 @@ body[data-tool="dashboard"] .workspace {
   }
 
   .sidebar-profile {
+    position: relative;
+    z-index: 2;
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 18px;
     min-height: 62px;
@@ -1990,6 +2003,8 @@ body[data-tool="dashboard"] .workspace {
   }
 
   .sidebar-footer {
+    position: relative;
+    z-index: 2;
     display: grid;
     grid-template-columns: 1fr 1fr 42px;
     min-height: 56px;

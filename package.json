@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "An adaptive Mandarin learning app for vocabulary, HSK mock exams, pronunciation, sentences, and geography.",
-  "homepage": "https://brownsugarboba.com/",
+  "homepage": "https://mandarintrainer.com/",
   "scripts": {
     "build:vocab-data": "node scripts/build-vocab-data.js",
     "build:word-data": "node scripts/build-word-data.js",

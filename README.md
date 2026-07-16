@@ -4,7 +4,7 @@ A browser-based Chinese learning app with adaptive vocabulary review, contextual
 
 ## Live Site
 
-https://brownsugarboba.com/
+https://mandarintrainer.com/
 
 ## Run
 

@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
       form: {
         customer: customerId,
         configuration: configurationId,
-        return_url: "https://brownsugarboba.com/",
+        return_url: "https://mandarintrainer.com/",
       },
     });
     const url = String(session.url || "");

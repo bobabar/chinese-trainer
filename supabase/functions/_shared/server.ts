@@ -3,8 +3,8 @@ const PUBLIC_API_KEY = "sb_publishable_BuNWavxoX6GlUMz_WYX9KA_j6MRSDbN";
 const STRIPE_API_VERSION = "2026-02-25.clover";
 const PREMIUM_STATUSES = new Set(["active", "trialing", "past_due"]);
 const ALLOWED_ORIGINS = new Set([
-  "https://brownsugarboba.com",
-  "https://www.brownsugarboba.com",
+  "https://mandarintrainer.com",
+  "https://www.mandarintrainer.com",
   "http://127.0.0.1:4173",
   "http://localhost:4173",
 ]);
@@ -25,7 +25,7 @@ export class HttpError extends Error {
 
 export function corsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://brownsugarboba.com";
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://mandarintrainer.com";
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",

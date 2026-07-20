@@ -7,7 +7,7 @@
   const state = {
     ready: false,
     available: false,
-    loading: true,
+    loading: false,
     user: null,
     session: null,
     subscription: null,
@@ -19,8 +19,11 @@
   let client = null;
   let accountButton = null;
   let dialog = null;
+  let shellBound = false;
+  let initPromise = null;
 
   const api = {
+    bind,
     init,
     open,
     close,
@@ -32,13 +35,62 @@
   };
   window.ChineseTrainerAccount = api;
 
-  async function init() {
-    if (state.ready) return;
-    state.ready = true;
+  function bind() {
+    if (shellBound) return;
+    shellBound = true;
     accountButton = document.querySelector("#accountTrigger");
     dialog = document.querySelector("#accountDialog");
     bindShell();
+    updateAccountButton();
+    if (shouldRestoreAccountOnLoad()) {
+      void init();
+    }
+  }
 
+  function shouldRestoreAccountOnLoad() {
+    const projectRef = (() => {
+      try {
+        return new URL(config.supabaseUrl).hostname.split(".")[0] || "";
+      } catch {
+        return "";
+      }
+    })();
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("billing") || params.get("account") === "recovery") {
+      return true;
+    }
+    if (!projectRef) {
+      return false;
+    }
+    try {
+      return Boolean(localStorage.getItem(`sb-${projectRef}-auth-token`));
+    } catch {
+      return false;
+    }
+  }
+
+  function init() {
+    bind();
+    if (initPromise) return initPromise;
+    state.ready = true;
+    state.loading = true;
+    updateAccountButton();
+    initPromise = initializeAccount();
+    return initPromise;
+  }
+
+  async function initializeAccount() {
+    try {
+      await loadSupabaseLibrary();
+    } catch {
+      state.loading = false;
+      state.available = false;
+      state.message = "Accounts are temporarily unavailable.";
+      state.messageType = "error";
+      updateAccountButton();
+      renderDialogIfOpen();
+      return;
+    }
     if (!window.supabase?.createClient || !config.supabaseUrl || !config.supabasePublishableKey) {
       state.loading = false;
       state.available = false;
@@ -83,6 +135,27 @@
     notify();
   }
 
+  function loadSupabaseLibrary() {
+    if (window.supabase?.createClient) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-supabase-client]');
+      if (existing) {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "./assets/vendor/supabase-2.110.5.js";
+      script.async = true;
+      script.dataset.supabaseClient = "true";
+      script.addEventListener("load", resolve, { once: true });
+      script.addEventListener("error", reject, { once: true });
+      document.head.append(script);
+    });
+  }
+
   function bindShell() {
     accountButton?.addEventListener("click", () => open(state.user ? "account" : "signin"));
     dialog?.addEventListener("click", (event) => {
@@ -116,11 +189,13 @@
   }
 
   function open(view = "account", message = "") {
+    const initialization = init();
     state.view = view === "account" && !state.user ? "signin" : view;
     state.message = message;
     state.messageType = message ? "info" : "";
     renderDialog();
     if (dialog && !dialog.open) dialog.showModal();
+    void initialization.then(() => renderDialogIfOpen());
   }
 
   function close() {

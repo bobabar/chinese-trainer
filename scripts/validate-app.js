@@ -10,6 +10,7 @@ const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
 const examData = fs.readFileSync(path.join(ROOT, "exam-data.js"), "utf8");
 const readerData = fs.readFileSync(path.join(ROOT, "reader-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
+const accountSource = fs.readFileSync(path.join(ROOT, "account.js"), "utf8");
 const appSource = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 const stylesSource = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
 const serviceWorkerSource = fs.readFileSync(path.join(ROOT, "service-worker.js"), "utf8");
@@ -492,6 +493,7 @@ assert(
   "sentence drill modes should show Reading, Writing, then Listening",
 );
 assert(indexSource.includes('rel="manifest" href="./manifest.webmanifest"'), "the app shell should expose its install manifest");
+assert(indexSource.includes('<a class="skip-link" href="#app">Skip to main content</a>'), "the app shell should make the main learning task the first keyboard destination");
 assert(indexSource.includes('rel="icon" href="./assets/logo-mandarin.svg" type="image/svg+xml"'), "the app shell should use the Mandarin tone mark");
 assert(indexSource.includes('rel="apple-touch-icon" href="./assets/apple-touch-icon.png"'), "iOS installs should use the Mandarin Trainer icon");
 assert(indexSource.includes('id="pwaAccess"') && indexSource.includes('id="installApp"') && indexSource.includes('id="refreshApp"'), "Options should expose install and update controls when the browser supports them");
@@ -508,6 +510,7 @@ assertPngDimensions(path.join(ROOT, "assets/icon-maskable-512.png"), 512, 512, "
 assertPngDimensions(path.join(ROOT, "assets/apple-touch-icon.png"), 180, 180, "the iOS app icon should use the standard touch-icon dimensions");
 assertPngDimensions(path.join(ROOT, "assets/logo-mandarin.png"), 900, 900, "the Mandarin tone mark should retain its high-resolution square master");
 assertPngDimensions(path.join(ROOT, "assets/panda-mascot.png"), 800, 800, "the dashboard panda mascot should retain its square source dimensions");
+assert(fs.statSync(path.join(ROOT, "assets/panda-mascot-192.webp")).size < 20000, "the rendered dashboard mascot should use a compact optimized asset");
 [
   "index.html",
   "styles.css",
@@ -519,18 +522,16 @@ assertPngDimensions(path.join(ROOT, "assets/panda-mascot.png"), 800, 800, "the d
   "grammar-data.js",
   "exam-data.js",
   "reader-data.js",
-  "china-map-data.js",
   "sentence-data.js",
   "word-data.js",
   "manifest.webmanifest",
   "assets/logo-mandarin.svg",
   "assets/logo-mandarin.png",
-  "assets/panda-mascot.png",
+  "assets/panda-mascot-192.webp",
   "assets/icon-192.png",
   "assets/icon-512.png",
   "assets/icon-maskable-512.png",
   "assets/apple-touch-icon.png",
-  "assets/vendor/supabase-2.110.5.js",
   "assets/vendor/SUPABASE-LICENSE.txt",
   "assets/exam/hsk-scenes-1.webp",
   "assets/exam/hsk-scenes-2.webp",
@@ -538,12 +539,16 @@ assertPngDimensions(path.join(ROOT, "assets/panda-mascot.png"), 800, 800, "the d
   assert(serviceWorkerSource.includes(`"./${asset}"`), `${asset} should be available in the offline app shell`);
 });
 assert(serviceWorkerSource.includes("__BUILD_HASH__") && serviceWorkerSource.includes("APP_CACHE_PREFIX"), "offline caches should be rotated by a build-specific version");
+assert(!serviceWorkerSource.includes('"./china-map-data.js"') && !serviceWorkerSource.includes('"./assets/vendor/supabase-2.110.5.js"'), "optional Geography and account payloads should not block offline-shell installation");
+assert(appSource.includes('script.src = "./china-map-data.js"') && accountSource.includes('script.src = "./assets/vendor/supabase-2.110.5.js"'), "optional Geography and account payloads should load on demand");
 assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWorkerSource.includes("handleNavigationRequest"), "offline navigation should use a network-first app-shell fallback");
 assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
 assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
 assert(buildSiteSource.includes('"exam-data.js"'), "production builds should publish and cache-bust the HSK exam corpus");
 assert(buildSiteSource.includes('"reader-data.js"') && buildSiteSource.includes('"account.js"'), "production builds should publish account and graded-reader assets");
-assert(indexSource.indexOf("supabase-2.110.5.js") < indexSource.indexOf("account.js") && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "Supabase and account state should load before the application");
+assert(!indexSource.includes('src="./assets/vendor/supabase-2.110.5.js"') && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "account state should bind before the application while Supabase loads only on demand");
+assert(!appSource.includes("study-plan-mobile-action"), "first-run setup should render only one primary completion action");
+assert(appSource.includes("Listen to the Chinese word and choose its English meaning."), "Audio Quiz setup should describe its five-choice interaction");
 assert(indexSource.includes('id="accountTrigger"') && indexSource.includes('id="accountDialog"'), "the app shell should expose account access and its secure dialog");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-1.webp")).size > 10000, "the first HSK picture sheet should be a real optimized image asset");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-2.webp")).size > 10000, "the second HSK picture sheet should be a real optimized image asset");
@@ -1621,12 +1626,12 @@ state.session = {
 };
 const cityWrongFeedbackMarkup = buildMapQuizFeedbackMarkup(cityWrongAssessment);
 state.session = null;
-assert(indexSource.includes("china-map-data.js"), "map quiz should load committed China map data before app startup");
+assert(!indexSource.includes('src="./china-map-data.js"') && appSource.includes('script.src = "./china-map-data.js"'), "map quiz should load committed China map data only when Geography opens");
 assert(mapMarkup.includes("china-map-canvas"), "map quiz should render a local offline China map canvas");
 assert(mapMarkup.includes("china-province-shape"), "map quiz should render local province boundary shapes");
 assert(mapMarkup.includes("china-province-outline"), "province map mode should render a top outline layer for complete highlighted borders");
 assert(mapMarkup.includes("china-small-region-selector"), "province map mode should render enlarged selectors for very small regions");
-assert(mapMarkup.includes("Small provincial-level region selector"), "small region selectors should be available to keyboard and assistive tech users");
+assert(mapMarkup.includes("enlarged selector"), "small region selectors should be available to keyboard and assistive tech users");
 assert(mapMarkup.includes("map-zoom-controls"), "map quiz should render zoom controls");
 assert(mapMarkup.includes("data-map-transform-layer"), "map quiz should render a transform layer for zooming and panning");
 assert(appSource.includes("bindChinaMapZoomControls"), "map quiz should bind zoom and pan controls");

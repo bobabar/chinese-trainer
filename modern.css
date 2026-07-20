@@ -3,7 +3,7 @@
   --surface: #ffffff;
   --surface-strong: #f8faf9;
   --ink: #142a25;
-  --muted: #6d7b76;
+  --muted: #5f6f69;
   --muted-strong: #42554e;
   --line: #dfe7e3;
   --line-strong: #c8d4ce;
@@ -93,7 +93,7 @@ a {
 
 .tool-nav-heading {
   margin: 0;
-  color: #82908b;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.2;
   font-weight: 820;
@@ -313,7 +313,7 @@ body[data-tool="dashboard"] .workspace {
 }
 
 .dashboard-plan-status {
-  color: #82908b;
+  color: var(--muted);
 }
 
 .dashboard-plan-button {
@@ -848,7 +848,7 @@ body[data-tool="dashboard"] .workspace {
     border: 0;
     border-radius: 7px;
     background: transparent;
-    color: #71807b;
+    color: #52645e;
     box-shadow: none;
     font-size: 10px;
     line-height: 1.1;
@@ -868,7 +868,7 @@ body[data-tool="dashboard"] .workspace {
   .mobile-bottom-nav button[aria-current="page"],
   .mobile-bottom-nav #mobileMoreButton.active {
     background: #eef8f4;
-    color: #176b57;
+    color: #0f5f4c;
   }
 
   .tool-controls {
@@ -1333,7 +1333,7 @@ body[data-tool="dashboard"] .workspace {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #6c7c76;
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -1618,11 +1618,11 @@ body[data-tool="dashboard"] .workspace {
 }
 
 .dashboard-mastery-categories [data-category="grammar"] {
-  color: #dd6a55;
+  color: #b44e3e;
 }
 
 .dashboard-mastery-categories [data-category="benchmarks"] {
-  color: #d49624;
+  color: #946000;
 }
 
 .dashboard-mastery-footer {
@@ -2659,11 +2659,11 @@ body[data-tool="pronunciation"] {
 }
 
 body[data-tool="map"] {
-  --experience-accent: #0d9488;
+  --experience-accent: #0f766e;
 }
 
 body[data-tool="drill"] {
-  --experience-accent: #cf684f;
+  --experience-accent: #a84734;
 }
 
 .tool-controls::before {
@@ -3606,7 +3606,7 @@ body[data-screen="result"] .tool-controls {
   }
 
   body:has(.study-plan-setup) .app-shell {
-    padding-bottom: 78px;
+    padding-bottom: 16px;
   }
 
   body:has(.study-plan-setup) .study-plan-setup {
@@ -3615,16 +3615,7 @@ body[data-screen="result"] .tool-controls {
   }
 
   .study-plan-mobile-action {
-    position: fixed;
-    z-index: 95;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    left: 12px;
-    display: flex;
-    width: auto;
-    min-height: 52px;
-    justify-content: center;
-    box-shadow: 0 12px 32px rgba(15, 92, 72, 0.24);
+    display: none;
   }
 
   .hsk-exam-ready {
@@ -3866,5 +3857,20 @@ body[data-screen="result"] .tool-controls {
 
   .hsk-exam-level-action {
     min-height: 38px;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-hero-v2 .dashboard-goal-cluster,
+  .dashboard-tip-card {
+    display: none;
+  }
+
+  .dashboard-panel {
+    gap: 14px;
+  }
+
+  .dashboard-plan-section {
+    margin-top: 0;
   }
 }

@@ -125,9 +125,9 @@ const VOCABULARY_MODES = {
   },
   meaning: {
     label: "Audio",
-    task: "Listen to the Chinese word and type its English meaning.",
+    task: "Listen to the Chinese word and choose its English meaning.",
     promptLabel: "Audio word",
-    answerPlaceholder: "Type the English meaning",
+    answerPlaceholder: "Choose one of five meanings",
   },
 };
 
@@ -558,6 +558,8 @@ const mobileNavigationQuery = typeof window.matchMedia === "function"
   ? window.matchMedia("(max-width: 980px)")
   : { matches: false, addEventListener() {} };
 let mobileNavigationRestoreFocus = null;
+let chinaMapDataLoadPromise = null;
+let chinaMapDataError = "";
 
 function init() {
   if (
@@ -742,7 +744,7 @@ function bindAccountState() {
       render();
     }
   });
-  account.init();
+  account.bind?.();
 }
 
 function hasPremiumAccess() {
@@ -2690,11 +2692,6 @@ function renderStudyPlanSetup() {
         ${isEditing ? `<button class="ghost-btn study-plan-cancel" type="button" id="cancelStudyPlan">Cancel</button>` : ""}
       </header>
 
-      <button class="primary-btn shortcut-btn study-plan-mobile-action" type="button" data-complete-study-plan>
-        <span>${levelChoice === "placement" ? "Start level check" : isEditing ? "Save study plan" : "Create my plan"}</span>
-        ${shortcutHint("Enter")}
-      </button>
-
       <div class="study-plan-layout">
         <div class="study-plan-form">
           <section class="study-plan-field" aria-labelledby="studyPlanLevelHeading">
@@ -2803,7 +2800,14 @@ function completeStudyPlanSetup() {
   setStudyTargetLevel(Number(levelChoice));
   state.studyPlanLevelChoice = String(state.studyTargetLevel);
   render();
-  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+  window.setTimeout(() => {
+    window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    const heading = app.querySelector("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+  }, 0);
 }
 
 function renderDashboardHome() {
@@ -2975,7 +2979,7 @@ function renderDashboardHome() {
             `).join("")}
           </div>
           <div class="dashboard-activity-state">
-            <img src="./assets/panda-mascot.png" alt="" aria-hidden="true">
+            <img src="./assets/panda-mascot-192.webp" alt="" aria-hidden="true">
             <strong>${dashboard.sessionsThisWeek ? `${dashboard.sessionsThisWeek} ${dashboard.sessionsThisWeek === 1 ? "session" : "sessions"} this week` : "No activity yet"}</strong>
             <span>${dashboard.sessionsThisWeek ? `${dashboard.todaySessionCount} completed today. Keep the rhythm going.` : "Complete a lesson to start your streak."}</span>
           </div>
@@ -4759,8 +4763,8 @@ function renderPronunciationHome() {
       <div class="practice-readiness ${recognitionAvailable ? "" : "is-unavailable"}">
         <span class="practice-readiness-mark" aria-hidden="true">说</span>
         <span class="practice-readiness-copy">
-          <small>${recognitionAvailable ? "Ready to speak" : "Browser check"}</small>
-          <strong>${recognitionAvailable ? "Microphone practice is ready" : "Speech recognition is unavailable"}</strong>
+          <small>${recognitionAvailable ? "Browser support found" : "Browser check"}</small>
+          <strong>${recognitionAvailable ? "Speech recognition is supported" : "Speech recognition is unavailable"}</strong>
           <span>${state.pronunciationShowPinyin ? "Pinyin hints on" : "Characters only"} &middot; ${escapeHtml(selectedLevelLabels())}</span>
         </span>
       </div>
@@ -4859,6 +4863,22 @@ function bindPronunciationViewSwitcher() {
 }
 
 function renderMapQuizHome() {
+  if (!getChinaMapData()) {
+    renderMapDataLoading();
+    ensureChinaMapData()
+      .then(() => {
+        if (state.tool === "map" && !state.session && !state.result) {
+          render();
+        }
+      })
+      .catch(() => {
+        if (state.tool === "map" && !state.session && !state.result) {
+          renderMapDataLoading();
+        }
+      });
+    return;
+  }
+
   const mapMode = getSelectedMapQuizMode();
   const targetCount = getMapQuizPool().length;
   const sessionLength = targetCount;
@@ -4869,15 +4889,10 @@ function renderMapQuizHome() {
 
       <div class="map-game-shell map-home-shell">
         <aside class="map-question-panel map-home-panel">
-          <div class="map-score-card">
+          <div class="map-score-card map-score-card-single">
             <div>
-              <span>Practice Set</span>
+              <span>Full practice set</span>
               <strong>${sessionLength}</strong>
-              <small>Questions</small>
-            </div>
-            <div>
-              <span>Targets</span>
-              <strong>${targetCount}</strong>
               <small>${escapeHtml(mapMode.targetMetric)}</small>
             </div>
           </div>
@@ -4905,6 +4920,58 @@ function renderMapQuizHome() {
   document.querySelector("#startMapQuizSession").addEventListener("click", startMapQuizSession);
   bindMapViewControls();
   bindChinaMapInteractions({ type: "map", mapQuizMode: state.mapQuizMode, items: [], index: 0, currentAssessment: null }, { preview: true });
+}
+
+function renderMapDataLoading() {
+  app.innerHTML = `
+    <section class="workspace-panel deferred-tool-state" role="status" aria-live="polite">
+      <span class="deferred-tool-spinner" aria-hidden="true"></span>
+      <div>
+        <h2>${chinaMapDataError ? "Map unavailable" : "Preparing Geography of China"}</h2>
+        <p>${chinaMapDataError || "Loading the detailed map only when it is needed."}</p>
+      </div>
+      ${chinaMapDataError ? `<button class="secondary-btn" type="button" id="retryMapData">Try again</button>` : ""}
+    </section>
+  `;
+  document.querySelector("#retryMapData")?.addEventListener("click", () => {
+    chinaMapDataError = "";
+    chinaMapDataLoadPromise = null;
+    renderMapQuizHome();
+  });
+}
+
+function ensureChinaMapData() {
+  if (getChinaMapData()) {
+    return Promise.resolve(getChinaMapData());
+  }
+  if (chinaMapDataLoadPromise) {
+    return chinaMapDataLoadPromise;
+  }
+
+  chinaMapDataError = "";
+  chinaMapDataLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "./china-map-data.js";
+    script.async = true;
+    script.addEventListener("load", () => {
+      if (getChinaMapData()) {
+        resolve(getChinaMapData());
+        return;
+      }
+      const error = new Error("The China map data loaded without a usable map.");
+      chinaMapDataError = error.message;
+      chinaMapDataLoadPromise = null;
+      reject(error);
+    });
+    script.addEventListener("error", () => {
+      const error = new Error("The detailed map could not be loaded. Check your connection and try again.");
+      chinaMapDataError = error.message;
+      chinaMapDataLoadPromise = null;
+      reject(error);
+    });
+    document.head.append(script);
+  });
+  return chinaMapDataLoadPromise;
 }
 
 function buildMapModeHeaderMarkup({ interactive = true } = {}) {
@@ -7615,7 +7682,7 @@ function renderHskExamHome() {
       <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${locked ? "is-locked" : ""} ${Number(state.studyTargetLevel) === level ? "is-target" : ""}">
         <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
         <div class="hsk-exam-level-copy">
-          <span>HSK 3.0 ${locked ? "· Premium" : level === 1 ? "· Free" : ""}</span>
+          <span>HSK 3.0 trial format ${locked ? "· Premium" : level === 1 ? "· Free" : ""}</span>
           <h3>New HSK ${level} ${Number(state.studyTargetLevel) === level ? '<small class="hsk-exam-target-badge">Your plan</small>' : ""}</h3>
           <p>${sections.map((item) => item.label).join(" · ")}</p>
         </div>
@@ -7643,7 +7710,7 @@ function renderHskExamHome() {
         <div>
           <span class="hsk-exam-kicker">Full-length practice</span>
           <h2>Mock HSK Exam</h2>
-          <p>Timed HSK 3.0 papers with official section order and original questions at the target level.</p>
+          <p>Timed simulations based on the published HSK 3.0 trial format, with original questions at the target level.</p>
         </div>
         <a class="hsk-exam-source-link" href="${escapeHtml(HSK_MOCK_EXAMS.sourceUrl || "https://www.chinesetest.cn/notice")}" target="_blank" rel="noopener noreferrer">
           Official 2025 syllabus
@@ -7667,8 +7734,8 @@ function renderHskExamHome() {
       <div class="hsk-exam-level-grid">${levelCards}</div>
 
       <footer class="hsk-exam-notice">
-        <strong>HSK 3.0 practice format</strong>
-        <p>The official January 2026 HSK 3.0 sitting was a trial. Regular 2026 HSK dates still use HSK 2.0 until an official transition date is announced.</p>
+        <strong>Trial-format simulation</strong>
+        <p>These mocks model the January 2026 HSK 3.0 trial. They are not the current regular test-day format or an official score report.</p>
       </footer>
     </section>
   `;
@@ -9516,8 +9583,8 @@ function getHistoryTypeFilterLabel(type) {
   return labels[type] || "Practice";
 }
 
-function buildHistoryDataActionsMarkup(canClear) {
-  return `
+function buildHistoryDataActionsMarkup(canClear, { collapsed = false } = {}) {
+  const controls = `
     <div class="history-data-action-wrap">
       <div class="result-actions history-data-actions" aria-label="Learning data">
         <button class="ghost-btn icon-label-btn" type="button" id="exportLearningData">
@@ -9537,6 +9604,15 @@ function buildHistoryDataActionsMarkup(canClear) {
       <p class="history-storage-note"><strong>Browser storage</strong> Export a backup before clearing site data.</p>
       <p class="history-data-status" id="learningDataStatus" role="status" aria-live="polite" hidden></p>
     </div>
+  `;
+  if (!collapsed) {
+    return controls;
+  }
+  return `
+    <details class="history-data-disclosure">
+      <summary>Manage learning data</summary>
+      ${controls}
+    </details>
   `;
 }
 
@@ -9579,7 +9655,7 @@ function renderEmptyHistoryHome() {
           <h2>Learning progress</h2>
           <p>Your record begins after the first completed session.</p>
         </div>
-        ${buildHistoryDataActionsMarkup(false)}
+        ${buildHistoryDataActionsMarkup(false, { collapsed: true })}
       </div>
 
       <section class="history-empty-overview" aria-labelledby="historyEmptyHeading">
@@ -10892,7 +10968,10 @@ function buildChinaMapMarkup(session, options = {}) {
   return `
     <div class="china-map-wrap ${targetClass}">
       ${toastMarkup}
-      <div class="china-map-canvas" id="chinaMapQuiz" role="application" aria-label="中国地图定位练习">
+      <p class="sr-only" id="mapKeyboardInstructions">
+        Map answers are labeled by approximate position without revealing their names. Move through the locations and press Enter or Space to answer.
+      </p>
+      <div class="china-map-canvas" id="chinaMapQuiz" role="group" aria-label="中国地图定位练习" aria-describedby="mapKeyboardInstructions">
         ${buildChinaMapSvgMarkup(session, options)}
       </div>
       ${buildChinaMapZoomControlsMarkup()}
@@ -10957,6 +11036,27 @@ function getChinaMapData() {
   return window.CHINESE_TRAINER_CHINA_MAP || null;
 }
 
+function getMapSpatialAriaLabel(item, kind) {
+  const point = kind === "city"
+    ? projectMapCoordinate(item.lng, item.lat, CHINA_MAINLAND_FRAME)
+    : { x: item.labelX, y: item.labelY };
+  const horizontal = point.x < CHINA_MAP_VIEWBOX.width / 3
+    ? "western"
+    : point.x > CHINA_MAP_VIEWBOX.width * 2 / 3
+      ? "eastern"
+      : "central";
+  const vertical = point.y < CHINA_MAP_VIEWBOX.height / 3
+    ? "northern"
+    : point.y > CHINA_MAP_VIEWBOX.height * 2 / 3
+      ? "southern"
+      : "central";
+  const westPercent = Math.round((point.x / CHINA_MAP_VIEWBOX.width) * 100);
+  const northPercent = Math.round((point.y / CHINA_MAP_VIEWBOX.height) * 100);
+  const targetLabel = kind === "city" ? "City location" : "Provincial-level region";
+
+  return `${targetLabel}, ${vertical} ${horizontal} China, approximately ${westPercent} percent from the west and ${northPercent} percent from the north`;
+}
+
 function buildChinaMapProvincePaths(features, session) {
   const provinceSelectionEnabled = shouldEnableMapProvinceSelection(session);
 
@@ -10978,8 +11078,9 @@ function buildChinaMapProvincePaths(features, session) {
           class="${classes}"
           ${provinceSelectionEnabled ? `data-map-province-id="${escapeHtml(province.id)}"` : ""}
           d="${geoGeometryToPath(feature.geometry, CHINA_MAINLAND_FRAME)}"
-          ${provinceSelectionEnabled ? `role="button" tabindex="0"` : ""}
-          aria-label="${provinceSelectionEnabled ? "Provincial-level region" : "Map region outline"}"
+          ${provinceSelectionEnabled
+            ? `role="button" tabindex="0" aria-keyshortcuts="Enter Space" aria-label="${escapeHtml(getMapSpatialAriaLabel(province, "province"))}"`
+            : `aria-hidden="true"`}
         ></path>
       `;
     })
@@ -11018,7 +11119,8 @@ function buildChinaMapSmallRegionSelectors(features, session) {
         data-map-province-id="${escapeHtml(province.id)}"
         role="button"
         tabindex="0"
-        aria-label="Small provincial-level region selector"
+        aria-keyshortcuts="Enter Space"
+        aria-label="${escapeHtml(`${getMapSpatialAriaLabel(province, "province")}, enlarged selector`)}"
       >
         <path class="china-small-region-leader" d="${leaderPath}"></path>
         <circle class="china-small-region-anchor" cx="${formatMapNumber(anchor.x)}" cy="${formatMapNumber(anchor.y)}" r="3.2"></circle>
@@ -11078,7 +11180,8 @@ function buildChinaMapCityPins(session) {
         data-map-city-id="${escapeHtml(city.id)}"
         role="button"
         tabindex="0"
-        aria-label="City pin"
+        aria-keyshortcuts="Enter Space"
+        aria-label="${escapeHtml(getMapSpatialAriaLabel(city, "city"))}"
         transform="translate(${formatMapNumber(point.x)} ${formatMapNumber(point.y)})"
       >
         <circle class="china-city-pin-hit" r="13"></circle>
@@ -12029,11 +12132,6 @@ function normalizeChoiceText(value) {
 }
 
 function formatVocabularyChoiceText(item) {
-  const meanings = getVocabularyMeaningCandidates(item).filter((meaning) => !containsChinese(meaning));
-  if (meanings.length) {
-    return meanings.join("; ");
-  }
-
   return formatVocabularyMeanings(item)
     .replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/gu, "")
     .replace(/\s+/g, " ")
@@ -15442,8 +15540,38 @@ function getVocabularyMeaningCandidates(item) {
     .filter(Boolean);
 }
 
+function getVocabularyLearnerMeanings(item, limit = 2) {
+  const candidates = getVocabularyMeaningCandidates(item)
+    .filter((meaning) => !containsChinese(meaning));
+  const primaryCandidates = candidates.filter((meaning) => (
+    !/^(?:old |archaic |variant of|surname |abbr\.? for|dialect\b)/i.test(meaning)
+  ));
+  const selected = primaryCandidates.length ? primaryCandidates : candidates;
+
+  return uniqueStrings(selected.map(simplifyVocabularyLearnerMeaning))
+    .filter(Boolean)
+    .slice(0, Math.max(1, limit));
+}
+
+function simplifyVocabularyLearnerMeaning(meaning) {
+  let cleaned = String(meaning || "")
+    .replace(/^\((?:coll\.?|colloquial)\)\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const explanatoryNote = cleaned.indexOf(" (");
+  if (cleaned.length > 80 && explanatoryNote > 0) {
+    cleaned = cleaned.slice(0, explanatoryNote).trim();
+  }
+  if (cleaned.length > 90) {
+    const shortened = cleaned.slice(0, 87);
+    const finalSpace = shortened.lastIndexOf(" ");
+    cleaned = `${shortened.slice(0, finalSpace > 55 ? finalSpace : 87).trim()}...`;
+  }
+  return cleaned;
+}
+
 function formatVocabularyMeanings(item) {
-  const meanings = getVocabularyMeaningCandidates(item);
+  const meanings = getVocabularyLearnerMeanings(item);
   return meanings.length ? meanings.join("; ") : "No meaning listed";
 }
 

@@ -12955,7 +12955,7 @@ body[data-tool="reader"] .workspace {
 }
 
 .hsk-exam-level-card.is-locked .hsk-exam-level-history {
-  opacity: 0.72;
+  opacity: 1;
 }
 
 @media (max-width: 980px) {

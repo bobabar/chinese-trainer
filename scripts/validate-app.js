@@ -126,10 +126,12 @@ window.__tests = {
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
+  assessAnswer,
   assessHskExamAnswer,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyToneToPinyinSyllable,
+  applySentenceDrillGrade,
   applyReviewAttempt,
   applyLearningBackup,
   buildAnswerBox,
@@ -172,6 +174,7 @@ window.__tests = {
   buildVocabularyPromptMarkup,
   buildVocabularyViewSwitcher,
   buildSentenceLibraryRow,
+  buildSentenceDrillGradeControls,
   containsChinese,
   choosePreferredVoice,
   canAccessHskExamLevel,
@@ -247,6 +250,7 @@ window.__tests = {
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
   isReliableToneListeningItem,
+  isSentenceDrillGradeShortcut,
   highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
@@ -300,10 +304,12 @@ const {
   VOCABULARY_MODES,
   VOCABULARY_QUIZ_SETS,
   assessMapQuizSelection,
+  assessAnswer,
   assessHskExamAnswer,
   assessVocabularyAnswer,
   assessPronunciationTranscript,
   applyToneToPinyinSyllable,
+  applySentenceDrillGrade,
   applyReviewAttempt,
   applyLearningBackup,
   buildAnswerBox,
@@ -346,6 +352,7 @@ const {
   buildVocabularyPromptMarkup,
   buildVocabularyViewSwitcher,
   buildSentenceLibraryRow,
+  buildSentenceDrillGradeControls,
   containsChinese,
   choosePreferredVoice,
   canAccessHskExamLevel,
@@ -421,6 +428,7 @@ const {
   isVocabularyRowCorrect,
   isDashboardPlanRecordComplete,
   isReliableToneListeningItem,
+  isSentenceDrillGradeShortcut,
   highlightVocabularyTermMarkup,
   loadHistoryRecords,
   loadReviewProgress,
@@ -804,6 +812,61 @@ const sentenceLibraryRow = buildSentenceLibraryRow(sentenceLibraryFixtures[0], {
 assert(sentenceLibraryRow.includes("annotated-pinyin-line") && sentenceLibraryRow.includes("Tatoeba") && sentenceLibraryRow.includes('aria-pressed="true"'), "sentence rows should include pinyin, source attribution, and bookmark state");
 assert(!buildSentenceLibraryRow(sentenceLibraryFixtures[0], { showPinyin: false }).includes("annotated-pinyin-line"), "sentence rows should hide pinyin when requested");
 assert(getSentenceSearchPinyin(sentenceLibraryFixtures[0]).includes("woaini"), "sentence pinyin indexing should use local word annotations");
+const exactReadingAssessment = assessAnswer("i love you", sentenceLibraryFixtures[0], "reading");
+assert(
+  exactReadingAssessment.correct && exactReadingAssessment.confirmed && exactReadingAssessment.gradeSource === "automatic",
+  "sentence drills should automatically accept normalized exact English answers",
+);
+const exactWritingAssessment = assessAnswer("我 爱 你", sentenceLibraryFixtures[0], "writing");
+assert(
+  exactWritingAssessment.correct && exactWritingAssessment.confirmed,
+  "writing drills should ignore punctuation and spacing for an otherwise exact Chinese answer",
+);
+const listeningGenderAssessment = assessAnswer("She runs every day", sentenceLibraryFixtures[1], "listening");
+assert(
+  listeningGenderAssessment.correct,
+  "listening drills should not penalize the inaudible distinction between he and she",
+);
+const openEndedAssessment = assessAnswer("I adore you", sentenceLibraryFixtures[0], "reading");
+assert(
+  !openEndedAssessment.correct && !openEndedAssessment.confirmed && openEndedAssessment.gradeSource === "pending",
+  "non-exact open-ended translations should require learner confirmation instead of receiving an arbitrary automatic percentage",
+);
+const previousShortcutSession = state.session;
+state.session = { type: "drill", currentAssessment: null };
+assert(
+  !isSentenceDrillGradeShortcut({ key: "1", metaKey: false, ctrlKey: false, shiftKey: false }),
+  "grading shortcuts should not consume numeric input before an answer has been assessed",
+);
+state.session.currentAssessment = openEndedAssessment;
+assert(
+  isSentenceDrillGradeShortcut({ key: "1", metaKey: false, ctrlKey: false, shiftKey: false }),
+  "grading shortcuts should activate while an open-ended answer is being reviewed",
+);
+state.session = previousShortcutSession;
+const selfCheckedAssessment = applySentenceDrillGrade(openEndedAssessment, true);
+assert(
+  selfCheckedAssessment.correct && selfCheckedAssessment.confirmed && selfCheckedAssessment.score === 1 && selfCheckedAssessment.gradeSource === "self",
+  "learner-confirmed alternative wording should become a binary correct result",
+);
+const blankAssessment = assessAnswer("   ", sentenceLibraryFixtures[0], "reading");
+assert(
+  !blankAssessment.correct && blankAssessment.confirmed && blankAssessment.gradeSource === "blank",
+  "blank sentence answers should be recorded directly as needing review",
+);
+const drillGradeControls = buildSentenceDrillGradeControls(openEndedAssessment);
+assert(
+  drillGradeControls.includes("Meaning is correct") && drillGradeControls.includes('data-drill-grade="correct"') && drillGradeControls.includes('data-drill-grade="review"'),
+  "open-ended sentence feedback should provide explicit correct and review controls",
+);
+assert(
+  buildSentenceDrillGradeControls({ ...openEndedAssessment, mode: "writing" }).includes("Chinese is correct"),
+  "writing feedback should label its self-check in terms of the Chinese answer",
+);
+assert(
+  !buildFeedbackMarkup(openEndedAssessment, sentenceLibraryFixtures[0]).includes("score-badge"),
+  "sentence feedback should not display pseudo-precision similarity percentages",
+);
 const previousDrillView = state.drillView;
 state.drillView = "library";
 assert(buildDrillViewSwitcher().includes('class="active" type="button" data-drill-view="library"'), "sentence library should have a distinct active navigation state");

@@ -1783,6 +1783,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isSentenceDrillGradeShortcut(event)) {
+    event.preventDefault();
+    setSentenceDrillGrade(event.key === "1");
+    return;
+  }
+
   const isEnter = event.key === "Enter";
   if (!isEnter) {
     return;
@@ -1829,6 +1835,10 @@ function handleSessionShortcut(event) {
   event.preventDefault();
 
   if (state.session.currentAssessment) {
+    if (state.session.type === "drill" && state.session.currentAssessment.confirmed === false) {
+      document.querySelector("[data-drill-grade]")?.focus();
+      return;
+    }
     nextQuestion();
     return;
   }
@@ -1951,6 +1961,18 @@ function isVocabularyChoiceShortcut(event) {
     !event.ctrlKey &&
     !event.shiftKey &&
     /^[1-5]$/.test(event.key);
+}
+
+function isSentenceDrillGradeShortcut(event) {
+  const assessment = state.session?.currentAssessment;
+  return state.session?.type === "drill" &&
+    Boolean(assessment) &&
+    assessment?.gradeSource !== "automatic" &&
+    assessment?.gradeSource !== "blank" &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[12]$/.test(event.key);
 }
 
 function isReviewChoiceShortcut(event) {
@@ -4324,7 +4346,7 @@ function renderModeHome() {
         <span class="practice-readiness-copy">
           <small>${escapeHtml(mode.label)} session</small>
           <strong>${escapeHtml(flowLabels[state.mode] || preview.description)}</strong>
-          <span>30 sentences with immediate feedback and saved mistakes.</span>
+          <span>Exact matches count automatically; compare and self-check valid alternative wording.</span>
         </span>
       </div>
 
@@ -9345,7 +9367,7 @@ function buildProgressVocabularyMistakeMarkup(item, savedKeys = new Set()) {
 function getHistoryRecordPresentation(record) {
   let typeLabel = "Sentence drill";
   let modeLabel = `${MODES[record.mode]?.label || record.mode}${record.source === "saved" ? " · Saved sentences" : record.source === "mistakes" ? " · Mistake retry" : ""}`;
-  let resultLabel = `${record.correct}/${record.total} correct · ${Math.round((record.averageScore || 0) * 100)}% avg`;
+  let resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
 
   if (record.type === "vocabulary") {
     typeLabel = "Vocabulary quiz";
@@ -10006,6 +10028,7 @@ function renderSession() {
   const current = session.items[session.index];
   const mode = MODES[session.mode];
   const submitted = Boolean(session.currentAssessment);
+  const gradingComplete = !submitted || session.currentAssessment.confirmed !== false;
   const answer = submitted ? session.currentAssessment.answer : "";
   const sessionLength = session.items.length;
   const progressPercent = Math.round((session.index / sessionLength) * 100);
@@ -10040,11 +10063,13 @@ function renderSession() {
         >${escapeHtml(answer)}</textarea>
         <div class="form-actions">
           ${
-            submitted
+            submitted && gradingComplete
               ? `<button class="primary-btn shortcut-btn" type="button" id="nextQuestion">
                   <span>${session.index + 1 === sessionLength ? "View results" : "Next sentence"}</span>
                   ${shortcutHint("Enter")}
                 </button>`
+              : submitted
+                ? `<span class="drill-grade-required">Choose how to grade this answer below.</span>`
               : `<button class="primary-btn shortcut-btn" type="submit">
                   <span>Check sentence</span>
                   ${shortcutHint("Enter")}
@@ -10065,7 +10090,10 @@ function renderSession() {
   document.querySelector("#endSession").addEventListener("click", finishSessionEarly);
 
   if (submitted) {
-    document.querySelector("#nextQuestion").addEventListener("click", nextQuestion);
+    document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+    document.querySelectorAll("[data-drill-grade]").forEach((button) => {
+      button.addEventListener("click", () => setSentenceDrillGrade(button.dataset.drillGrade === "correct"));
+    });
     revealFeedbackPanel();
   } else {
     const form = document.querySelector("#answerForm");
@@ -12287,15 +12315,23 @@ function scrollVocabularyWordListToIndex(index) {
 }
 
 function buildFeedbackMarkup(assessment, item) {
-  const status = answerStatusTone(assessment);
-  const title = answerStatusLabel(assessment);
+  const pending = assessment.confirmed === false;
+  const status = pending ? "okay" : assessment.correct ? "good" : "review";
+  const title = pending ? "Compare your answer" : assessment.correct ? "Correct" : "Needs review";
+  const gradeLabel = assessment.gradeSource === "automatic"
+    ? "Exact match"
+    : assessment.gradeSource === "blank"
+      ? "No answer"
+      : pending
+        ? "Choose a result"
+        : "Self-checked";
   const expectedPrimary = assessment.mode === "writing" ? item.zh : item.en;
   const expectedSecondary = assessment.mode === "writing" ? item.en : item.zh;
   return `
-    <section class="feedback ${status} ${assessment.correct ? "correct-celebration" : ""}" id="feedbackPanel" tabindex="-1">
-      <div class="feedback-title">
+    <section class="feedback ${status} ${assessment.correct && !pending ? "correct-celebration" : ""}" id="feedbackPanel" tabindex="-1">
+      <div class="feedback-title" aria-live="polite">
         <span>${title}</span>
-        <span class="score-badge">${Math.round(assessment.score * 100)}%</span>
+        <span class="drill-grade-label">${gradeLabel}</span>
       </div>
       <div class="answer-pair">
         <div class="answer-box">
@@ -12305,8 +12341,75 @@ function buildFeedbackMarkup(assessment, item) {
         ${buildAnswerBox("Expected", expectedPrimary)}
       </div>
       ${buildAnswerBox("Reference", expectedSecondary)}
+      ${buildSentenceDrillGradeControls(assessment)}
     </section>
   `;
+}
+
+function buildSentenceDrillGradeControls(assessment) {
+  if (["automatic", "blank"].includes(assessment.gradeSource)) {
+    return "";
+  }
+
+  const prompt = assessment.mode === "writing"
+    ? "Does your Chinese sentence express the full reference meaning with valid wording?"
+    : "Does your answer preserve the full meaning, even if the wording is different?";
+  const correctLabel = assessment.mode === "writing" ? "Chinese is correct" : "Meaning is correct";
+  const correctSelected = assessment.confirmed && assessment.correct;
+  const reviewSelected = assessment.confirmed && !assessment.correct;
+
+  return `
+    <div class="drill-grade-controls">
+      <p>${prompt}</p>
+      <div class="drill-grade-actions" role="group" aria-label="Grade this open-ended answer">
+        <button
+          class="secondary-btn shortcut-btn drill-grade-btn ${correctSelected ? "is-selected is-correct" : ""}"
+          type="button"
+          data-drill-grade="correct"
+          aria-pressed="${correctSelected ? "true" : "false"}">
+          <span>${correctLabel}</span>
+          ${shortcutHint("1")}
+        </button>
+        <button
+          class="secondary-btn shortcut-btn drill-grade-btn ${reviewSelected ? "is-selected is-review" : ""}"
+          type="button"
+          data-drill-grade="review"
+          aria-pressed="${reviewSelected ? "true" : "false"}">
+          <span>Needs review</span>
+          ${shortcutHint("2")}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function applySentenceDrillGrade(assessment, correct) {
+  return {
+    ...assessment,
+    correct: Boolean(correct),
+    score: correct ? 1 : 0,
+    confirmed: true,
+    gradeSource: "self",
+  };
+}
+
+function setSentenceDrillGrade(correct) {
+  const session = state.session;
+  const assessment = session?.currentAssessment;
+  if (session?.type !== "drill" || !assessment || ["automatic", "blank"].includes(assessment.gradeSource)) {
+    return;
+  }
+
+  const graded = applySentenceDrillGrade(assessment, correct);
+  session.currentAssessment = graded;
+  const answerIndex = session.answers.length - 1;
+  if (answerIndex >= 0) {
+    session.answers[answerIndex] = {
+      ...session.answers[answerIndex],
+      ...graded,
+    };
+  }
+  render();
 }
 
 function answerStatusLabel(answer) {
@@ -12463,10 +12566,7 @@ function renderResults() {
   const isMistakeRetry = result.source === "mistakes";
   const missedItems = getMissedSentenceDrillItems(result);
   const correct = result.answers.filter((answer) => answer.correct).length;
-  const average = result.answers.length
-    ? result.answers.reduce((sum, answer) => sum + answer.score, 0) / result.answers.length
-    : 0;
-  const percent = Math.round(average * 100);
+  const percent = result.answers.length ? Math.round((correct / result.answers.length) * 100) : 0;
   const rows = result.answers
     .map((answer, index) => {
       const item = answer.item;
@@ -12477,8 +12577,10 @@ function renderResults() {
             ? item.zh
             : "Audio sentence";
       const expected = result.mode === "writing" ? item.zh : item.en;
-      const statusClass = `status-${answerStatusTone(answer)}`;
-      const statusText = answerStatusLabel(answer);
+      const statusClass = answer.correct ? "status-good" : "status-review";
+      const statusText = answer.correct
+        ? answer.gradeSource === "self" ? "Correct · self-checked" : "Correct · exact match"
+        : answer.confirmed === false ? "Needs review · unconfirmed" : "Needs review";
       return `
         <tr>
           <td>${index + 1}</td>
@@ -12486,7 +12588,6 @@ function renderResults() {
           <td>${escapeHtml(sentence)}</td>
           <td>${escapeHtml(answer.answer || "No answer entered")}</td>
           <td>${escapeHtml(expected)}</td>
-          <td>${Math.round(answer.score * 100)}%</td>
           <td class="${statusClass}">${statusText}</td>
         </tr>
       `;
@@ -12498,7 +12599,7 @@ function renderResults() {
       <div class="results-header">
         <div>
           <h2>${isSavedSentenceSession ? "Saved Sentence Results" : isMistakeRetry ? "Mistake Retry Results" : `${MODES[result.mode].label} Results`}</h2>
-          <p>${correct} correct out of ${result.answers.length}; average score ${percent}%.</p>
+          <p>${correct} of ${result.answers.length} answers marked correct (${percent}%).</p>
         </div>
         <div class="result-actions">
           ${missedItems.length ? `
@@ -12521,7 +12622,7 @@ function renderResults() {
         </div>
         <div class="stat">
           <strong>${percent}%</strong>
-          <span>Average</span>
+          <span>Accuracy</span>
         </div>
         <div class="stat">
           <strong>${selectedLevelLabels(result.levels)}</strong>
@@ -12542,8 +12643,7 @@ function renderResults() {
               <th>Sentence</th>
               <th>Your answer</th>
               <th>Expected</th>
-              <th>Score</th>
-              <th>Status</th>
+              <th>Result</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -14345,6 +14445,10 @@ function submitToneChoice(choiceId) {
 
 function nextQuestion() {
   const session = state.session;
+  if (session?.type === "drill" && session.currentAssessment?.confirmed === false) {
+    document.querySelector("[data-drill-grade]")?.focus();
+    return;
+  }
   const sessionLength = session.items.length;
 
   if (session.type === "reader") {
@@ -15061,6 +15165,8 @@ function buildHistoryRecord(result) {
       expected: result.mode === "writing" ? answer.item.zh : answer.item.en,
       score: answer.score,
       correct: answer.correct,
+      confirmed: answer.confirmed !== false,
+      gradeSource: answer.gradeSource || "legacy",
     })),
   };
 }
@@ -15419,17 +15525,32 @@ function formatHistoryDate(value) {
 
 function assessAnswer(answer, item, mode) {
   const trimmed = answer.trim();
-  const score = mode === "writing"
-    ? scoreChinese(trimmed, item.zh)
-    : scoreEnglish(trimmed, item.en, {
-        ignoreGenderPronouns: mode === "listening" && /[他她]/.test(item.zh),
-      });
+  const exact = isExactSentenceAnswer(trimmed, item, mode);
+  const blank = !trimmed;
   return {
     mode,
     answer: trimmed,
-    score,
-    correct: score >= ACCEPTANCE_THRESHOLD,
+    score: exact ? 1 : 0,
+    correct: exact,
+    confirmed: exact || blank,
+    gradeSource: exact ? "automatic" : blank ? "blank" : "pending",
   };
+}
+
+function isExactSentenceAnswer(answer, item, mode) {
+  if (!answer) {
+    return false;
+  }
+  if (mode === "writing") {
+    return normalizeChinese(answer) === normalizeChinese(item.zh);
+  }
+
+  const ignoreGenderPronouns = mode === "listening" && /[他她]/.test(item.zh);
+  const normalizedAnswer = normalizeEnglish(answer);
+  const normalizedExpected = normalizeEnglish(item.en);
+  return ignoreGenderPronouns
+    ? neutralizeGenderPronouns(normalizedAnswer) === neutralizeGenderPronouns(normalizedExpected)
+    : normalizedAnswer === normalizedExpected;
 }
 
 function assessVocabularyAnswer(answer, item, quizMode) {

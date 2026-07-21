@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://pdhpqqqkgsurwnzgetnx.supabase.co wss://pdhpqqqkgsurwnzgetnx.supabase.co; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="description" content="Adaptive Mandarin vocabulary, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
+    <meta name="description" content="Adaptive Mandarin vocabulary, character components, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
     <meta name="theme-color" content="#f4f7f5">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mandarin Trainer">
     <meta property="og:title" content="Mandarin Trainer">
-    <meta property="og:description" content="Adaptive Mandarin learning with vocabulary, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
+    <meta property="og:description" content="Adaptive Mandarin learning with vocabulary, character components, grammar, pronunciation, mock HSK exams, geography, and sentence practice.">
     <meta property="og:type" content="website">
     <script src="./frame-guard.js"></script>
     <title>Mandarin Trainer</title>
@@ -142,6 +142,16 @@
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17h7"></path>
             </svg>
             <span class="tool-tab-label">Grammar Lab</span>
+          </button>
+          <button class="tool-tab" type="button" data-tool="components">
+            <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="3" y="4" width="8" height="8" rx="1"></rect>
+              <rect x="13" y="4" width="8" height="8" rx="1"></rect>
+              <path d="M7 16h10"></path>
+              <path d="M12 12v8"></path>
+              <path d="m8 20 4-4 4 4"></path>
+            </svg>
+            <span class="tool-tab-label">Character Components</span>
           </button>
           <button class="tool-tab" type="button" data-tool="reader">
             <svg class="button-icon tool-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -438,6 +448,7 @@
     <script src="./account.js" defer></script>
     <script src="./vocab-data.js" defer></script>
     <script src="./grammar-data.js" defer></script>
+    <script src="./component-data.js" defer></script>
     <script src="./exam-data.js" defer></script>
     <script src="./reader-data.js" defer></script>
     <script src="./app.js" defer></script>

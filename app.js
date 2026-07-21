@@ -4,6 +4,7 @@ const SESSION_LENGTH = 30;
 const PRONUNCIATION_SESSION_LENGTH = 15;
 const TONE_LISTENING_SESSION_LENGTH = 15;
 const GRAMMAR_SESSION_LENGTH = 10;
+const COMPONENT_MIXED_SESSION_LENGTH = 10;
 const PLACEMENT_SESSION_LENGTH = 30;
 const PLACEMENT_VOCABULARY_PER_LEVEL = 6;
 const PLACEMENT_GRAMMAR_PER_LEVEL = 4;
@@ -25,7 +26,7 @@ const LEARNING_BACKUP_APP_ID = "chinese-trainer";
 const LEARNING_BACKUP_VERSION = 1;
 const LEARNING_BACKUP_MAX_BYTES = 8 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "placement", "pronunciation", "tone", "map", "exam", "reader"]);
+const SUPPORTED_HISTORY_TYPES = new Set(["drill", "vocabulary", "review", "grammar", "components", "placement", "pronunciation", "tone", "map", "exam", "reader"]);
 const REVIEW_INTERVAL_DAYS = [0, 1, 3, 7, 14, 30, 60];
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -61,6 +62,12 @@ const WORD_DATA_SRC = "./word-data.js";
 const SENTENCE_LIBRARY_PAGE_SIZE = 16;
 const DRILL_VIEWS = new Set(["practice", "library"]);
 const PRONUNCIATION_VIEWS = new Set(["speaking", "tone"]);
+const CHARACTER_COMPONENT_MODULES = Array.isArray(window.CHARACTER_COMPONENT_MODULES)
+  ? window.CHARACTER_COMPONENT_MODULES
+  : [];
+const CHARACTER_COMPONENT_LESSONS = CHARACTER_COMPONENT_MODULES.flatMap((module) =>
+  module.lessons.map((lesson) => ({ ...lesson, moduleId: module.id, moduleTitle: module.title })),
+);
 
 const MODES = {
   listening: {
@@ -95,6 +102,9 @@ const TOOLS = {
   },
   grammar: {
     label: "Grammar Lab",
+  },
+  components: {
+    label: "Character Components",
   },
   reader: {
     label: "Graded Readers",
@@ -501,6 +511,7 @@ const state = {
   planSetupOpen: false,
   grammarLevel: 1,
   grammarLessonId: "",
+  componentLessonId: "",
   readerLevel: 1,
   readerId: "",
   readerShowPinyin: false,
@@ -650,6 +661,9 @@ function loadSettings() {
     if (saved.grammarLessonId && GRAMMAR_LESSONS.some((lesson) => lesson.id === saved.grammarLessonId)) {
       state.grammarLessonId = saved.grammarLessonId;
     }
+    if (saved.componentLessonId && CHARACTER_COMPONENT_LESSONS.some((lesson) => lesson.id === saved.componentLessonId)) {
+      state.componentLessonId = saved.componentLessonId;
+    }
     if ([1, 2, 3].includes(Number(saved.readerLevel))) {
       state.readerLevel = Number(saved.readerLevel);
     }
@@ -716,6 +730,7 @@ function saveSettings() {
         onboardingComplete: state.onboardingComplete,
         grammarLevel: state.grammarLevel,
         grammarLessonId: state.grammarLessonId,
+        componentLessonId: state.componentLessonId,
         readerLevel: state.readerLevel,
         readerShowPinyin: state.readerShowPinyin,
         readerShowTranslation: state.readerShowTranslation,
@@ -795,6 +810,7 @@ function bindTopLevelControls() {
       state.dataError = "";
       saveSettings();
       render();
+      window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
     });
   });
 
@@ -1765,6 +1781,12 @@ function handleSessionShortcut(event) {
     return;
   }
 
+  if (isComponentChoiceShortcut(event)) {
+    event.preventDefault();
+    submitComponentChoiceByShortcut(event.key);
+    return;
+  }
+
   if (isToneChoiceShortcut(event)) {
     event.preventDefault();
     submitToneChoiceByShortcut(event.key);
@@ -1937,6 +1959,15 @@ function isReaderChoiceShortcut(event) {
 
 function isGrammarChoiceShortcut(event) {
   return state.session?.type === "grammar" &&
+    !state.session.currentAssessment &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    /^[1-4]$/.test(event.key);
+}
+
+function isComponentChoiceShortcut(event) {
+  return state.session?.type === "components" &&
     !state.session.currentAssessment &&
     !event.metaKey &&
     !event.ctrlKey &&
@@ -2284,6 +2315,8 @@ function render() {
       renderReviewResults();
     } else if (state.result.type === "grammar") {
       renderGrammarResults();
+    } else if (state.result.type === "components") {
+      renderComponentResults();
     } else if (state.result.type === "placement") {
       renderPlacementResults();
     } else if (state.result.type === "pronunciation") {
@@ -2355,6 +2388,12 @@ function render() {
     return;
   }
 
+  if (state.tool === "components") {
+    renderComponentCourseHome();
+    enhanceRenderedExperience();
+    return;
+  }
+
   if (state.tool === "reader") {
     renderReaderHome();
     enhanceRenderedExperience();
@@ -2408,6 +2447,9 @@ function isIntegratedToolLandingScreen() {
   if (state.tool === "grammar") {
     return !state.grammarLessonId;
   }
+  if (state.tool === "components") {
+    return !state.componentLessonId;
+  }
   return true;
 }
 
@@ -2424,6 +2466,10 @@ function getToolExperienceProfile(tool = state.tool) {
     grammar: {
       label: "Grammar mastery",
       detail: "Build the core patterns for your current HSK level.",
+    },
+    components: {
+      label: "Character building blocks",
+      detail: "Use recurring components to infer broad meaning and sound clues.",
     },
     reader: {
       label: "Reading in context",
@@ -3081,6 +3127,7 @@ function dashboardActivityIconMarkup(tool) {
     vocabulary: '<path d="M5 5h11a3 3 0 0 1 3 3v11H8a3 3 0 0 1-3-3V5z"></path><path d="M9 9h6"></path><path d="M9 13h4"></path>',
     review: '<path d="M20 7v5h-5"></path><path d="M19 12a7 7 0 1 1-2-5"></path><path d="m9 12 2 2 4-4"></path>',
     grammar: '<path d="M9 3h6"></path><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"></path><path d="M8 15h8"></path>',
+    components: '<rect x="3" y="4" width="8" height="8" rx="1"></rect><rect x="13" y="4" width="8" height="8" rx="1"></rect><path d="M7 16h10"></path><path d="M12 12v8"></path>',
     pronunciation: '<path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><path d="M12 18v3"></path>',
     drill: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H7a3 3 0 0 0-3 3V5.5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path>',
     reader: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5z"></path><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5z"></path>',
@@ -3164,6 +3211,7 @@ function getDashboardContinueData(record, fallback) {
     vocabulary: "vocabulary",
     review: "review",
     grammar: "grammar",
+    components: "components",
     reader: "reader",
     exam: "exam",
     pronunciation: "pronunciation",
@@ -7104,6 +7152,491 @@ function renderGrammarResults() {
   });
 }
 
+function getComponentLessonById(lessonId) {
+  return CHARACTER_COMPONENT_LESSONS.find((lesson) => lesson.id === lessonId) || null;
+}
+
+function getComponentCourseProgress(history = loadHistoryRecords()) {
+  const records = history.filter((record) => record.type === "components");
+  const lessonStats = new Map(CHARACTER_COMPONENT_LESSONS.map((lesson) => [lesson.id, {
+    lesson,
+    attempts: 0,
+    correct: 0,
+    completed: false,
+  }]));
+
+  records.forEach((record) => {
+    if (record.scope === "lesson" && record.lessonId && record.completed) {
+      const stats = lessonStats.get(record.lessonId);
+      if (stats) stats.completed = true;
+    }
+    (record.answers || []).forEach((answer) => {
+      const stats = lessonStats.get(answer.lessonId);
+      if (!stats) return;
+      stats.attempts += 1;
+      stats.correct += answer.correct ? 1 : 0;
+    });
+  });
+
+  const lessons = [...lessonStats.values()].map((stats) => {
+    const accuracy = stats.attempts ? stats.correct / stats.attempts : null;
+    const status = stats.completed
+      ? accuracy !== null && accuracy >= 0.8 ? "Strong" : "Completed"
+      : stats.attempts ? "Learning" : "Not started";
+    return { ...stats, accuracy, status };
+  });
+  const attempts = lessons.reduce((sum, item) => sum + item.attempts, 0);
+  const correct = lessons.reduce((sum, item) => sum + item.correct, 0);
+  return {
+    lessons,
+    attempts,
+    correct,
+    accuracy: attempts ? correct / attempts : null,
+    completed: lessons.filter((item) => item.completed).length,
+    strong: lessons.filter((item) => item.status === "Strong").length,
+  };
+}
+
+function renderComponentCourseHome() {
+  if (state.componentLessonId) {
+    renderComponentLesson(getComponentLessonById(state.componentLessonId));
+    return;
+  }
+
+  const progress = getComponentCourseProgress();
+  const recommended = progress.lessons.find((item) => item.status === "Learning") ||
+    progress.lessons.find((item) => item.status === "Not started") ||
+    [...progress.lessons].sort((a, b) => (a.accuracy ?? 1) - (b.accuracy ?? 1))[0];
+  const nextLesson = recommended?.lesson || CHARACTER_COMPONENT_LESSONS[0];
+  const accuracy = progress.accuracy === null ? "New" : `${Math.round(progress.accuracy * 100)}%`;
+
+  app.innerHTML = `
+    <section class="workspace-panel component-course-home">
+      <header class="component-course-header">
+        <div>
+          <h2>Character Components</h2>
+          <p>Learn recurring building blocks, then use their meaning and sound clues to make better first guesses about unfamiliar characters.</p>
+        </div>
+        <button class="primary-btn" type="button" id="openRecommendedComponentLesson">
+          ${progress.attempts ? "Continue course" : "Start course"} ${dashboardArrowIconMarkup()}
+        </button>
+      </header>
+
+      <section class="component-method" aria-labelledby="componentMethodHeading">
+        <div class="component-method-copy">
+          <span>Clue method</span>
+          <h3 id="componentMethodHeading">Category first, exact meaning second</h3>
+          <p>A semantic component can narrow the field. A phonetic component can suggest a syllable family. Neither is a guarantee.</p>
+        </div>
+        <div class="component-method-equation" aria-label="Water meaning clue plus qing sound clue makes the character qing, clear">
+          <span class="is-semantic"><b class="chinese-text" lang="zh-CN">氵</b><small>water clue</small></span>
+          <i>+</i>
+          <span class="is-phonetic"><b class="chinese-text" lang="zh-CN">青</b><small>qīng sound</small></span>
+          <i>→</i>
+          <span class="is-whole"><b class="chinese-text" lang="zh-CN">清</b><small>clear</small></span>
+        </div>
+      </section>
+
+      ${progress.attempts ? `
+        <div class="component-progress-strip" aria-label="Component course progress">
+          <div><strong>${progress.completed}/${CHARACTER_COMPONENT_LESSONS.length}</strong><span>Lessons completed</span></div>
+          <div><strong>${progress.strong}</strong><span>Strong components</span></div>
+          <div><strong>${accuracy}</strong><span>Practice accuracy</span></div>
+          <button class="secondary-btn" type="button" id="startComponentReview">Mixed review</button>
+        </div>
+      ` : ""}
+
+      <div class="component-course-heading">
+        <div>
+          <h3>Course path</h3>
+          <p>${CHARACTER_COMPONENT_LESSONS.length} concise lessons progress from clue mechanics to high-frequency meaning categories.</p>
+        </div>
+      </div>
+
+      <div class="component-module-list">
+        ${CHARACTER_COMPONENT_MODULES.map((module, moduleIndex) => {
+          const moduleLessons = progress.lessons.filter((item) => item.lesson.moduleId === module.id);
+          const moduleCompleted = moduleLessons.filter((item) => item.completed).length;
+          return `
+            <section class="component-module" aria-labelledby="componentModule${moduleIndex}">
+              <header>
+                <span>${moduleIndex + 1}</span>
+                <div>
+                  <h3 id="componentModule${moduleIndex}">${escapeHtml(module.title)}</h3>
+                  <p>${escapeHtml(module.description)}</p>
+                </div>
+                <strong>${moduleCompleted}/${module.lessons.length}</strong>
+              </header>
+              <div class="component-lesson-list">
+                ${moduleLessons.map((item, lessonIndex) => buildComponentLessonRow(item, lessonIndex)).join("")}
+              </div>
+            </section>
+          `;
+        }).join("")}
+      </div>
+
+      <p class="component-source-note">
+        Component naming and decomposition follow the
+        <a href="https://hudong.moe.gov.cn/ewebeditor/uploadfile/2015/01/13/20150113090318445.pdf" target="_blank" rel="noopener noreferrer">Ministry of Education component standard</a>.
+        The course treats components as probabilistic clues rather than fixed definitions.
+      </p>
+    </section>
+  `;
+
+  document.querySelector("#openRecommendedComponentLesson")?.addEventListener("click", () => {
+    state.componentLessonId = nextLesson?.id || "";
+    saveSettings();
+    render();
+    window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+  });
+  document.querySelector("#startComponentReview")?.addEventListener("click", () => startComponentSession());
+  document.querySelectorAll("[data-component-lesson]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.componentLessonId = button.dataset.componentLesson;
+      saveSettings();
+      render();
+      window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    });
+  });
+}
+
+function buildComponentLessonRow(progressItem, index) {
+  const lesson = progressItem.lesson;
+  const accuracy = progressItem.accuracy === null ? "New" : `${Math.round(progressItem.accuracy * 100)}%`;
+  const statusClass = progressItem.status.toLowerCase().replace(/\s+/g, "-");
+  return `
+    <button class="component-lesson-row" type="button" data-component-lesson="${escapeHtml(lesson.id)}">
+      <span class="component-lesson-order">${index + 1}</span>
+      <span class="component-lesson-glyph chinese-text" lang="zh-CN">${escapeHtml(lesson.component)}</span>
+      <span class="component-lesson-copy">
+        <strong>${escapeHtml(lesson.name)}</strong>
+        <span>${escapeHtml(lesson.cue)}</span>
+      </span>
+      <span class="component-lesson-status ${statusClass}"><strong>${escapeHtml(accuracy)}</strong><small>${escapeHtml(progressItem.status)}</small></span>
+      <span class="component-lesson-arrow" aria-hidden="true">→</span>
+    </button>
+  `;
+}
+
+function renderComponentLesson(lesson) {
+  if (!lesson) {
+    state.componentLessonId = "";
+    saveSettings();
+    render();
+    return;
+  }
+  const progress = getComponentCourseProgress().lessons.find((item) => item.lesson.id === lesson.id);
+  const progressLabel = progress?.attempts
+    ? `${Math.round((progress.accuracy || 0) * 100)}% across ${progress.attempts} answers`
+    : "Not practiced yet";
+
+  app.innerHTML = `
+    <section class="workspace-panel component-lesson-view">
+      <button class="component-back-button" type="button" id="backToComponentCourse"><span aria-hidden="true">←</span> Course path</button>
+
+      <header class="component-lesson-hero">
+        <div class="component-hero-glyph">
+          <strong class="chinese-text" lang="zh-CN">${escapeHtml(lesson.component)}</strong>
+          ${lesson.variants.length ? `<span>${lesson.variants.map(escapeHtml).join(" · ")}</span>` : ""}
+        </div>
+        <div class="component-hero-copy">
+          <span>${escapeHtml(lesson.moduleTitle)}</span>
+          <h2>${escapeHtml(lesson.name)}</h2>
+          <p>${escapeHtml(lesson.summary)}</p>
+          <div><strong>Meaning field</strong><span>${escapeHtml(lesson.cue)}</span></div>
+          <small>${escapeHtml(progressLabel)}</small>
+        </div>
+      </header>
+
+      <section class="component-reliability-note" aria-labelledby="componentReliabilityHeading">
+        <span aria-hidden="true">≈</span>
+        <div><h3 id="componentReliabilityHeading">Use it as a clue</h3><p>${escapeHtml(lesson.reliability)}</p></div>
+      </section>
+
+      <section class="component-example-section" aria-labelledby="componentExamplesHeading">
+        <div class="component-course-heading">
+          <div><h3 id="componentExamplesHeading">See the component at work</h3><p>Separate the broad meaning clue from the sound clue before reading the whole character.</p></div>
+        </div>
+        <div class="component-example-list">
+          ${lesson.examples.map((example, index) => buildComponentExampleMarkup(example, index)).join("")}
+        </div>
+      </section>
+
+      <footer class="component-lesson-footer">
+        <div><strong>Practice inference</strong><span>${lesson.questions.length} questions test the clue, not rote translation.</span></div>
+        <button class="primary-btn shortcut-btn" type="button" id="practiceComponentLesson"><span>Check this component</span>${shortcutHint("Enter")}</button>
+      </footer>
+    </section>
+  `;
+
+  document.querySelector("#backToComponentCourse")?.addEventListener("click", () => {
+    state.componentLessonId = "";
+    saveSettings();
+    render();
+    window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+  });
+  document.querySelector("#practiceComponentLesson")?.addEventListener("click", () => startComponentSession(lesson.id));
+}
+
+function buildComponentExampleMarkup(example, index) {
+  return `
+    <article class="component-example-row">
+      <span class="component-example-index">${index + 1}</span>
+      <div class="component-example-character">
+        <strong class="chinese-text" lang="zh-CN">${escapeHtml(example.character)}</strong>
+        <span>${buildToneColoredPinyinMarkup(example.pinyin)}</span>
+        <small>${escapeHtml(example.meaning)}</small>
+      </div>
+      <div class="component-example-equation" aria-label="${escapeHtml(example.semantic)} meaning clue plus ${escapeHtml(example.phonetic)} sound clue">
+        <span class="is-semantic"><b class="chinese-text" lang="zh-CN">${escapeHtml(example.semantic)}</b><small>${escapeHtml(example.semanticNote)}</small></span>
+        <i>+</i>
+        <span class="is-phonetic"><b class="chinese-text" lang="zh-CN">${escapeHtml(example.phonetic)}</b><small>${escapeHtml(example.phoneticNote)}</small></span>
+      </div>
+      <p>${escapeHtml(example.insight)}</p>
+    </article>
+  `;
+}
+
+function buildComponentSessionItems(lessonId = "") {
+  const lessons = lessonId
+    ? CHARACTER_COMPONENT_LESSONS.filter((lesson) => lesson.id === lessonId)
+    : CHARACTER_COMPONENT_LESSONS;
+  const pool = lessons.flatMap((lesson) => lesson.questions.map((question) => ({
+    ...question,
+    lessonId: lesson.id,
+    lessonName: lesson.name,
+    lessonComponent: lesson.component,
+    lessonCue: lesson.cue,
+    moduleId: lesson.moduleId,
+    moduleTitle: lesson.moduleTitle,
+  })));
+  const selected = lessonId ? shuffle(pool) : shuffle(pool).slice(0, Math.min(COMPONENT_MIXED_SESSION_LENGTH, pool.length));
+  return selected.map((question) => ({
+    ...question,
+    choices: shuffle(question.options).map((text, index) => ({
+      id: `${question.id}-choice-${index}`,
+      text,
+      correct: text === question.answer,
+      shortcut: String(index + 1),
+    })),
+  }));
+}
+
+function startComponentSession(lessonId = "") {
+  const lesson = lessonId ? getComponentLessonById(lessonId) : null;
+  const items = buildComponentSessionItems(lessonId);
+  if (!items.length) return;
+  stopSpeech();
+  state.tool = "components";
+  state.componentLessonId = lessonId;
+  state.result = null;
+  state.session = {
+    type: "components",
+    scope: lesson ? "lesson" : "mixed",
+    lessonId,
+    moduleId: lesson?.moduleId || "",
+    items,
+    index: 0,
+    answers: [],
+    currentAssessment: null,
+    startedAt: Date.now(),
+  };
+  saveSettings();
+  render();
+  window.setTimeout(() => window.scrollTo?.({ top: 0, left: 0, behavior: "auto" }), 0);
+}
+
+function renderComponentSession() {
+  const session = state.session;
+  const item = session.items[session.index];
+  const assessment = session.currentAssessment;
+  const correct = session.answers.filter((answer) => answer.correct).length;
+  const progress = Math.round(((session.index + (assessment ? 1 : 0)) / session.items.length) * 100);
+
+  app.innerHTML = `
+    <section class="workspace-panel component-session">
+      <header class="component-session-header">
+        <div><span>${session.scope === "lesson" ? "Focused component practice" : "Mixed component review"}</span><strong>${escapeHtml(item.lessonName)}</strong></div>
+        <div class="component-session-score"><span>Score</span><strong>${correct}/${session.answers.length}</strong></div>
+        <button class="ghost-btn" type="button" id="endSession">End practice</button>
+      </header>
+      <div class="component-session-progress"><div class="progress-track"><div style="width:${progress}%"></div></div><span>Question ${session.index + 1} of ${session.items.length}</span></div>
+
+      <div class="component-practice-layout">
+        <aside class="component-clue-panel">
+          <span>Meaning clue in focus</span>
+          <strong class="chinese-text" lang="zh-CN">${escapeHtml(item.lessonComponent)}</strong>
+          <p>${escapeHtml(item.lessonCue)}</p>
+          <small>Use the clue to narrow the category before choosing.</small>
+        </aside>
+        <section class="component-question-panel ${assessment ? "is-answered" : ""}">
+          <div class="component-question-copy">
+            <span>Infer before translating</span>
+            <div class="component-question-character"><strong class="chinese-text" lang="zh-CN">${escapeHtml(item.character)}</strong><small>${buildToneColoredPinyinMarkup(item.pinyin)}</small></div>
+            <h2>${escapeHtml(item.prompt)}</h2>
+          </div>
+          <div class="component-choice-grid">
+            ${item.choices.map((choice) => buildComponentChoiceMarkup(choice, assessment)).join("")}
+          </div>
+          ${assessment ? buildComponentFeedbackMarkup(item, assessment) : ""}
+          ${assessment ? `<button class="primary-btn shortcut-btn component-next-button" type="button" id="nextQuestion"><span>${session.index + 1 >= session.items.length ? "View results" : "Next question"}</span>${shortcutHint("Enter")}</button>` : ""}
+        </section>
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll("[data-component-choice-id]").forEach((button) => {
+    button.addEventListener("click", () => submitComponentChoice(button.dataset.componentChoiceId));
+  });
+  document.querySelector("#nextQuestion")?.addEventListener("click", nextQuestion);
+  document.querySelector("#endSession")?.addEventListener("click", finishSessionEarly);
+}
+
+function buildComponentChoiceMarkup(choice, assessment) {
+  const selected = assessment?.choiceId === choice.id;
+  const classes = [
+    "choice-option",
+    "component-choice-option",
+    selected ? "selected" : "",
+    assessment && choice.correct ? "correct" : "",
+    assessment && selected && !choice.correct ? "incorrect" : "",
+    assessment && selected && choice.correct ? "correct-celebration" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <button class="${classes}" type="button" data-component-choice-id="${escapeHtml(choice.id)}" ${assessment ? "disabled" : ""}>
+      <span class="choice-key">${escapeHtml(choice.shortcut)}</span>
+      <span class="choice-text">${escapeHtml(choice.text)}</span>
+    </button>
+  `;
+}
+
+function buildComponentFeedbackMarkup(item, assessment) {
+  return `
+    <section class="component-feedback ${assessment.correct ? "is-correct correct-celebration" : "is-wrong"}" role="status" aria-live="polite">
+      <div>
+        <strong>${assessment.correct ? "Correct inference" : "Follow the meaning clue"}</strong>
+        <span>Answer: <b>${escapeHtml(item.answer)}</b></span>
+      </div>
+      <p>${escapeHtml(item.explanation)}</p>
+      <div class="component-feedback-decomposition"><span class="chinese-text" lang="zh-CN">${escapeHtml(item.character)}</span><b>${escapeHtml(item.decomposition)}</b><small>${escapeHtml(item.meaning)}</small></div>
+    </section>
+  `;
+}
+
+function submitComponentChoiceByShortcut(shortcut) {
+  const session = state.session;
+  if (session?.type !== "components" || session.currentAssessment) return;
+  const choice = session.items[session.index]?.choices.find((option) => option.shortcut === shortcut);
+  if (choice) submitComponentChoice(choice.id);
+}
+
+function submitComponentChoice(choiceId) {
+  const session = state.session;
+  const item = session?.items?.[session.index];
+  if (session?.type !== "components" || !item || session.currentAssessment) return;
+  const choice = item.choices.find((option) => option.id === choiceId);
+  if (!choice) return;
+  const assessment = {
+    choiceId: choice.id,
+    answer: choice.text,
+    expected: item.answer,
+    correct: choice.correct,
+    score: choice.correct ? 1 : 0,
+  };
+  session.currentAssessment = assessment;
+  session.answers.push({ ...assessment, item, itemIndex: session.index });
+  render();
+  scrollComponentFeedbackIntoView();
+}
+
+function scrollComponentFeedbackIntoView() {
+  window.setTimeout(() => {
+    document.querySelector("#nextQuestion")?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+  }, 0);
+}
+
+function scrollComponentQuestionIntoView() {
+  window.setTimeout(() => {
+    document.querySelector(".component-question-panel")?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+  }, 0);
+}
+
+function getComponentResultFocus(result) {
+  const stats = new Map();
+  result.answers.forEach((answer) => {
+    const current = stats.get(answer.item.lessonId) || {
+      lesson: getComponentLessonById(answer.item.lessonId),
+      attempts: 0,
+      correct: 0,
+    };
+    current.attempts += 1;
+    current.correct += answer.correct ? 1 : 0;
+    stats.set(answer.item.lessonId, current);
+  });
+  return [...stats.values()]
+    .map((item) => ({ ...item, accuracy: item.attempts ? item.correct / item.attempts : 0 }))
+    .sort((a, b) => a.accuracy - b.accuracy || b.attempts - a.attempts);
+}
+
+function renderComponentResults() {
+  const result = state.result;
+  const correct = result.answers.filter((answer) => answer.correct).length;
+  const accuracy = result.answers.length ? Math.round((correct / result.answers.length) * 100) : 0;
+  const focus = getComponentResultFocus(result);
+  const review = focus.filter((item) => item.accuracy < 1).slice(0, 3);
+  const rows = result.answers.map((answer, index) => `
+    <tr class="${answer.correct ? "found" : "missed"}">
+      <td>${index + 1}</td>
+      <td class="chinese-text" lang="zh-CN">${escapeHtml(answer.item.character)}</td>
+      <td>${escapeHtml(answer.item.lessonName)}</td>
+      <td>${escapeHtml(answer.answer)}</td>
+      <td>${escapeHtml(answer.item.answer)}</td>
+      <td class="${answer.correct ? "status-good" : "status-review"}">${answer.correct ? "Correct" : "Review"}</td>
+    </tr>
+  `).join("");
+
+  app.innerHTML = `
+    <section class="workspace-panel component-results">
+      <header class="results-header">
+        <div><h2>${result.scope === "lesson" ? "Component Check Complete" : "Mixed Component Review Complete"}</h2><p>${correct} of ${result.answers.length} inferences correct across ${focus.length} ${focus.length === 1 ? "component" : "components"}.</p></div>
+        <div class="result-actions"><button class="secondary-btn" type="button" id="restartSession">Practice again</button><button class="ghost-btn" type="button" id="backToModes">Back to course</button></div>
+      </header>
+      <div class="stat-grid component-result-stats">
+        <div class="stat"><strong>${accuracy}%</strong><span>Accuracy</span></div>
+        <div class="stat"><strong>${correct}/${result.answers.length}</strong><span>Correct</span></div>
+        <div class="stat"><strong>${formatTimer(result.elapsedSeconds)}</strong><span>Practice time</span></div>
+      </div>
+      <section class="component-result-focus" aria-labelledby="componentFocusHeading">
+        <div class="component-course-heading"><div><h3 id="componentFocusHeading">${review.length ? "Components to revisit" : "Clues strengthened"}</h3><p>${review.length ? "Review the category clue and its examples before trying again." : "Every clue in this session was used correctly."}</p></div></div>
+        <div class="component-result-focus-list">
+          ${(review.length ? review : focus.slice(0, 3)).map((item) => `<button type="button" data-result-component-lesson="${escapeHtml(item.lesson?.id || "")}"><span class="chinese-text" lang="zh-CN">${escapeHtml(item.lesson?.component || "部")}</span><div><strong>${escapeHtml(item.lesson?.name || "Component")}</strong><small>${item.correct}/${item.attempts} correct</small></div>${dashboardArrowIconMarkup()}</button>`).join("")}
+        </div>
+      </section>
+      <div class="results-table-wrap" tabindex="0"><table class="component-results-table"><thead><tr><th>#</th><th>Character</th><th>Clue</th><th>Your answer</th><th>Expected</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </section>
+  `;
+
+  document.querySelector("#restartSession")?.addEventListener("click", () => startComponentSession(result.lessonId || ""));
+  document.querySelector("#backToModes")?.addEventListener("click", () => {
+    state.result = null;
+    state.session = null;
+    state.componentLessonId = "";
+    saveSettings();
+    render();
+    window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+  });
+  document.querySelectorAll("[data-result-component-lesson]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.result = null;
+      state.session = null;
+      state.componentLessonId = button.dataset.resultComponentLesson;
+      saveSettings();
+      render();
+      window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    });
+  });
+}
+
 function formatVocabularyPathSetName(setId, setLabel = "") {
   const set = VOCABULARY_QUIZ_SETS.find((candidate) => candidate.id === setId) || { id: setId, label: setLabel };
   const meta = getVocabularySetMeta(set);
@@ -9049,6 +9582,7 @@ function getProgressSkillDefinitions() {
   return [
     { id: "vocabulary", label: "Vocabulary", tool: "review", unit: "words" },
     { id: "grammar", label: "Grammar", tool: "grammar", unit: "questions" },
+    { id: "components", label: "Components", tool: "components", unit: "questions" },
     { id: "exam", label: "Mock exams", tool: "exam", unit: "questions" },
     { id: "pronunciation", label: "Pronunciation", tool: "pronunciation", unit: "sentences" },
     { id: "tone", label: "Tone listening", tool: "pronunciation", mode: "tone", unit: "words" },
@@ -9389,6 +9923,12 @@ function getHistoryRecordPresentation(record) {
       ? `${record.lessonTitle || "Focused pattern"} · HSK ${record.level || 1}`
       : `HSK ${record.level || 1} · Mixed patterns`;
     resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
+  } else if (record.type === "components") {
+    typeLabel = "Component practice";
+    modeLabel = record.scope === "lesson"
+      ? `${record.lessonTitle || "Focused component"} · Meaning clues`
+      : "Mixed meaning clues";
+    resultLabel = `${record.correct}/${record.total} correct · ${formatTimer(record.elapsedSeconds || 0)}`;
   } else if (record.type === "reader") {
     typeLabel = "Graded reader";
     modeLabel = `New HSK ${record.level || 1} · ${record.title || "Story"}`;
@@ -9523,6 +10063,16 @@ function buildHistorySessionReviewMarkup(record) {
             </div>
           `;
         }
+        if (record.type === "components") {
+          return `
+            <div class="history-mistake-row is-sentence is-component">
+              <strong class="chinese-text" lang="zh-CN">${escapeHtml(answer.character || answer.component || "")}</strong>
+              <p>${escapeHtml(answer.lessonTitle || "Character component")} · ${escapeHtml(answer.decomposition || "")}</p>
+              <span>Chose ${escapeHtml(answer.answer || "No answer")} · expected ${escapeHtml(answer.expected || "")}</span>
+              <b>${answer.correct ? "Correct" : "Review"}</b>
+            </div>
+          `;
+        }
         if (record.type === "pronunciation") {
           const missed = (answer.missedWords || []).map((word) => word.text).join(" · ");
           return `
@@ -9594,6 +10144,7 @@ function getHistoryTypeFilterLabel(type) {
     vocabulary: "Quizzes",
     review: "Review",
     grammar: "Grammar",
+    components: "Components",
     reader: "Reading",
     exam: "Exams",
     pronunciation: "Speaking",
@@ -10001,6 +10552,11 @@ function renderSession() {
 
   if (state.session?.type === "grammar") {
     renderGrammarSession();
+    return;
+  }
+
+  if (state.session?.type === "components") {
+    renderComponentSession();
     return;
   }
 
@@ -13842,6 +14398,13 @@ function startActiveSession() {
     return;
   }
 
+  if (state.tool === "components") {
+    if (state.componentLessonId) {
+      startComponentSession(state.componentLessonId);
+    }
+    return;
+  }
+
   if (state.tool === "reader") {
     if (state.readerId) {
       startReaderQuiz(state.readerId);
@@ -14604,6 +15167,10 @@ function nextQuestion() {
   session.currentAssessment = null;
   render();
 
+  if (session.type === "components") {
+    scrollComponentQuestionIntoView();
+  }
+
   if (sessionUsesAudioPrompt(session)) {
     speak(session.items[session.index].zh, { immediate: true });
   }
@@ -14734,6 +15301,19 @@ function buildSessionResult(session) {
       scope: session.scope || "mixed",
       lessonId: session.lessonId || "",
       level: session.level || 1,
+      items: session.items,
+      answers: session.answers,
+      elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
+      total: session.items.length,
+    };
+  }
+
+  if (session.type === "components") {
+    return {
+      type: "components",
+      scope: session.scope || "mixed",
+      lessonId: session.lessonId || "",
+      moduleId: session.moduleId || "",
       items: session.items,
       answers: session.answers,
       elapsedSeconds: Math.max(0, Math.round((Date.now() - session.startedAt) / 1000)),
@@ -15008,6 +15588,41 @@ function buildHistoryRecord(result) {
         answer: answer.answer || "",
         expected: answer.item.answer,
         explanation: answer.item.explanation,
+        correct: Boolean(answer.correct),
+        score: answer.correct ? 1 : 0,
+      })),
+    };
+  }
+
+  if (result.type === "components") {
+    const lesson = getComponentLessonById(result.lessonId);
+    const correct = result.answers.filter((answer) => answer.correct).length;
+    return {
+      id,
+      type: "components",
+      scope: result.scope || "mixed",
+      lessonId: result.lessonId || "",
+      lessonTitle: lesson?.name || "",
+      completedAt,
+      total: result.total || result.answers.length,
+      answered: result.answers.length,
+      completed: result.answers.length >= (result.total || result.answers.length),
+      correct,
+      elapsedSeconds: result.elapsedSeconds || 0,
+      answers: result.answers.map((answer, index) => ({
+        index,
+        questionId: answer.item.id,
+        lessonId: answer.item.lessonId,
+        lessonTitle: answer.item.lessonName,
+        component: answer.item.lessonComponent,
+        character: answer.item.character,
+        pinyin: answer.item.pinyin,
+        meaning: answer.item.meaning,
+        prompt: answer.item.prompt,
+        decomposition: answer.item.decomposition,
+        explanation: answer.item.explanation,
+        answer: answer.answer || "",
+        expected: answer.item.answer,
         correct: Boolean(answer.correct),
         score: answer.correct ? 1 : 0,
       })),

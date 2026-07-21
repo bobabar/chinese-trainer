@@ -2623,6 +2623,7 @@ body[data-tool="dashboard"] .workspace {
 body[data-tool="vocabulary"],
 body[data-tool="review"],
 body[data-tool="grammar"],
+body[data-tool="components"],
 body[data-tool="reader"],
 body[data-tool="exam"],
 body[data-tool="pronunciation"],
@@ -2644,6 +2645,10 @@ body[data-tool="review"] {
 
 body[data-tool="grammar"] {
   --experience-accent: #4269c8;
+}
+
+body[data-tool="components"] {
+  --experience-accent: #0f766e;
 }
 
 body[data-tool="reader"] {

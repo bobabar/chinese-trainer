@@ -7,6 +7,7 @@ const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
+const componentData = fs.readFileSync(path.join(ROOT, "component-data.js"), "utf8");
 const examData = fs.readFileSync(path.join(ROOT, "exam-data.js"), "utf8");
 const readerData = fs.readFileSync(path.join(ROOT, "reader-data.js"), "utf8");
 const chinaMapData = fs.readFileSync(path.join(ROOT, "china-map-data.js"), "utf8");
@@ -99,6 +100,7 @@ vm.createContext(context);
 vm.runInContext(wordData, context, { filename: "word-data.js" });
 vm.runInContext(vocabData, context, { filename: "vocab-data.js" });
 vm.runInContext(grammarData, context, { filename: "grammar-data.js" });
+vm.runInContext(componentData, context, { filename: "component-data.js" });
 vm.runInContext(examData, context, { filename: "exam-data.js" });
 vm.runInContext(readerData, context, { filename: "reader-data.js" });
 vm.runInContext(chinaMapData, context, { filename: "china-map-data.js" });
@@ -107,6 +109,8 @@ window.__tests = {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  CHARACTER_COMPONENT_LESSONS,
+  CHARACTER_COMPONENT_MODULES,
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
@@ -146,6 +150,8 @@ window.__tests = {
   buildHskRoadmapMarkup,
   buildGrammarPromptMarkup,
   buildGrammarSessionItems,
+  buildComponentSessionItems,
+  buildComponentExampleMarkup,
   buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
@@ -197,6 +203,7 @@ window.__tests = {
   getHistoryProgressData,
   getHistorySkillStats,
   getGrammarLessonProgress,
+  getComponentCourseProgress,
   getReaderById,
   getGrammarQuestionPool,
   getGlobalSearchResults,
@@ -285,6 +292,8 @@ const {
   CHINA_CITIES,
   CHINA_MAP_ITEMS,
   CHINA_PROVINCES,
+  CHARACTER_COMPONENT_LESSONS,
+  CHARACTER_COMPONENT_MODULES,
   DASHBOARD_DAILY_GOAL,
   GRAMMAR_LESSONS,
   GRAMMAR_SESSION_LENGTH,
@@ -324,6 +333,8 @@ const {
   buildHskRoadmapMarkup,
   buildGrammarPromptMarkup,
   buildGrammarSessionItems,
+  buildComponentSessionItems,
+  buildComponentExampleMarkup,
   buildLearningBackup,
   buildProgressActivityMarkup,
   buildHighScoreCelebration,
@@ -375,6 +386,7 @@ const {
   getHistoryProgressData,
   getHistorySkillStats,
   getGrammarLessonProgress,
+  getComponentCourseProgress,
   getReaderById,
   getGrammarQuestionPool,
   getGlobalSearchResults,
@@ -485,7 +497,7 @@ const drillModeOrder = [...indexSource.matchAll(/<button class="mode-tab"[^>]*da
   .map((match) => `${match[1]}:${match[2]}`);
 
 assert(
-  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|reader:Graded Readers|exam:Mock HSK Exam|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
+  toolNavOrder.join("|") === "dashboard:Today|vocabulary:Vocabulary Quiz|review:Daily Review|grammar:Grammar Lab|components:Character Components|reader:Graded Readers|exam:Mock HSK Exam|pronunciation:Pronunciation|map:Geography of China|drill:Sentence Drills|history:History",
   "global nav should show Today before the learning tools and History",
 );
 assert(
@@ -528,6 +540,7 @@ assert(fs.statSync(path.join(ROOT, "assets/panda-mascot-192.webp")).size < 20000
   "app.js",
   "vocab-data.js",
   "grammar-data.js",
+  "component-data.js",
   "exam-data.js",
   "reader-data.js",
   "sentence-data.js",
@@ -553,6 +566,7 @@ assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWor
 assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
 assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
 assert(buildSiteSource.includes('"exam-data.js"'), "production builds should publish and cache-bust the HSK exam corpus");
+assert(buildSiteSource.includes('"component-data.js"'), "production builds should publish and cache-bust the component course");
 assert(buildSiteSource.includes('"reader-data.js"') && buildSiteSource.includes('"account.js"'), "production builds should publish account and graded-reader assets");
 assert(!indexSource.includes('src="./assets/vendor/supabase-2.110.5.js"') && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "account state should bind before the application while Supabase loads only on demand");
 assert(!appSource.includes("study-plan-mobile-action"), "first-run setup should render only one primary completion action");
@@ -1444,6 +1458,60 @@ assert(getHistorySkillStats([grammarHistoryRecord]).find((skill) => skill.id ===
 assert(getGrammarLessonProgress([grammarHistoryRecord], firstGrammarLesson.id).status === "Learning", "grammar lesson progress should distinguish learning patterns");
 assert(isDashboardPlanRecordComplete(grammarHistoryRecord), "a completed focused grammar check should satisfy the adaptive language activity");
 assert(stylesSource.includes(".grammar-lesson-list") && stylesSource.includes(".grammar-practice-layout"), "Grammar Lab should include first-class responsive lesson and practice styling");
+assert(CHARACTER_COMPONENT_MODULES.length === 4, "Character Components should organize the curriculum into four progressive modules");
+assert(CHARACTER_COMPONENT_LESSONS.length === 15, "Character Components should provide fifteen focused lessons");
+assert(
+  new Set(CHARACTER_COMPONENT_LESSONS.map((lesson) => lesson.id)).size === CHARACTER_COMPONENT_LESSONS.length,
+  "component lessons should use unique identifiers",
+);
+assert(
+  CHARACTER_COMPONENT_LESSONS.every((lesson) => lesson.examples.length === 3 && lesson.questions.length === 3),
+  "every component lesson should include three worked examples and three inference checks",
+);
+assert(
+  CHARACTER_COMPONENT_LESSONS.flatMap((lesson) => lesson.questions).every((question) => question.options.length === 4 && new Set(question.options).size === 4 && question.options.includes(question.answer)),
+  "component checks should provide four unique choices including the expected answer",
+);
+assert(
+  CHARACTER_COMPONENT_LESSONS.flatMap((lesson) => lesson.examples).every((example) => example.character && example.pinyin && example.meaning && example.semantic && example.phonetic),
+  "worked component examples should identify the character, pronunciation, meaning clue, and sound clue",
+);
+const firstComponentLesson = CHARACTER_COMPONENT_LESSONS[0];
+const focusedComponentItems = buildComponentSessionItems(firstComponentLesson.id);
+assert(focusedComponentItems.length === 3 && focusedComponentItems.every((item) => item.lessonId === firstComponentLesson.id), "focused component checks should stay within the selected lesson");
+assert(focusedComponentItems.every((item) => item.choices.length === 4 && item.choices.filter((choice) => choice.correct).length === 1), "component practice should create one correct choice among four keyboard-matched options");
+const mixedComponentItems = buildComponentSessionItems();
+assert(mixedComponentItems.length === 10 && new Set(mixedComponentItems.map((item) => item.id)).size === 10, "mixed component review should select ten distinct questions");
+assert(
+  buildComponentExampleMarkup(firstComponentLesson.examples[0], 0).includes("is-semantic") && buildComponentExampleMarkup(firstComponentLesson.examples[0], 0).includes("is-phonetic"),
+  "worked examples should visibly distinguish meaning and sound clues",
+);
+const componentResultFixture = {
+  type: "components",
+  scope: "lesson",
+  lessonId: firstComponentLesson.id,
+  moduleId: firstComponentLesson.moduleId,
+  items: focusedComponentItems,
+  total: focusedComponentItems.length,
+  elapsedSeconds: 42,
+  answers: focusedComponentItems.map((item, index) => ({
+    item,
+    answer: index ? item.answer : item.choices.find((choice) => !choice.correct).text,
+    expected: item.answer,
+    correct: index > 0,
+    score: index > 0 ? 1 : 0,
+  })),
+};
+const componentHistoryRecord = buildHistoryRecord(componentResultFixture);
+assert(componentHistoryRecord.type === "components" && componentHistoryRecord.correct === 2 && componentHistoryRecord.total === 3 && componentHistoryRecord.completed, "component history should retain completed lesson scores");
+assert(buildHistoryRowMarkup(componentHistoryRecord).includes("Component practice"), "History should label component practice clearly");
+assert(buildHistorySessionMarkup(componentHistoryRecord).includes("expected") && buildHistorySessionMarkup(componentHistoryRecord).includes(componentHistoryRecord.answers[0].character), "component History should retain answer-level decomposition review");
+const componentProgress = getComponentCourseProgress([componentHistoryRecord]);
+assert(componentProgress.completed === 1 && componentProgress.attempts === 3 && componentProgress.correct === 2, "component course progress should derive completion and accuracy from browser history");
+assert(componentProgress.lessons.find((item) => item.lesson.id === firstComponentLesson.id).status === "Completed", "a completed component check below eighty percent should remain marked completed rather than strong");
+assert(getHistorySkillStats([componentHistoryRecord]).find((skill) => skill.id === "components").accuracy === 2 / 3, "Learning progress should track component inference accuracy separately");
+assert(stylesSource.includes(".component-lesson-list") && stylesSource.includes(".component-practice-layout"), "Character Components should include first-class responsive course and practice styling");
+assert(appSource.includes("scrollComponentFeedbackIntoView()") && appSource.includes("scrollComponentQuestionIntoView()"), "component practice should keep feedback and each new prompt in view on compact screens");
 assert(stylesSource.includes("animation: correct-highlight") && !stylesSource.includes("animation: correct-pop"), "success feedback should avoid transform-based compositor animations that can leave black artifacts");
 const progressHistory = [
   ...dashboardHistory,
@@ -1482,7 +1550,7 @@ const progressHistory = [
   },
 ];
 const progressSkills = getHistorySkillStats(progressHistory);
-assert(progressSkills.length === 9 && progressSkills[2].id === "exam", "Learning progress should report every core skill, including mock exams, in a stable order");
+assert(progressSkills.length === 10 && progressSkills[2].id === "components" && progressSkills[3].id === "exam", "Learning progress should report every core skill, including components and mock exams, in a stable order");
 assert(Math.abs(progressSkills.find((skill) => skill.id === "reading").accuracy - 0.7) < 0.001, "Learning progress should calculate sentence-mode accuracy");
 assert(progressSkills.find((skill) => skill.id === "vocabulary").attempts === 15, "Learning progress should combine vocabulary quizzes and reviews");
 const progressActivity = getHistoryActivityDays(progressHistory, dashboardNow);

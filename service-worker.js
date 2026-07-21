@@ -13,6 +13,7 @@ const APP_SHELL_URLS = [
   "./app.js",
   "./vocab-data.js",
   "./grammar-data.js",
+  "./component-data.js",
   "./exam-data.js",
   "./reader-data.js",
   "./sentence-data.js",

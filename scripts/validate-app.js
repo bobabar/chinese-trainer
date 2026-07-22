@@ -183,6 +183,7 @@ window.__tests = {
   buildSentenceDrillGradeControls,
   containsChinese,
   choosePreferredVoice,
+  canAccessReader,
   canAccessHskExamLevel,
   determineVocabularyTimeLimit,
   extractPinyinTones,
@@ -366,6 +367,7 @@ const {
   buildSentenceDrillGradeControls,
   containsChinese,
   choosePreferredVoice,
+  canAccessReader,
   canAccessHskExamLevel,
   determineVocabularyTimeLimit,
   extractPinyinTones,
@@ -572,6 +574,9 @@ assert(!indexSource.includes('src="./assets/vendor/supabase-2.110.5.js"') && ind
 assert(!appSource.includes("study-plan-mobile-action"), "first-run setup should render only one primary completion action");
 assert(appSource.includes("Listen to the Chinese word and choose its English meaning."), "Audio Quiz setup should describe its five-choice interaction");
 assert(indexSource.includes('id="accountTrigger"') && indexSource.includes('id="accountDialog"'), "the app shell should expose account access and its secure dialog");
+assert(indexSource.includes('id="supportProject"') && indexSource.includes("Donate"), "the global navigation should offer voluntary support");
+assert(accountSource.includes("Support cross-cultural education") && accountSource.includes("Every tool remains free"), "the support dialog should explain that donations do not gate learning access");
+assert(!indexSource.includes("Premium") && !accountSource.includes("Premium") && !appSource.includes("Premium"), "the learner-facing application should not advertise Premium access");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-1.webp")).size > 10000, "the first HSK picture sheet should be a real optimized image asset");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-2.webp")).size > 10000, "the second HSK picture sheet should be a real optimized image asset");
 assert(appSource.includes('window.addEventListener("beforeinstallprompt"') && appSource.includes('updateViaCache: "none"'), "the app should expose native installation and bypass stale service-worker script caches");
@@ -589,10 +594,8 @@ assert(new Set(GRADED_READERS.map((reader) => reader.id)).size === GRADED_READER
   });
 });
 assert(getReaderById(GRADED_READERS[0].id) === GRADED_READERS[0], "reader ids should resolve to their source story");
-assert(canAccessHskExamLevel(1, { prompt: false }) && !canAccessHskExamLevel(2, { prompt: false }), "signed-out learners should receive one free New HSK 1 mock and no premium mock access");
-context.window.ChineseTrainerAccount = { isPremium: () => true };
-assert(canAccessHskExamLevel(2, { prompt: false }) && canAccessHskExamLevel(3, { prompt: false }), "server-derived Premium state should unlock New HSK 2 and 3 mocks");
-delete context.window.ChineseTrainerAccount;
+assert(GRADED_READERS.every((reader) => canAccessReader(reader)), "every New HSK 1–3 graded reader should be free without an account");
+assert([1, 2, 3].every((level) => canAccessHskExamLevel(level)), "every New HSK 1–3 mock exam should be free without an account");
 const readerHistoryFixture = buildHistoryRecord({
   type: "reader",
   readerId: GRADED_READERS[0].id,

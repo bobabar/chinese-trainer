@@ -754,20 +754,7 @@ function bindAccountState() {
   if (!account) {
     return;
   }
-  account.subscribe(() => {
-    if (!state.session && !state.result && ["reader", "exam"].includes(state.tool)) {
-      render();
-    }
-  });
   account.bind?.();
-}
-
-function hasPremiumAccess() {
-  return Boolean(window.ChineseTrainerAccount?.isPremium?.());
-}
-
-function requirePremiumAccess(reason) {
-  return Boolean(window.ChineseTrainerAccount?.requirePremium?.(reason));
 }
 
 function bindTopLevelControls() {
@@ -783,7 +770,7 @@ function bindTopLevelControls() {
     launchDashboardActivity(dashboard.nextActivity.tool, dashboard.nextActivity.mode || "");
   });
 
-  document.querySelectorAll(".tool-tab").forEach((button) => {
+  document.querySelectorAll(".tool-tab[data-tool]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextTool = button.dataset.tool;
       closeMobileNavigation({ restoreFocus: false });
@@ -812,6 +799,10 @@ function bindTopLevelControls() {
       render();
       window.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
     });
+  });
+  document.querySelector("#supportProject")?.addEventListener("click", () => {
+    closeMobileNavigation({ restoreFocus: false });
+    window.ChineseTrainerAccount?.open?.("support");
   });
 
   document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {
@@ -2618,7 +2609,7 @@ function updateNavigationState() {
   document.querySelectorAll(".vocabulary-quiz-only").forEach((element) => {
     element.hidden = state.tool !== "vocabulary" || state.vocabularyView !== "quiz";
   });
-  document.querySelectorAll(".tool-tab").forEach((button) => {
+  document.querySelectorAll(".tool-tab[data-tool]").forEach((button) => {
     const active = button.dataset.tool === state.tool;
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
@@ -7746,18 +7737,8 @@ function getReaderById(readerId) {
   return GRADED_READERS.find((reader) => reader.id === readerId) || null;
 }
 
-function isPremiumReader(reader) {
-  return Number(reader?.level) > 1;
-}
-
-function canAccessReader(reader, { prompt = true } = {}) {
-  if (reader && (!isPremiumReader(reader) || hasPremiumAccess())) {
-    return true;
-  }
-  if (prompt) {
-    requirePremiumAccess("HSK 2 and HSK 3 graded readers are included with Premium.");
-  }
-  return false;
+function canAccessReader(reader) {
+  return Boolean(reader);
 }
 
 function getReaderCompletion(readerId, history = loadHistoryRecords()) {
@@ -7768,7 +7749,7 @@ function getReaderCompletion(readerId, history = loadHistoryRecords()) {
 
 function renderReaderHome() {
   const selectedReader = getReaderById(state.readerId);
-  if (selectedReader && canAccessReader(selectedReader, { prompt: false })) {
+  if (selectedReader && canAccessReader(selectedReader)) {
     renderReaderDetail(selectedReader);
     return;
   }
@@ -7777,24 +7758,20 @@ function renderReaderHome() {
   }
 
   const history = loadHistoryRecords();
-  const premium = hasPremiumAccess();
   const levelReaders = GRADED_READERS.filter((reader) => reader.level === state.readerLevel);
-  const levelLocked = state.readerLevel > 1 && !premium;
   const levelCompletions = new Map(levelReaders.map((reader) => [reader.id, getReaderCompletion(reader.id, history)]));
   const completedReaders = levelReaders.filter((reader) => levelCompletions.get(reader.id)?.attempts).length;
   const nextReader = levelReaders.find((reader) => !levelCompletions.get(reader.id)?.attempts) || levelReaders[0];
   const readerProgressPercent = levelReaders.length ? Math.round((completedReaders / levelReaders.length) * 100) : 0;
   const tabs = [1, 2, 3].map((level) => {
-    const locked = level > 1 && !premium;
     return `<button type="button" data-reader-level="${level}" class="${state.readerLevel === level ? "active" : ""}" aria-pressed="${state.readerLevel === level}">
-      HSK ${level}${locked ? '<span class="reader-tab-lock" aria-label="Premium">Premium</span>' : ""}
+      HSK ${level}
     </button>`;
   }).join("");
   const cards = levelReaders.map((reader) => {
-    const locked = isPremiumReader(reader) && !premium;
     const completion = levelCompletions.get(reader.id) || { attempts: 0, best: 0 };
     return `
-      <article class="reader-card ${locked ? "is-locked" : ""}">
+      <article class="reader-card">
         <div class="reader-card-level" aria-hidden="true">${reader.level}<span>HSK</span></div>
         <div class="reader-card-copy">
           <div class="reader-card-heading">
@@ -7802,7 +7779,7 @@ function renderReaderHome() {
               <h3 lang="zh-CN">${escapeHtml(reader.title)}</h3>
               <p>${escapeHtml(reader.pinyinTitle)}</p>
             </div>
-            ${locked ? '<span class="reader-premium-badge">Premium</span>' : completion.attempts ? '<span class="reader-complete-badge">Completed</span>' : ""}
+            ${completion.attempts ? '<span class="reader-complete-badge">Completed</span>' : ""}
           </div>
           <p class="reader-card-summary">${escapeHtml(reader.summary)}</p>
           <div class="reader-card-meta">
@@ -7812,8 +7789,8 @@ function renderReaderHome() {
           </div>
         </div>
         <button class="secondary-btn reader-card-action" type="button" data-reader-id="${escapeHtml(reader.id)}">
-          ${locked ? "Unlock story" : completion.attempts ? "Read again" : "Read story"}
-          <span aria-hidden="true">${locked ? "Locked" : "→"}</span>
+          ${completion.attempts ? "Read again" : "Read story"}
+          <span aria-hidden="true">→</span>
         </button>
       </article>
     `;
@@ -7825,15 +7802,15 @@ function renderReaderHome() {
         <div>
           <span class="reader-kicker">Read at your level</span>
           <h2>Graded Readers</h2>
-          <p>Short original stories with focused vocabulary, optional support, and a comprehension check.</p>
+          <p>Short original stories with focused vocabulary, optional pinyin and translation help, and a comprehension check.</p>
         </div>
-        <div class="reader-access-summary ${premium ? "is-premium" : ""}">
-          <span>${premium ? "Premium active" : "Free reading"}</span>
-          <strong>${premium ? "HSK 1–3 unlocked" : "HSK 1 included"}</strong>
+        <div class="reader-access-summary">
+          <span>Free reading</span>
+          <strong>HSK 1–3 included</strong>
         </div>
       </header>
       <div class="reader-level-tabs" role="group" aria-label="Reader level">${tabs}</div>
-      ${!levelLocked && nextReader ? `
+      ${nextReader ? `
         <div class="reader-level-progress">
           <div>
             <span>HSK ${state.readerLevel} reading path</span>
@@ -7845,12 +7822,6 @@ function renderReaderHome() {
           <button type="button" data-reader-id="${escapeHtml(nextReader.id)}">
             ${completedReaders === levelReaders.length ? "Revisit" : "Next"}: <span lang="zh-CN">${escapeHtml(nextReader.title)}</span> ${dashboardArrowIconMarkup()}
           </button>
-        </div>
-      ` : ""}
-      ${levelLocked ? `
-        <div class="reader-level-notice">
-          <div><strong>Continue with HSK ${state.readerLevel}</strong><span>Unlock every story at this level with Premium.</span></div>
-          <button class="primary-btn" type="button" id="readerLevelUpgrade">See Premium</button>
         </div>
       ` : ""}
       <div class="reader-grid">${cards}</div>
@@ -7866,9 +7837,6 @@ function renderReaderHome() {
   });
   document.querySelectorAll("[data-reader-id]").forEach((button) => {
     button.addEventListener("click", () => openReader(button.dataset.readerId));
-  });
-  document.querySelector("#readerLevelUpgrade")?.addEventListener("click", () => {
-    requirePremiumAccess(`Unlock every HSK ${state.readerLevel} graded reader with Premium.`);
   });
 }
 
@@ -7996,7 +7964,7 @@ function renderReaderQuiz() {
   const session = state.session;
   const reader = getReaderById(session?.readerId);
   const question = session?.items?.[session.index];
-  if (!reader || !question || !canAccessReader(reader, { prompt: false })) {
+  if (!reader || !question || !canAccessReader(reader)) {
     state.session = null;
     state.readerId = "";
     render();
@@ -8204,18 +8172,8 @@ function getHskExamDraftProgress(draft) {
   return { answered, total: items.length };
 }
 
-function isPremiumHskExamLevel(level) {
-  return Number(level) > 1;
-}
-
-function canAccessHskExamLevel(level, { prompt = true } = {}) {
-  if (!isPremiumHskExamLevel(level) || hasPremiumAccess()) {
-    return true;
-  }
-  if (prompt) {
-    requirePremiumAccess(`New HSK ${Number(level) || 2} mock exams are included with Premium.`);
-  }
-  return false;
+function canAccessHskExamLevel(level) {
+  return Boolean(getHskExam(level));
 }
 
 function renderHskExamHome() {
@@ -8232,12 +8190,11 @@ function renderHskExamHome() {
     const exam = getHskExam(level);
     const sections = getHskExamSectionCounts(exam);
     const attempt = getHskExamAttemptSummary(level, history);
-    const locked = !canAccessHskExamLevel(level, { prompt: false });
     return `
-      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${locked ? "is-locked" : ""} ${Number(state.studyTargetLevel) === level ? "is-target" : ""}">
+      <article class="hsk-exam-level-card ${level === 3 ? "is-extended" : ""} ${Number(state.studyTargetLevel) === level ? "is-target" : ""}">
         <div class="hsk-exam-level-mark" aria-hidden="true">${level}</div>
         <div class="hsk-exam-level-copy">
-          <span>HSK 3.0 trial format ${locked ? "· Premium" : level === 1 ? "· Free" : ""}</span>
+          <span>HSK 3.0 trial format · Free</span>
           <h3>New HSK ${level} ${Number(state.studyTargetLevel) === level ? '<small class="hsk-exam-target-badge">Your plan</small>' : ""}</h3>
           <p>${sections.map((item) => item.label).join(" · ")}</p>
         </div>
@@ -8252,7 +8209,7 @@ function renderHskExamHome() {
           <small>${attempt.attempts ? `${attempt.attempts} ${attempt.attempts === 1 ? "attempt" : "attempts"} saved` : "Your first result will be tracked here"}</small>
         </div>
         <button class="secondary-btn hsk-exam-level-action" type="button" data-hsk-exam-level="${level}">
-          ${locked ? "Unlock Premium" : "View exam details"}
+          View exam details
           <span aria-hidden="true">→</span>
         </button>
       </article>
@@ -8318,12 +8275,6 @@ function renderHskExamHome() {
 }
 
 function renderHskExamReadiness() {
-  if (!canAccessHskExamLevel(state.examLevel, { prompt: false })) {
-    state.examScreen = "home";
-    render();
-    requirePremiumAccess(`New HSK ${state.examLevel} mock exams are included with Premium.`);
-    return;
-  }
   const exam = getHskExam();
   if (!exam) {
     state.examScreen = "home";

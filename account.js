@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const PREMIUM_STATUSES = new Set(["active", "trialing", "past_due"]);
+  const SUPPORTER_STATUSES = new Set(["active", "trialing", "past_due"]);
   const config = window.CHINESE_TRAINER_CONFIG || {};
   const listeners = new Set();
   const state = {
@@ -28,9 +28,8 @@
     open,
     close,
     subscribe,
-    getState: () => ({ ...state, isPremium: isPremium() }),
-    isPremium,
-    requirePremium,
+    getState: () => ({ ...state, isSupporter: isSupporter() }),
+    isSupporter,
     refreshSubscription,
   };
   window.ChineseTrainerAccount = api;
@@ -178,14 +177,8 @@
     window.dispatchEvent(new CustomEvent("chinese-trainer-account-change", { detail: snapshot }));
   }
 
-  function isPremium() {
-    return PREMIUM_STATUSES.has(state.subscription?.status || "");
-  }
-
-  function requirePremium(reason = "Unlock this Premium feature.") {
-    if (isPremium()) return true;
-    open("premium", reason);
-    return false;
+  function isSupporter() {
+    return SUPPORTER_STATUSES.has(state.subscription?.status || "");
   }
 
   function open(view = "account", message = "") {
@@ -208,8 +201,8 @@
 
   function renderDialog() {
     if (!dialog) return;
-    if (state.view === "premium") {
-      renderPremiumView();
+    if (state.view === "support") {
+      renderSupportView();
       return;
     }
     if (state.view === "recovery") {
@@ -241,7 +234,7 @@
       <div class="account-dialog-shell">
         ${dialogHeader(
           isReset ? "Reset your password" : isSignup ? "Create your account" : "Welcome back",
-          isReset ? "We will email you a secure recovery link." : "Keep Premium access tied securely to your Mandarin Trainer account.",
+          isReset ? "We will email you a secure recovery link." : "Secure your Mandarin Trainer account and voluntary support.",
         )}
         ${isReset ? "" : `
           <div class="account-auth-tabs" role="tablist" aria-label="Account action">
@@ -274,66 +267,66 @@
   }
 
   function renderAccountView() {
-    const premium = isPremium();
+    const supporter = isSupporter();
     const periodEnd = state.subscription?.current_period_end
       ? new Date(state.subscription.current_period_end).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
       : "";
     dialog.innerHTML = `
       <div class="account-dialog-shell">
-        ${dialogHeader("Your account", "Manage access and billing without leaving your learning history behind.")}
+        ${dialogHeader("Your account", "Manage sign-in and voluntary support.")}
         ${messageMarkup()}
-        <section class="account-plan ${premium ? "is-premium" : ""}">
+        <section class="account-plan ${supporter ? "is-supporter" : ""}">
           <div class="account-plan-heading">
-            <span>${premium ? "Premium" : "Free plan"}</span>
+            <span>${supporter ? "Supporter" : "Free learning"}</span>
             <strong>${escapeMarkup(state.user.email || "Mandarin Trainer account")}</strong>
           </div>
-          <p>${premium
-            ? `All mock exams and every graded reader are unlocked${periodEnd ? ` through ${escapeMarkup(periodEnd)}` : ""}.`
-            : "Includes New HSK 1 practice and the complete HSK 1 reader shelf."}</p>
+          <p>${supporter
+            ? `Thank you for supporting cross-cultural education${periodEnd ? ` through ${escapeMarkup(periodEnd)}` : ""}. Every learning tool remains free for everyone.`
+            : "Every learning tool is free. Voluntary donations help fund lessons, infrastructure, and wider access."}</p>
         </section>
         <div class="account-action-stack">
-          ${premium
-            ? `<button class="secondary-btn" type="button" id="manageBilling" ${state.busy ? "disabled" : ""}>Manage billing</button>`
-            : `<button class="primary-btn" type="button" id="openPremium">Upgrade to Premium</button>`}
+          ${supporter
+            ? `<button class="secondary-btn" type="button" id="manageBilling" ${state.busy ? "disabled" : ""}>Manage monthly support</button>`
+            : `<button class="primary-btn" type="button" id="openSupport">Donate to support education</button>`}
           <button class="ghost-btn" type="button" id="signOutAccount" ${state.busy ? "disabled" : ""}>Sign out</button>
         </div>
         <p class="account-security-note">Payments are handled by Stripe. Mandarin Trainer never receives or stores your card details.</p>
       </div>
     `;
     bindDialogCommon();
-    dialog.querySelector("#openPremium")?.addEventListener("click", () => open("premium"));
+    dialog.querySelector("#openSupport")?.addEventListener("click", () => open("support"));
     dialog.querySelector("#manageBilling")?.addEventListener("click", openBillingPortal);
     dialog.querySelector("#signOutAccount")?.addEventListener("click", signOut);
   }
 
-  function renderPremiumView() {
+  function renderSupportView() {
     dialog.innerHTML = `
-      <div class="account-dialog-shell premium-dialog-shell">
-        ${dialogHeader("Mandarin Trainer Premium", "Move beyond the foundation with complete exam and reading practice.")}
+      <div class="account-dialog-shell support-dialog-shell">
+        ${dialogHeader("Support cross-cultural education", "Mandarin Trainer is free for every learner. Voluntary support helps keep it growing.")}
         ${messageMarkup()}
-        <div class="premium-price"><strong>${escapeMarkup(config.premiumPriceLabel || "$9 / month")}</strong><span>Cancel anytime in the secure billing portal</span></div>
-        <div class="premium-comparison" aria-label="Premium features">
-          <div><span>Mock exams</span><strong>New HSK 1, 2 and 3</strong></div>
-          <div><span>Graded readers</span><strong>Complete HSK 1–3 shelf</strong></div>
-          <div><span>Account access</span><strong>Premium follows your sign-in</strong></div>
+        <div class="support-price"><strong>${escapeMarkup(config.supportPriceLabel || "$9 / month")}</strong><span>Voluntary monthly support · cancel anytime</span></div>
+        <div class="support-impact" aria-label="How support helps">
+          <div><span>Learning access</span><strong>Every tool remains free</strong></div>
+          <div><span>Your donation</span><strong>Funds lessons and infrastructure</strong></div>
+          <div><span>Billing</span><strong>Monthly, cancel anytime</strong></div>
         </div>
-        <button class="primary-btn premium-checkout" type="button" id="premiumCheckout" ${state.busy ? "disabled" : ""}>
-          ${state.busy ? "Opening secure checkout…" : state.user ? "Upgrade with Stripe" : "Create an account to upgrade"}
+        <button class="primary-btn support-checkout" type="button" id="supportCheckout" ${state.busy ? "disabled" : ""}>
+          ${state.busy ? "Opening secure checkout…" : state.user ? "Donate $9 monthly with Stripe" : "Create an account to donate"}
         </button>
-        ${state.user ? `<button class="text-button premium-account-back" type="button" data-auth-view="account">Back to account</button>` : ""}
-        <p class="account-security-note">New HSK 1 and the HSK 1 reader shelf remain free. Checkout opens on Stripe’s secure website.</p>
+        ${state.user ? `<button class="text-button support-account-back" type="button" data-auth-view="account">Back to account</button>` : ""}
+        <p class="account-security-note">Donations are voluntary, do not unlock features, and are not represented as tax-deductible. Checkout opens on Stripe’s secure website.</p>
       </div>
     `;
     bindDialogCommon();
-    dialog.querySelector("#premiumCheckout")?.addEventListener("click", () => {
+    dialog.querySelector("#supportCheckout")?.addEventListener("click", () => {
       if (!state.user) {
         state.view = "signup";
-        state.message = "Create an account first, then Premium will stay linked to it.";
+        state.message = "Create an account first so you can manage or cancel monthly support later.";
         state.messageType = "info";
         renderDialog();
         return;
       }
-      startCheckout();
+      startSupportCheckout();
     });
   }
 
@@ -469,7 +462,7 @@
     return state.subscription;
   }
 
-  async function startCheckout() {
+  async function startSupportCheckout() {
     if (!client || !state.user || state.busy) return;
     state.busy = true;
     setMessage("", "");
@@ -507,7 +500,7 @@
     } catch {
       // Fall back to the client error below.
     }
-    return error?.message || "Premium billing is not available yet.";
+    return error?.message || "Monthly support is not available yet.";
   }
 
   async function handleBillingReturn() {
@@ -520,19 +513,19 @@
     const nextUrl = `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", nextUrl);
     if (billing === "canceled") {
-      open(state.user ? "premium" : "signin", "Checkout was canceled. Nothing was charged.");
+      open(state.user ? "support" : "signin", "Donation checkout was canceled. Nothing was charged.");
       return;
     }
     if (!state.user) {
-      open("signin", "Sign in to refresh the Premium access linked to your payment.");
+      open("signin", "Sign in to confirm the monthly support linked to your payment.");
       return;
     }
-    open("account", "Payment received. Premium access is being confirmed.");
-    for (let attempt = 0; attempt < 6 && !isPremium(); attempt += 1) {
+    open("account", "Thank you. Your monthly support is being confirmed.");
+    for (let attempt = 0; attempt < 6 && !isSupporter(); attempt += 1) {
       await refreshSubscription();
-      if (!isPremium()) await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      if (!isSupporter()) await new Promise((resolve) => window.setTimeout(resolve, 1500));
     }
-    setMessage(isPremium() ? "Premium is active on this account." : "Payment is processing. Refresh your account shortly.", isPremium() ? "success" : "info");
+    setMessage(isSupporter() ? "Monthly support is active. Thank you." : "Payment is processing. Refresh your account shortly.", isSupporter() ? "success" : "info");
     renderDialogIfOpen();
   }
 
@@ -540,9 +533,9 @@
     if (!accountButton) return;
     const label = accountButton.querySelector(".account-trigger-label");
     const badge = accountButton.querySelector(".account-trigger-badge");
-    if (label) label.textContent = state.loading ? "Account" : state.user ? (isPremium() ? "Premium" : "Account") : "Sign in";
-    if (badge) badge.hidden = !isPremium();
-    accountButton.classList.toggle("is-premium", isPremium());
+    if (label) label.textContent = state.loading ? "Account" : state.user ? (isSupporter() ? "Supporter" : "Account") : "Sign in";
+    if (badge) badge.hidden = !isSupporter();
+    accountButton.classList.toggle("is-supporter", isSupporter());
     accountButton.setAttribute("aria-label", state.user ? `Open account for ${state.user.email || "signed-in user"}` : "Sign in or create an account");
   }
 

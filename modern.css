@@ -3879,3 +3879,13 @@ body[data-screen="result"] .tool-controls {
     margin-top: 0;
   }
 }
+
+.support-project-tab .tool-tab-icon {
+  background: #fff0f3;
+  color: #b83f57;
+}
+
+.support-project-tab:hover {
+  background: #fff6f7;
+  color: #8f263b;
+}

@@ -460,8 +460,7 @@ body[data-tool="dashboard"] .workspace {
     padding: 0;
   }
 
-  .account-trigger-label,
-  .account-trigger-badge {
+  .account-trigger-label {
     display: none !important;
   }
 
@@ -678,8 +677,7 @@ body[data-tool="dashboard"] .workspace {
 
   .global-search-trigger-label,
   .global-search-trigger-shortcut,
-  .account-trigger-label,
-  .account-trigger-badge {
+  .account-trigger-label {
     display: none !important;
   }
 

@@ -4,6 +4,7 @@ const vm = require("node:vm");
 
 const ROOT = path.resolve(__dirname, "..");
 const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+const appConfigSource = fs.readFileSync(path.join(ROOT, "app-config.js"), "utf8");
 const wordData = fs.readFileSync(path.join(ROOT, "word-data.js"), "utf8");
 const vocabData = fs.readFileSync(path.join(ROOT, "vocab-data.js"), "utf8");
 const grammarData = fs.readFileSync(path.join(ROOT, "grammar-data.js"), "utf8");
@@ -574,8 +575,10 @@ assert(!indexSource.includes('src="./assets/vendor/supabase-2.110.5.js"') && ind
 assert(!appSource.includes("study-plan-mobile-action"), "first-run setup should render only one primary completion action");
 assert(appSource.includes("Listen to the Chinese word and choose its English meaning."), "Audio Quiz setup should describe its five-choice interaction");
 assert(indexSource.includes('id="accountTrigger"') && indexSource.includes('id="accountDialog"'), "the app shell should expose account access and its secure dialog");
-assert(indexSource.includes('id="supportProject"') && indexSource.includes("Donate"), "the global navigation should offer voluntary support");
-assert(accountSource.includes("Support cross-cultural education") && accountSource.includes("Every tool remains free"), "the support dialog should explain that donations do not gate learning access");
+assert(indexSource.includes('id="supportProject"') && indexSource.includes('href="https://buy.stripe.com/fZudRa5Ezgu769Y72pdby01"') && indexSource.includes("Donate"), "the global navigation should link directly to the Stripe donation page");
+assert(appConfigSource.includes('donationUrl: "https://buy.stripe.com/fZudRa5Ezgu769Y72pdby01"'), "account donations should use the configured Stripe payment link");
+assert(accountSource.includes("Donate with Stripe") && accountSource.includes("Every learning tool is free"), "the account view should offer the same voluntary donation without gating learning access");
+assert(!accountSource.includes("subscription") && !accountSource.includes("billing") && !accountSource.includes("create-checkout-session") && !accountSource.includes("renderSupportView") && !accountSource.includes("$9 / month"), "donations should not retain the retired monthly subscriber flow");
 assert(!indexSource.includes("Premium") && !accountSource.includes("Premium") && !appSource.includes("Premium"), "the learner-facing application should not advertise Premium access");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-1.webp")).size > 10000, "the first HSK picture sheet should be a real optimized image asset");
 assert(fs.statSync(path.join(ROOT, "assets/exam/hsk-scenes-2.webp")).size > 10000, "the second HSK picture sheet should be a real optimized image asset");

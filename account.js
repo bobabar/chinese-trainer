@@ -1,7 +1,6 @@
 (() => {
   "use strict";
 
-  const SUPPORTER_STATUSES = new Set(["active", "trialing", "past_due"]);
   const config = window.CHINESE_TRAINER_CONFIG || {};
   const listeners = new Set();
   const state = {
@@ -10,7 +9,6 @@
     loading: false,
     user: null,
     session: null,
-    subscription: null,
     view: "signin",
     message: "",
     messageType: "",
@@ -28,9 +26,7 @@
     open,
     close,
     subscribe,
-    getState: () => ({ ...state, isSupporter: isSupporter() }),
-    isSupporter,
-    refreshSubscription,
+    getState: () => ({ ...state }),
   };
   window.ChineseTrainerAccount = api;
 
@@ -55,7 +51,7 @@
       }
     })();
     const params = new URLSearchParams(window.location.search);
-    if (params.has("billing") || params.get("account") === "recovery") {
+    if (params.get("account") === "recovery") {
       return true;
     }
     if (!projectRef) {
@@ -110,12 +106,10 @@
     });
 
     client.auth.onAuthStateChange((event, session) => {
-      window.setTimeout(async () => {
+      window.setTimeout(() => {
         state.session = session || null;
         state.user = session?.user || null;
         if (event === "PASSWORD_RECOVERY") state.view = "recovery";
-        if (state.user) await refreshSubscription();
-        else state.subscription = null;
         state.loading = false;
         updateAccountButton();
         renderDialogIfOpen();
@@ -127,10 +121,9 @@
     if (error) setMessage(error.message, "error");
     state.session = data?.session || null;
     state.user = data?.session?.user || null;
-    if (state.user) await refreshSubscription();
     state.loading = false;
     updateAccountButton();
-    await handleBillingReturn();
+    handleAccountReturn();
     notify();
   }
 
@@ -177,10 +170,6 @@
     window.dispatchEvent(new CustomEvent("chinese-trainer-account-change", { detail: snapshot }));
   }
 
-  function isSupporter() {
-    return SUPPORTER_STATUSES.has(state.subscription?.status || "");
-  }
-
   function open(view = "account", message = "") {
     const initialization = init();
     state.view = view === "account" && !state.user ? "signin" : view;
@@ -201,10 +190,6 @@
 
   function renderDialog() {
     if (!dialog) return;
-    if (state.view === "support") {
-      renderSupportView();
-      return;
-    }
     if (state.view === "recovery") {
       renderRecoveryView();
       return;
@@ -234,7 +219,7 @@
       <div class="account-dialog-shell">
         ${dialogHeader(
           isReset ? "Reset your password" : isSignup ? "Create your account" : "Welcome back",
-          isReset ? "We will email you a secure recovery link." : "Secure your Mandarin Trainer account and voluntary support.",
+          isReset ? "We will email you a secure recovery link." : "Secure your Mandarin Trainer account.",
         )}
         ${isReset ? "" : `
           <div class="account-auth-tabs" role="tablist" aria-label="Account action">
@@ -267,67 +252,26 @@
   }
 
   function renderAccountView() {
-    const supporter = isSupporter();
-    const periodEnd = state.subscription?.current_period_end
-      ? new Date(state.subscription.current_period_end).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-      : "";
     dialog.innerHTML = `
       <div class="account-dialog-shell">
-        ${dialogHeader("Your account", "Manage sign-in and voluntary support.")}
+        ${dialogHeader("Your account", "Manage sign-in and account settings.")}
         ${messageMarkup()}
-        <section class="account-plan ${supporter ? "is-supporter" : ""}">
+        <section class="account-plan">
           <div class="account-plan-heading">
-            <span>${supporter ? "Supporter" : "Free learning"}</span>
+            <span>Free learning</span>
             <strong>${escapeMarkup(state.user.email || "Mandarin Trainer account")}</strong>
           </div>
-          <p>${supporter
-            ? `Thank you for supporting cross-cultural education${periodEnd ? ` through ${escapeMarkup(periodEnd)}` : ""}. Every learning tool remains free for everyone.`
-            : "Every learning tool is free. Voluntary donations help fund lessons, infrastructure, and wider access."}</p>
+          <p>Every learning tool is free. Voluntary donations help fund lessons, infrastructure, and wider access.</p>
         </section>
         <div class="account-action-stack">
-          ${supporter
-            ? `<button class="secondary-btn" type="button" id="manageBilling" ${state.busy ? "disabled" : ""}>Manage monthly support</button>`
-            : `<button class="primary-btn" type="button" id="openSupport">Donate to support education</button>`}
+          <a class="primary-btn account-donation-link" href="${escapeMarkup(config.donationUrl || "https://buy.stripe.com/fZudRa5Ezgu769Y72pdby01")}" target="_blank" rel="noopener noreferrer">Donate with Stripe</a>
           <button class="ghost-btn" type="button" id="signOutAccount" ${state.busy ? "disabled" : ""}>Sign out</button>
         </div>
         <p class="account-security-note">Payments are handled by Stripe. Mandarin Trainer never receives or stores your card details.</p>
       </div>
     `;
     bindDialogCommon();
-    dialog.querySelector("#openSupport")?.addEventListener("click", () => open("support"));
-    dialog.querySelector("#manageBilling")?.addEventListener("click", openBillingPortal);
     dialog.querySelector("#signOutAccount")?.addEventListener("click", signOut);
-  }
-
-  function renderSupportView() {
-    dialog.innerHTML = `
-      <div class="account-dialog-shell support-dialog-shell">
-        ${dialogHeader("Support cross-cultural education", "Mandarin Trainer is free for every learner. Voluntary support helps keep it growing.")}
-        ${messageMarkup()}
-        <div class="support-price"><strong>${escapeMarkup(config.supportPriceLabel || "$9 / month")}</strong><span>Voluntary monthly support · cancel anytime</span></div>
-        <div class="support-impact" aria-label="How support helps">
-          <div><span>Learning access</span><strong>Every tool remains free</strong></div>
-          <div><span>Your donation</span><strong>Funds lessons and infrastructure</strong></div>
-          <div><span>Billing</span><strong>Monthly, cancel anytime</strong></div>
-        </div>
-        <button class="primary-btn support-checkout" type="button" id="supportCheckout" ${state.busy ? "disabled" : ""}>
-          ${state.busy ? "Opening secure checkout…" : state.user ? "Donate $9 monthly with Stripe" : "Create an account to donate"}
-        </button>
-        ${state.user ? `<button class="text-button support-account-back" type="button" data-auth-view="account">Back to account</button>` : ""}
-        <p class="account-security-note">Donations are voluntary, do not unlock features, and are not represented as tax-deductible. Checkout opens on Stripe’s secure website.</p>
-      </div>
-    `;
-    bindDialogCommon();
-    dialog.querySelector("#supportCheckout")?.addEventListener("click", () => {
-      if (!state.user) {
-        state.view = "signup";
-        state.message = "Create an account first so you can manage or cancel monthly support later.";
-        state.messageType = "info";
-        renderDialog();
-        return;
-      }
-      startSupportCheckout();
-    });
   }
 
   function renderRecoveryView() {
@@ -441,101 +385,15 @@
     close();
   }
 
-  async function refreshSubscription() {
-    if (!client || !state.user) {
-      state.subscription = null;
-      return null;
-    }
-    const { data, error } = await client
-      .from("subscriptions")
-      .select("status,current_period_end,cancel_at_period_end,stripe_price_id,updated_at")
-      .eq("user_id", state.user.id)
-      .maybeSingle();
-    if (error) {
-      console.warn("Subscription refresh failed", error.message);
-      state.subscription = null;
-      return null;
-    }
-    state.subscription = data || null;
-    updateAccountButton();
-    notify();
-    return state.subscription;
-  }
-
-  async function startSupportCheckout() {
-    if (!client || !state.user || state.busy) return;
-    state.busy = true;
-    setMessage("", "");
-    renderDialog();
-    const { data, error } = await client.functions.invoke("create-checkout-session", { body: {} });
-    if (error || !data?.url) {
-      state.busy = false;
-      setMessage(await functionErrorMessage(error, data), "error");
-      renderDialog();
-      return;
-    }
-    window.location.assign(data.url);
-  }
-
-  async function openBillingPortal() {
-    if (!client || !state.user || state.busy) return;
-    state.busy = true;
-    setMessage("", "");
-    renderDialog();
-    const { data, error } = await client.functions.invoke("create-portal-session", { body: {} });
-    if (error || !data?.url) {
-      state.busy = false;
-      setMessage(await functionErrorMessage(error, data), "error");
-      renderDialog();
-      return;
-    }
-    window.location.assign(data.url);
-  }
-
-  async function functionErrorMessage(error, data) {
-    if (data?.error) return data.error;
-    try {
-      const payload = await error?.context?.json?.();
-      if (payload?.error) return payload.error;
-    } catch {
-      // Fall back to the client error below.
-    }
-    return error?.message || "Monthly support is not available yet.";
-  }
-
-  async function handleBillingReturn() {
+  function handleAccountReturn() {
     const params = new URLSearchParams(window.location.search);
-    const billing = params.get("billing");
-    const account = params.get("account");
-    if (account === "recovery") open("recovery");
-    if (!billing) return;
-    params.delete("billing");
-    const nextUrl = `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
-    window.history.replaceState({}, "", nextUrl);
-    if (billing === "canceled") {
-      open(state.user ? "support" : "signin", "Donation checkout was canceled. Nothing was charged.");
-      return;
-    }
-    if (!state.user) {
-      open("signin", "Sign in to confirm the monthly support linked to your payment.");
-      return;
-    }
-    open("account", "Thank you. Your monthly support is being confirmed.");
-    for (let attempt = 0; attempt < 6 && !isSupporter(); attempt += 1) {
-      await refreshSubscription();
-      if (!isSupporter()) await new Promise((resolve) => window.setTimeout(resolve, 1500));
-    }
-    setMessage(isSupporter() ? "Monthly support is active. Thank you." : "Payment is processing. Refresh your account shortly.", isSupporter() ? "success" : "info");
-    renderDialogIfOpen();
+    if (params.get("account") === "recovery") open("recovery");
   }
 
   function updateAccountButton() {
     if (!accountButton) return;
     const label = accountButton.querySelector(".account-trigger-label");
-    const badge = accountButton.querySelector(".account-trigger-badge");
-    if (label) label.textContent = state.loading ? "Account" : state.user ? (isSupporter() ? "Supporter" : "Account") : "Sign in";
-    if (badge) badge.hidden = !isSupporter();
-    accountButton.classList.toggle("is-supporter", isSupporter());
+    if (label) label.textContent = state.loading ? "Account" : state.user ? "Account" : "Sign in";
     accountButton.setAttribute("aria-label", state.user ? `Open account for ${state.user.email || "signed-in user"}` : "Sign in or create an account");
   }
 

@@ -1475,22 +1475,6 @@ button:disabled {
   flex: 1;
 }
 
-.account-trigger-badge {
-  border: 1px solid #d7b66f;
-  border-radius: 5px;
-  background: #fff9e8;
-  color: #76520d;
-  padding: 3px 5px;
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.account-trigger.is-supporter {
-  border-color: #d7b66f;
-}
-
 .brand-mark {
   width: 48px;
   height: 48px;
@@ -1543,6 +1527,7 @@ p {
   padding: 0 10px;
   line-height: 1.15;
   font-weight: 760;
+  text-decoration: none;
 }
 
 .tool-tab-icon {
@@ -13292,8 +13277,7 @@ body[data-tool="exam"] .tool-controls {
   border-color: var(--theme);
 }
 
-.account-submit,
-.support-checkout {
+.account-submit {
   width: 100%;
   min-height: 46px;
   margin-top: 4px;
@@ -13344,11 +13328,6 @@ body[data-tool="exam"] .tool-controls {
   padding: 16px;
 }
 
-.account-plan.is-supporter {
-  border-left-color: #b1872c;
-  background: #fffaf0;
-}
-
 .account-plan-heading {
   display: grid;
   gap: 4px;
@@ -13380,61 +13359,17 @@ body[data-tool="exam"] .tool-controls {
   margin-top: 18px;
 }
 
-.account-action-stack button {
+.account-action-stack button,
+.account-donation-link {
   width: 100%;
   min-height: 44px;
 }
 
-.support-price {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 22px 0;
-}
-
-.support-price strong {
-  font-size: 27px;
-}
-
-.support-price span {
-  max-width: 190px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: right;
-}
-
-.support-impact {
-  border-top: 1px solid var(--line);
-}
-
-.support-impact > div {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.support-impact span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 760;
-}
-
-.support-impact strong {
-  font-size: 13px;
-  text-align: right;
-}
-
-.support-checkout {
-  margin-top: 20px;
-}
-
-.support-account-back {
-  display: block;
-  margin: 10px auto 0;
+.account-donation-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 /* Graded readers */
@@ -14058,8 +13993,7 @@ body[data-tool="reader"] .workspace {
     padding: 0;
   }
 
-  .account-trigger-label,
-  .account-trigger-badge {
+  .account-trigger-label {
     display: none;
   }
 
@@ -14096,25 +14030,6 @@ body[data-tool="reader"] .workspace {
 
   .account-dialog-shell {
     padding: 18px;
-  }
-
-  .support-price {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .support-price span {
-    max-width: none;
-    text-align: left;
-  }
-
-  .support-impact > div {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-
-  .support-impact strong {
-    text-align: left;
   }
 
   .reader-home,

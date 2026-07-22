@@ -802,7 +802,6 @@ function bindTopLevelControls() {
   });
   document.querySelector("#supportProject")?.addEventListener("click", () => {
     closeMobileNavigation({ restoreFocus: false });
-    window.ChineseTrainerAccount?.open?.("support");
   });
 
   document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {

@@ -2,6 +2,7 @@
   "use strict";
 
   const config = window.CHINESE_TRAINER_CONFIG || {};
+  const sessionMarkerKey = `mandarin-trainer-appwrite-session:${config.appwriteProjectId || "default"}`;
   const listeners = new Set();
   const state = {
     ready: false,
@@ -15,6 +16,7 @@
     busy: false,
   };
   let client = null;
+  let account = null;
   let accountButton = null;
   let dialog = null;
   let shellBound = false;
@@ -43,22 +45,12 @@
   }
 
   function shouldRestoreAccountOnLoad() {
-    const projectRef = (() => {
-      try {
-        return new URL(config.supabaseUrl).hostname.split(".")[0] || "";
-      } catch {
-        return "";
-      }
-    })();
     const params = new URLSearchParams(window.location.search);
-    if (params.get("account") === "recovery") {
+    if (params.get("account") === "recovery" || (params.has("userId") && params.has("secret"))) {
       return true;
     }
-    if (!projectRef) {
-      return false;
-    }
     try {
-      return Boolean(localStorage.getItem(`sb-${projectRef}-auth-token`));
+      return localStorage.getItem(sessionMarkerKey) === "active";
     } catch {
       return false;
     }
@@ -76,7 +68,7 @@
 
   async function initializeAccount() {
     try {
-      await loadSupabaseLibrary();
+      await loadAppwriteLibrary();
     } catch {
       state.loading = false;
       state.available = false;
@@ -86,7 +78,7 @@
       renderDialogIfOpen();
       return;
     }
-    if (!window.supabase?.createClient || !config.supabaseUrl || !config.supabasePublishableKey) {
+    if (!window.Appwrite?.Client || !window.Appwrite?.Account || !window.Appwrite?.ID || !config.appwriteEndpoint || !config.appwriteProjectId) {
       state.loading = false;
       state.available = false;
       state.message = "Accounts are temporarily unavailable.";
@@ -96,52 +88,44 @@
     }
 
     state.available = true;
-    client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        flowType: "pkce",
-      },
-    });
+    client = new window.Appwrite.Client()
+      .setEndpoint(config.appwriteEndpoint)
+      .setProject(config.appwriteProjectId);
+    account = new window.Appwrite.Account(client);
 
-    client.auth.onAuthStateChange((event, session) => {
-      window.setTimeout(() => {
-        state.session = session || null;
-        state.user = session?.user || null;
-        if (event === "PASSWORD_RECOVERY") state.view = "recovery";
-        state.loading = false;
-        updateAccountButton();
-        renderDialogIfOpen();
-        notify();
-      }, 0);
-    });
-
-    const { data, error } = await client.auth.getSession();
-    if (error) setMessage(error.message, "error");
-    state.session = data?.session || null;
-    state.user = data?.session?.user || null;
+    try {
+      state.user = await account.get();
+      state.session = { provider: "appwrite" };
+      rememberSession();
+    } catch (error) {
+      state.user = null;
+      state.session = null;
+      forgetSession();
+      if (!isUnauthorizedError(error)) {
+        setMessage(accountErrorMessage(error), "error");
+      }
+    }
     state.loading = false;
     updateAccountButton();
     handleAccountReturn();
     notify();
   }
 
-  function loadSupabaseLibrary() {
-    if (window.supabase?.createClient) {
+  function loadAppwriteLibrary() {
+    if (window.Appwrite?.Client) {
       return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[data-supabase-client]');
+      const existing = document.querySelector('script[data-appwrite-client]');
       if (existing) {
         existing.addEventListener("load", resolve, { once: true });
         existing.addEventListener("error", reject, { once: true });
         return;
       }
       const script = document.createElement("script");
-      script.src = "./assets/vendor/supabase-2.110.5.js";
+      script.src = "./assets/vendor/appwrite-26.2.0.js";
       script.async = true;
-      script.dataset.supabaseClient = "true";
+      script.dataset.appwriteClient = "true";
       script.addEventListener("load", resolve, { once: true });
       script.addEventListener("error", reject, { once: true });
       document.head.append(script);
@@ -305,7 +289,7 @@
 
   async function submitAuthForm(event) {
     event.preventDefault();
-    if (!client || state.busy) return;
+    if (!account || state.busy) return;
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "").trim();
     const password = String(form.get("password") || "");
@@ -315,9 +299,9 @@
     renderDialog();
     try {
       if (state.view === "reset") {
-        const redirectTo = `${window.location.origin}${window.location.pathname}?account=recovery`;
-        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
-        if (error) throw error;
+        const redirectUrl = new URL(window.location.pathname, window.location.origin);
+        redirectUrl.searchParams.set("account", "recovery");
+        await account.createRecovery({ email, url: redirectUrl.toString() });
         state.busy = false;
         setMessage("Check your email for the secure recovery link.", "success");
         renderDialog();
@@ -325,24 +309,28 @@
       }
       if (state.view === "signup") {
         if (password !== confirmation) throw new Error("The passwords do not match.");
-        const emailRedirectTo = `${window.location.origin}${window.location.pathname}`;
-        const { data, error } = await client.auth.signUp({ email, password, options: { emailRedirectTo } });
-        if (error) throw error;
+        await account.create({ userId: window.Appwrite.ID.unique(), email, password });
+        state.session = await account.createEmailPasswordSession({ email, password });
+        state.user = await account.get();
+        rememberSession();
         state.busy = false;
-        if (!data.session) {
-          setMessage("Account created. Check your email to confirm your address, then sign in.", "success");
-          state.view = "signin";
-          renderDialog();
-        }
+        state.view = "account";
+        setMessage("Your account is ready.", "success");
+        updateAccountButton();
+        renderDialog();
+        notify();
         return;
       }
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      state.session = await account.createEmailPasswordSession({ email, password });
+      state.user = await account.get();
+      rememberSession();
       state.busy = false;
+      updateAccountButton();
+      notify();
       close();
     } catch (error) {
       state.busy = false;
-      setMessage(error?.message || "The account request could not be completed.", "error");
+      setMessage(accountErrorMessage(error), "error");
       renderDialog();
     }
   }
@@ -359,35 +347,101 @@
     }
     state.busy = true;
     renderDialog();
-    const { error } = await client.auth.updateUser({ password });
-    state.busy = false;
-    if (error) {
-      setMessage(error.message, "error");
+    const recovery = getRecoveryCredentials();
+    if (!recovery || !account) {
+      state.busy = false;
+      state.view = "reset";
+      setMessage("This recovery link is missing or invalid. Request a new one.", "error");
       renderDialog();
       return;
     }
-    state.view = "account";
-    setMessage("Your password has been updated.", "success");
-    renderDialog();
+    try {
+      await account.updateRecovery({ ...recovery, password });
+      state.busy = false;
+      state.view = "signin";
+      clearRecoveryParameters();
+      setMessage("Your password has been updated. Sign in with your new password.", "success");
+      renderDialog();
+    } catch (error) {
+      state.busy = false;
+      setMessage(accountErrorMessage(error), "error");
+      renderDialog();
+    }
   }
 
   async function signOut() {
-    if (!client || state.busy) return;
+    if (!account || state.busy) return;
     state.busy = true;
     renderDialog();
-    const { error } = await client.auth.signOut();
-    state.busy = false;
-    if (error) {
-      setMessage(error.message, "error");
+    try {
+      await account.deleteSession({ sessionId: "current" });
+    } catch (error) {
+      state.busy = false;
+      setMessage(accountErrorMessage(error), "error");
       renderDialog();
       return;
     }
+    state.busy = false;
+    state.user = null;
+    state.session = null;
+    forgetSession();
+    updateAccountButton();
+    notify();
     close();
   }
 
   function handleAccountReturn() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("account") === "recovery") open("recovery");
+    if (params.get("account") !== "recovery") return;
+    if (getRecoveryCredentials()) {
+      open("recovery");
+      return;
+    }
+    open("reset", "This recovery link is missing or invalid. Request a new one.");
+  }
+
+  function getRecoveryCredentials() {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("userId");
+    const secret = params.get("secret");
+    return userId && secret ? { userId, secret } : null;
+  }
+
+  function clearRecoveryParameters() {
+    const url = new URL(window.location.href);
+    ["account", "userId", "secret"].forEach((name) => url.searchParams.delete(name));
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function rememberSession() {
+    try {
+      localStorage.setItem(sessionMarkerKey, "active");
+    } catch {
+      // Appwrite still maintains the secure session when storage is unavailable.
+    }
+  }
+
+  function forgetSession() {
+    try {
+      localStorage.removeItem(sessionMarkerKey);
+    } catch {
+      // Nothing else is required when storage is unavailable.
+    }
+  }
+
+  function isUnauthorizedError(error) {
+    return error?.code === 401 || ["general_unauthorized", "user_unauthorized", "user_session_not_found"].includes(error?.type);
+  }
+
+  function accountErrorMessage(error) {
+    const messages = {
+      user_already_exists: "An account with this email already exists.",
+      user_invalid_credentials: "The email or password is incorrect.",
+      user_password_mismatch: "The current password is incorrect.",
+      user_recovery_token_invalid: "This recovery link is invalid or has expired. Request a new one.",
+      general_rate_limit_exceeded: "Too many attempts. Please wait a moment and try again.",
+    };
+    return messages[error?.type] || error?.message || "The account request could not be completed.";
   }
 
   function updateAccountButton() {

@@ -17,6 +17,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.110.5"
+    "appwrite": "26.2.0"
   }
 }

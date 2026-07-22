@@ -26,7 +26,7 @@ const APP_SHELL_URLS = [
   "./assets/icon-512.png",
   "./assets/icon-maskable-512.png",
   "./assets/apple-touch-icon.png",
-  "./assets/vendor/SUPABASE-LICENSE.txt",
+  "./assets/vendor/APPWRITE-LICENSE.txt",
   "./assets/exam/hsk-scenes-1.webp",
   "./assets/exam/hsk-scenes-2.webp",
 ];

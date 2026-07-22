@@ -556,22 +556,25 @@ assert(fs.statSync(path.join(ROOT, "assets/panda-mascot-192.webp")).size < 20000
   "assets/icon-512.png",
   "assets/icon-maskable-512.png",
   "assets/apple-touch-icon.png",
-  "assets/vendor/SUPABASE-LICENSE.txt",
+  "assets/vendor/APPWRITE-LICENSE.txt",
   "assets/exam/hsk-scenes-1.webp",
   "assets/exam/hsk-scenes-2.webp",
 ].forEach((asset) => {
   assert(serviceWorkerSource.includes(`"./${asset}"`), `${asset} should be available in the offline app shell`);
 });
 assert(serviceWorkerSource.includes("__BUILD_HASH__") && serviceWorkerSource.includes("APP_CACHE_PREFIX"), "offline caches should be rotated by a build-specific version");
-assert(!serviceWorkerSource.includes('"./china-map-data.js"') && !serviceWorkerSource.includes('"./assets/vendor/supabase-2.110.5.js"'), "optional Geography and account payloads should not block offline-shell installation");
-assert(appSource.includes('script.src = "./china-map-data.js"') && accountSource.includes('script.src = "./assets/vendor/supabase-2.110.5.js"'), "optional Geography and account payloads should load on demand");
+assert(!serviceWorkerSource.includes('"./china-map-data.js"') && !serviceWorkerSource.includes('"./assets/vendor/appwrite-26.2.0.js"'), "optional Geography and account payloads should not block offline-shell installation");
+assert(appSource.includes('script.src = "./china-map-data.js"') && accountSource.includes('script.src = "./assets/vendor/appwrite-26.2.0.js"'), "optional Geography and account payloads should load on demand");
 assert(serviceWorkerSource.includes('request.mode === "navigate"') && serviceWorkerSource.includes("handleNavigationRequest"), "offline navigation should use a network-first app-shell fallback");
 assert(serviceWorkerSource.includes('event.data?.type === "SKIP_WAITING"'), "app updates should activate only after an explicit update request");
 assert(buildSiteSource.includes('"manifest.webmanifest"') && buildSiteSource.includes('"service-worker.js"') && buildSiteSource.includes("stampServiceWorker()"), "production builds should publish and version the offline app files");
 assert(buildSiteSource.includes('"exam-data.js"'), "production builds should publish and cache-bust the HSK exam corpus");
 assert(buildSiteSource.includes('"component-data.js"'), "production builds should publish and cache-bust the component course");
 assert(buildSiteSource.includes('"reader-data.js"') && buildSiteSource.includes('"account.js"'), "production builds should publish account and graded-reader assets");
-assert(!indexSource.includes('src="./assets/vendor/supabase-2.110.5.js"') && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "account state should bind before the application while Supabase loads only on demand");
+assert(!indexSource.includes('src="./assets/vendor/appwrite-26.2.0.js"') && indexSource.indexOf("account.js") < indexSource.indexOf("app.js"), "account state should bind before the application while Appwrite loads only on demand");
+assert(appConfigSource.includes('appwriteEndpoint: "https://nyc.cloud.appwrite.io/v1"') && appConfigSource.includes('appwriteProjectId: "6a612a5a001133420661"'), "the browser account client should use the public Appwrite project configuration");
+assert(!appConfigSource.includes("APPWRITE_AGENT_KEY") && !accountSource.includes("APPWRITE_AGENT_KEY"), "the Appwrite server API key must never be included in browser assets");
+assert(accountSource.includes("createEmailPasswordSession") && accountSource.includes("createRecovery") && accountSource.includes("updateRecovery") && accountSource.includes('deleteSession({ sessionId: "current" })'), "Appwrite should handle registration, sessions, recovery, and sign-out");
 assert(!appSource.includes("study-plan-mobile-action"), "first-run setup should render only one primary completion action");
 assert(appSource.includes("Listen to the Chinese word and choose its English meaning."), "Audio Quiz setup should describe its five-choice interaction");
 assert(indexSource.includes('id="accountTrigger"') && indexSource.includes('id="accountDialog"'), "the app shell should expose account access and its secure dialog");

@@ -17,6 +17,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "appwrite": "26.2.0"
+    "appwrite": "28.1.0"
   }
 }
